@@ -18,7 +18,7 @@ public class User {
 
     private String fullName;
 
-    private String address;
+    private Address address;
 
     private UserRole role = UserRole.ROLE_CUSTOMER;
 
@@ -36,7 +36,7 @@ public class User {
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
     }
 
-    public User(String phoneNumber, String fullName, String address, UserRole role) {
+    public User(String phoneNumber, String fullName, Address address, UserRole role) {
         this();
         this.phoneNumber = phoneNumber;
         this.fullName = fullName;
@@ -68,11 +68,11 @@ public class User {
         this.fullName = fullName;
     }
 
-    public String getAddress() {
+    public Address getAddress() {
         return address;
     }
 
-    public void setAddress(String address) {
+    public void setAddress(Address address) {
         this.address = address;
     }
 

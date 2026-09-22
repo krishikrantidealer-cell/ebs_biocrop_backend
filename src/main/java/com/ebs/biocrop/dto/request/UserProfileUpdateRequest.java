@@ -9,14 +9,12 @@ public class UserProfileUpdateRequest {
     @Size(min = 2, max = 100, message = "Full Name must be between 2 and 100 characters")
     private String fullName;
 
-    @NotBlank(message = "Address cannot be blank")
-    @Size(min = 5, max = 255, message = "Address must be between 5 and 255 characters")
-    private String address;
+    private com.ebs.biocrop.entity.Address address;
 
     public UserProfileUpdateRequest() {
     }
 
-    public UserProfileUpdateRequest(String fullName, String address) {
+    public UserProfileUpdateRequest(String fullName, com.ebs.biocrop.entity.Address address) {
         this.fullName = fullName;
         this.address = address;
     }
@@ -29,11 +27,11 @@ public class UserProfileUpdateRequest {
         this.fullName = fullName != null ? fullName.trim() : null;
     }
 
-    public String getAddress() {
+    public com.ebs.biocrop.entity.Address getAddress() {
         return address;
     }
 
-    public void setAddress(String address) {
-        this.address = address != null ? address.trim() : null;
+    public void setAddress(com.ebs.biocrop.entity.Address address) {
+        this.address = address;
     }
 }

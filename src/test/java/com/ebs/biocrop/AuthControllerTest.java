@@ -45,6 +45,9 @@ class AuthControllerTest {
     @MockitoBean
     private AuthService authService;
 
+    @MockitoBean
+    private com.ebs.biocrop.service.UserService userService;
+
     @Test
     void healthCheckShouldReturnSuccess() throws Exception {
         mockMvc.perform(get("/api/v1/health"))
@@ -75,5 +78,39 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/v1/user/profile"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("Unauthorized"));
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210")
+    void updateProfileWithStructuredAddressShouldSucceed() throws Exception {
+        com.ebs.biocrop.entity.Address address = new com.ebs.biocrop.entity.Address("Flat 101", "MG Road", "Indore", "Madhya Pradesh", "452001");
+        com.ebs.biocrop.dto.response.UserProfileResponse response = new com.ebs.biocrop.dto.response.UserProfileResponse(
+                "id123", "9876543210", "Aashutosh Shrivastava", address, "ROLE_CUSTOMER",
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now()
+        );
+        when(userService.updateProfile(any(), any())).thenReturn(response);
+
+        Map<String, Object> req = Map.of(
+                "fullName", "Aashutosh Shrivastava",
+                "address", Map.of(
+                        "line1", "Flat 101",
+                        "street", "MG Road",
+                        "city", "Indore",
+                        "state", "Madhya Pradesh",
+                        "pin_code", "452001"
+                )
+        );
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/user/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.fullName").value("Aashutosh Shrivastava"))
+                .andExpect(jsonPath("$.data.address.line1").value("Flat 101"))
+                .andExpect(jsonPath("$.data.address.street").value("MG Road"))
+                .andExpect(jsonPath("$.data.address.city").value("Indore"))
+                .andExpect(jsonPath("$.data.address.state").value("Madhya Pradesh"))
+                .andExpect(jsonPath("$.data.address.pin_code").value("452001"));
     }
 }

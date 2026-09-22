@@ -7,7 +7,7 @@ public class UserProfileResponse {
     private String id;
     private String phoneNumber;
     private String fullName;
-    private String address;
+    private com.ebs.biocrop.entity.Address address;
     private String role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -15,7 +15,7 @@ public class UserProfileResponse {
     public UserProfileResponse() {
     }
 
-    public UserProfileResponse(String id, String phoneNumber, String fullName, String address, String role, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public UserProfileResponse(String id, String phoneNumber, String fullName, com.ebs.biocrop.entity.Address address, String role, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
         this.fullName = fullName;
@@ -49,11 +49,11 @@ public class UserProfileResponse {
         this.fullName = fullName;
     }
 
-    public String getAddress() {
+    public com.ebs.biocrop.entity.Address getAddress() {
         return address;
     }
 
-    public void setAddress(String address) {
+    public void setAddress(com.ebs.biocrop.entity.Address address) {
         this.address = address;
     }
 

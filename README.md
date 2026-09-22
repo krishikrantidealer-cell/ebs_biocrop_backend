@@ -173,22 +173,34 @@ On startup, `ProductDataSeeder` automatically ensures all 540 products from `res
 * **Body (raw JSON):**
 ```json
 {
-  "fullName": "Ramesh Patel",
-  "address": "Village Pipariya, Dist. Hoshangabad, MP 461775"
+  "fullName": "Aashutosh Shrivastava",
+  "address": {
+    "line1": "Flat 402, Royal Palms",
+    "street": "MG Road",
+    "city": "Indore",
+    "state": "Madhya Pradesh",
+    "pin_code": "452001"
+  }
 }
 ```
 * **Response (200 OK):**
 ```json
 {
   "success": true,
-  "message": "User profile updated successfully",
+  "message": "User profile completed and updated successfully",
   "data": {
     "id": "66f01a...",
     "phoneNumber": "9876543210",
-    "fullName": "Ramesh Patel",
-    "address": "Village Pipariya, Dist. Hoshangabad, MP 461775",
+    "fullName": "Aashutosh Shrivastava",
+    "address": {
+      "line1": "Flat 402, Royal Palms",
+      "street": "MG Road",
+      "city": "Indore",
+      "state": "Madhya Pradesh",
+      "pin_code": "452001"
+    },
     "role": "ROLE_CUSTOMER"
   },
-  "timestamp": "2026-09-22T11:15:00"
+  "timestamp": "2026-09-22T13:10:00"
 }
 ```

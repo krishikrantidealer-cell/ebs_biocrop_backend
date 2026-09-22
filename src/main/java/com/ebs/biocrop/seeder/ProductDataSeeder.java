@@ -58,12 +58,14 @@ public class ProductDataSeeder implements CommandLineRunner {
             products = parseProductsFromExcel(excelFile);
             log.info("Successfully parsed {} products from Excel.", products.size());
 
-            // Save all parsed products as JSON for quick access and persistence
-            try {
-                objectMapper.writeValue(jsonFile, products);
-                log.info("Successfully exported {} products to JSON: {}", products.size(), jsonFile.getAbsolutePath());
-            } catch (Exception e) {
-                log.warn("Could not save products.json file: {}", e.getMessage());
+            // Save all parsed products as JSON for quick access and persistence if not already present
+            if (!jsonFile.exists()) {
+                try {
+                    objectMapper.writeValue(jsonFile, products);
+                    log.info("Successfully exported {} products to JSON: {}", products.size(), jsonFile.getAbsolutePath());
+                } catch (Exception e) {
+                    log.warn("Could not save products.json file: {}", e.getMessage());
+                }
             }
         } else if (jsonFile.exists()) {
             log.info("Excel not found, fallback to existing JSON file: {}", jsonFile.getAbsolutePath());
