@@ -34,4 +34,11 @@ public class UserController {
         UserProfileResponse updatedProfile = userService.updateProfile(phoneNumber, request);
         return ResponseEntity.ok(ApiResponse.ok("User profile completed and updated successfully", updatedProfile));
     }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> deleteUserProfile(Authentication authentication) {
+        String phoneNumber = authentication.getName();
+        UserProfileResponse deletedProfile = userService.softDeleteUserProfile(phoneNumber);
+        return ResponseEntity.ok(ApiResponse.ok("User profile deleted successfully", deletedProfile));
+    }
 }

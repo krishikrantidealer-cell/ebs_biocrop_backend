@@ -93,8 +93,8 @@ class AuthControllerTest {
         Map<String, Object> req = Map.of(
                 "fullName", "Aashutosh Shrivastava",
                 "address", Map.of(
-                        "line1", "Flat 101",
-                        "street", "MG Road",
+                        "address_line_1", "Flat 101",
+                        "near_by_location", "MG Road",
                         "city", "Indore",
                         "state", "Madhya Pradesh",
                         "pin_code", "452001"
@@ -107,10 +107,49 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.fullName").value("Aashutosh Shrivastava"))
-                .andExpect(jsonPath("$.data.address.line1").value("Flat 101"))
-                .andExpect(jsonPath("$.data.address.street").value("MG Road"))
+                .andExpect(jsonPath("$.data.address.address_line_1").value("Flat 101"))
+                .andExpect(jsonPath("$.data.address.near_by_location").value("MG Road"))
                 .andExpect(jsonPath("$.data.address.city").value("Indore"))
                 .andExpect(jsonPath("$.data.address.state").value("Madhya Pradesh"))
                 .andExpect(jsonPath("$.data.address.pin_code").value("452001"));
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210")
+    void deleteProfileShouldSoftDeleteAndReturnIsDeleteTrue() throws Exception {
+        com.ebs.biocrop.entity.Address address = new com.ebs.biocrop.entity.Address("Flat 101", "MG Road", "Indore", "Madhya Pradesh", "452001");
+        com.ebs.biocrop.dto.response.UserProfileResponse response = new com.ebs.biocrop.dto.response.UserProfileResponse(
+                "id123", "9876543210", "Aashutosh Shrivastava", address, "ROLE_CUSTOMER", true,
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now()
+        );
+        when(userService.softDeleteUserProfile("9876543210")).thenReturn(response);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/user/profile"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("User profile deleted successfully"))
+                .andExpect(jsonPath("$.data.is_delete").value(true));
+    }
+
+    @Test
+    void verifyOtpShouldReturnTokenAndRole() throws Exception {
+        com.ebs.biocrop.dto.response.AuthResponse authResponse = new com.ebs.biocrop.dto.response.AuthResponse(
+                "mock-access-token", "mock-refresh-token", 86400000L, "id123", "9876543210", "ROLE_SELLER"
+        );
+        when(authService.verifyOtpAndLogin(any())).thenReturn(authResponse);
+
+        Map<String, String> req = Map.of(
+                "phoneNumber", "9876543210",
+                "otp", "123456",
+                "role", "ROLE_SELLER"
+        );
+
+        mockMvc.perform(post("/api/v1/auth/otp/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("mock-access-token"))
+                .andExpect(jsonPath("$.data.role").value("ROLE_SELLER"));
     }
 }

@@ -9,6 +9,8 @@ public class UserProfileResponse {
     private String fullName;
     private com.ebs.biocrop.entity.Address address;
     private String role;
+    @com.fasterxml.jackson.annotation.JsonProperty("is_delete")
+    private Boolean isDelete;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -16,11 +18,16 @@ public class UserProfileResponse {
     }
 
     public UserProfileResponse(String id, String phoneNumber, String fullName, com.ebs.biocrop.entity.Address address, String role, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, phoneNumber, fullName, address, role, false, createdAt, updatedAt);
+    }
+
+    public UserProfileResponse(String id, String phoneNumber, String fullName, com.ebs.biocrop.entity.Address address, String role, Boolean isDelete, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
         this.fullName = fullName;
         this.address = address;
         this.role = role;
+        this.isDelete = isDelete != null ? isDelete : false;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -79,5 +86,13 @@ public class UserProfileResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getIsDelete() {
+        return isDelete != null ? isDelete : false;
+    }
+
+    public void setIsDelete(Boolean isDelete) {
+        this.isDelete = isDelete != null ? isDelete : false;
     }
 }

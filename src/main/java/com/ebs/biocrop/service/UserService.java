@@ -8,4 +8,6 @@ public interface UserService {
     UserProfileResponse getProfileByPhoneNumber(String phoneNumber);
 
     UserProfileResponse updateProfile(String phoneNumber, UserProfileUpdateRequest request);
+
+    UserProfileResponse softDeleteUserProfile(String phoneNumber);
 }

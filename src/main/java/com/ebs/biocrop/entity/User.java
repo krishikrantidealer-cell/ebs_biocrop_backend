@@ -22,10 +22,15 @@ public class User {
 
     private UserRole role = UserRole.ROLE_CUSTOMER;
 
+    @org.springframework.data.mongodb.core.mapping.Field("is_delete")
+    @com.fasterxml.jackson.annotation.JsonProperty("is_delete")
+    private Boolean isDelete = false;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public User() {
+        this.isDelete = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -98,5 +103,13 @@ public class User {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getIsDelete() {
+        return isDelete != null ? isDelete : false;
+    }
+
+    public void setIsDelete(Boolean isDelete) {
+        this.isDelete = isDelete != null ? isDelete : false;
     }
 }

@@ -4,12 +4,14 @@ import com.ebs.biocrop.dto.request.OtpVerifyRequest;
 import com.ebs.biocrop.dto.response.AuthResponse;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
+import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.jwt.JwtTokenProvider;
 import com.ebs.biocrop.service.AuthService;
 import com.ebs.biocrop.service.OtpService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,10 +39,25 @@ public class AuthServiceImpl implements AuthService {
         // 1. Verify the provided OTP (checked against in-memory store)
         otpService.verifyOtp(phoneNumber, request.getOtp());
 
-        // 2. Lookup or provision user in MongoDB (default role: ROLE_CUSTOMER, passwordless)
-        User user = userRepository.findByPhoneNumber(phoneNumber).orElseGet(() -> {
-            log.info("First-time login: Auto-registering new user in 'users' for phone: {} with role: {}", phoneNumber, UserRole.ROLE_CUSTOMER);
-            User newUser = new User(phoneNumber, UserRole.ROLE_CUSTOMER);
+        // 2. Lookup or provision user in MongoDB (supports testing all 3 roles: ROLE_CUSTOMER, ROLE_SELLER, ROLE_ADMIN)
+        UserRole requestedRole = request.getRole() != null ? UserRole.fromString(request.getRole()) : null;
+        UserRole defaultRole = requestedRole != null ? requestedRole : UserRole.ROLE_CUSTOMER;
+
+        User user = userRepository.findByPhoneNumber(phoneNumber).map(existingUser -> {
+            if (Boolean.TRUE.equals(existingUser.getIsDelete())) {
+                log.warn("Login rejected: Account for phone [{}] is soft-deleted.", phoneNumber);
+                throw new AppException("This account has been deactivated or deleted. Please contact support.", HttpStatus.FORBIDDEN);
+            }
+            if (requestedRole != null && existingUser.getRole() != requestedRole) {
+                log.info("Updating existing user [{}] role from [{}] to [{}]", phoneNumber, existingUser.getRole(), requestedRole);
+                existingUser.setRole(requestedRole);
+                existingUser.setUpdatedAt(java.time.LocalDateTime.now());
+                return userRepository.save(existingUser);
+            }
+            return existingUser;
+        }).orElseGet(() -> {
+            log.info("First-time login: Auto-registering new user in 'users' for phone: {} with role: {}", phoneNumber, defaultRole);
+            User newUser = new User(phoneNumber, defaultRole);
             return userRepository.save(newUser);
         });
 

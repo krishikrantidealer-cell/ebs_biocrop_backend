@@ -29,11 +29,22 @@ public class MongoConfig {
         mappingMongoConverter.setTypeMapper(new DefaultMongoTypeMapper(null));
         log.info("MongoDB MappingMongoConverter configured: '_class' field mapping disabled.");
 
-        // 2. Clean up '_class' field from any existing documents in database
+        // 2. Ensure 'carts' collection exists in database
+        try {
+            if (!mongoTemplate.collectionExists("carts")) {
+                mongoTemplate.createCollection("carts");
+                log.info("Created 'carts' collection in MongoDB Atlas.");
+            }
+        } catch (Exception e) {
+            log.warn("Could not auto-create 'carts' collection: {}", e.getMessage());
+        }
+
+        // 3. Clean up '_class' field from any existing documents in database
         try {
             mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "users");
             mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "products");
-            log.info("Successfully removed '_class' attribute from existing documents in 'users' and 'products' collections.");
+            mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "carts");
+            log.info("Successfully removed '_class' attribute from existing documents in 'users', 'products', and 'carts' collections.");
         } catch (Exception e) {
             log.warn("Could not clean existing '_class' attributes from database: {}", e.getMessage());
         }

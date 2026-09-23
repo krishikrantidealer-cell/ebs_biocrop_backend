@@ -24,6 +24,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
 
+        if (Boolean.TRUE.equals(user.getIsDelete())) {
+            throw new ResourceNotFoundException("User profile not found or has been deleted");
+        }
+
         return mapToResponse(user);
     }
 
@@ -32,8 +36,28 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
 
+        if (Boolean.TRUE.equals(user.getIsDelete())) {
+            throw new ResourceNotFoundException("User profile not found or has been deleted");
+        }
+
         user.setFullName(request.getFullName());
         user.setAddress(request.getAddress());
+        user.setUpdatedAt(LocalDateTime.now());
+
+        User savedUser = userRepository.save(user);
+        return mapToResponse(savedUser);
+    }
+
+    @Override
+    public UserProfileResponse softDeleteUserProfile(String phoneNumber) {
+        User user = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
+
+        if (Boolean.TRUE.equals(user.getIsDelete())) {
+            throw new ResourceNotFoundException("User profile has already been deleted");
+        }
+
+        user.setIsDelete(true);
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
@@ -47,6 +71,7 @@ public class UserServiceImpl implements UserService {
                 user.getFullName(),
                 user.getAddress(),
                 user.getRole() != null ? user.getRole().name() : "ROLE_CUSTOMER",
+                user.getIsDelete(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );

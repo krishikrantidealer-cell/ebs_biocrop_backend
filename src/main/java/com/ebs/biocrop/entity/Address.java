@@ -2,14 +2,19 @@ package com.ebs.biocrop.entity;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSetter;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Address {
 
-    private String line1;
-    private String street;
+    @Field("address_line_1")
+    @JsonProperty("address_line_1")
+    private String addressLine1;
+
+    @Field("near_by_location")
+    @JsonProperty("near_by_location")
+    private String nearbyLocation;
+
     private String city;
     private String state;
 
@@ -20,28 +25,28 @@ public class Address {
     public Address() {
     }
 
-    public Address(String line1, String street, String city, String state, String pinCode) {
-        this.line1 = line1;
-        this.street = street;
+    public Address(String addressLine1, String nearbyLocation, String city, String state, String pinCode) {
+        this.addressLine1 = addressLine1;
+        this.nearbyLocation = nearbyLocation;
         this.city = city;
         this.state = state;
         this.pinCode = pinCode;
     }
 
-    public String getLine1() {
-        return line1;
+    public String getAddressLine1() {
+        return addressLine1;
     }
 
-    public void setLine1(String line1) {
-        this.line1 = line1 != null ? line1.trim() : null;
+    public void setAddressLine1(String addressLine1) {
+        this.addressLine1 = addressLine1 != null ? addressLine1.trim() : null;
     }
 
-    public String getStreet() {
-        return street;
+    public String getNearbyLocation() {
+        return nearbyLocation;
     }
 
-    public void setStreet(String street) {
-        this.street = street != null ? street.trim() : null;
+    public void setNearbyLocation(String nearbyLocation) {
+        this.nearbyLocation = nearbyLocation != null ? nearbyLocation.trim() : null;
     }
 
     public String getCity() {
@@ -60,20 +65,11 @@ public class Address {
         this.state = state != null ? state.trim() : null;
     }
 
-    @JsonProperty("pin_code")
     public String getPinCode() {
         return pinCode;
     }
 
-    @JsonProperty("pin_code")
     public void setPinCode(String pinCode) {
         this.pinCode = pinCode != null ? pinCode.trim() : null;
-    }
-
-    @JsonSetter("pinCode")
-    public void setPinCodeCamelCase(String pinCode) {
-        if (this.pinCode == null) {
-            this.pinCode = pinCode != null ? pinCode.trim() : null;
-        }
     }
 }
