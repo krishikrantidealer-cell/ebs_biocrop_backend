@@ -10,36 +10,37 @@ import java.util.stream.Collectors;
 public class CartResponse {
 
     private String id;
-    private String userId;
-    private String phoneNumber;
+    private String user;
     private List<CartItemResponse> items = new ArrayList<>();
-    private Integer itemCount;
-    private Integer totalQuantity;
-    private Double totalOriginalPrice;
-    private Double totalDiscount;
-    private Double totalSalePrice;
-    private Double totalCourierCharge;
+    
+    private Double totalAmount;
+    private Double discountAmount;
     private Double finalAmount;
+
+    private List<String> freeItems = new ArrayList<>();
+    private String appliedCoupon;
+    private LocalDateTime lastReminderSentAt;
+
+    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public CartResponse() {
     }
 
-    public CartResponse(String id, String userId, String phoneNumber, List<CartItemResponse> items,
-                        Integer itemCount, Integer totalQuantity, Double totalOriginalPrice,
-                        Double totalDiscount, Double totalSalePrice, Double totalCourierCharge,
-                        Double finalAmount, LocalDateTime updatedAt) {
+    public CartResponse(String id, String user, List<CartItemResponse> items,
+                        Double totalAmount, Double discountAmount, Double finalAmount,
+                        List<String> freeItems, String appliedCoupon, LocalDateTime lastReminderSentAt,
+                        LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
-        this.userId = userId;
-        this.phoneNumber = phoneNumber;
+        this.user = user;
         this.items = items != null ? items : new ArrayList<>();
-        this.itemCount = itemCount;
-        this.totalQuantity = totalQuantity;
-        this.totalOriginalPrice = totalOriginalPrice;
-        this.totalDiscount = totalDiscount;
-        this.totalSalePrice = totalSalePrice;
-        this.totalCourierCharge = totalCourierCharge;
+        this.totalAmount = totalAmount;
+        this.discountAmount = discountAmount;
         this.finalAmount = finalAmount;
+        this.freeItems = freeItems != null ? freeItems : new ArrayList<>();
+        this.appliedCoupon = appliedCoupon;
+        this.lastReminderSentAt = lastReminderSentAt;
+        this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
@@ -53,16 +54,15 @@ public class CartResponse {
 
         return new CartResponse(
                 cart.getId(),
-                cart.getUserId(),
-                cart.getPhoneNumber(),
+                cart.getUser(),
                 itemResponses,
-                itemResponses.size(),
-                cart.getTotalQuantity() != null ? cart.getTotalQuantity() : 0,
-                cart.getTotalOriginalPrice() != null ? cart.getTotalOriginalPrice() : 0.0,
-                cart.getTotalDiscount() != null ? cart.getTotalDiscount() : 0.0,
-                cart.getTotalSalePrice() != null ? cart.getTotalSalePrice() : 0.0,
-                cart.getTotalCourierCharge() != null ? cart.getTotalCourierCharge() : 0.0,
+                cart.getTotalAmount() != null ? cart.getTotalAmount() : 0.0,
+                cart.getDiscountAmount() != null ? cart.getDiscountAmount() : 0.0,
                 cart.getFinalAmount() != null ? cart.getFinalAmount() : 0.0,
+                cart.getFreeItems(),
+                cart.getAppliedCoupon(),
+                cart.getLastReminderSentAt(),
+                cart.getCreatedAt(),
                 cart.getUpdatedAt()
         );
     }
@@ -75,20 +75,12 @@ public class CartResponse {
         this.id = id;
     }
 
-    public String getUserId() {
-        return userId;
+    public String getUser() {
+        return user;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setUser(String user) {
+        this.user = user;
     }
 
     public List<CartItemResponse> getItems() {
@@ -99,52 +91,20 @@ public class CartResponse {
         this.items = items;
     }
 
-    public Integer getItemCount() {
-        return itemCount;
+    public Double getTotalAmount() {
+        return totalAmount;
     }
 
-    public void setItemCount(Integer itemCount) {
-        this.itemCount = itemCount;
+    public void setTotalAmount(Double totalAmount) {
+        this.totalAmount = totalAmount;
     }
 
-    public Integer getTotalQuantity() {
-        return totalQuantity;
+    public Double getDiscountAmount() {
+        return discountAmount;
     }
 
-    public void setTotalQuantity(Integer totalQuantity) {
-        this.totalQuantity = totalQuantity;
-    }
-
-    public Double getTotalOriginalPrice() {
-        return totalOriginalPrice;
-    }
-
-    public void setTotalOriginalPrice(Double totalOriginalPrice) {
-        this.totalOriginalPrice = totalOriginalPrice;
-    }
-
-    public Double getTotalDiscount() {
-        return totalDiscount;
-    }
-
-    public void setTotalDiscount(Double totalDiscount) {
-        this.totalDiscount = totalDiscount;
-    }
-
-    public Double getTotalSalePrice() {
-        return totalSalePrice;
-    }
-
-    public void setTotalSalePrice(Double totalSalePrice) {
-        this.totalSalePrice = totalSalePrice;
-    }
-
-    public Double getTotalCourierCharge() {
-        return totalCourierCharge;
-    }
-
-    public void setTotalCourierCharge(Double totalCourierCharge) {
-        this.totalCourierCharge = totalCourierCharge;
+    public void setDiscountAmount(Double discountAmount) {
+        this.discountAmount = discountAmount;
     }
 
     public Double getFinalAmount() {
@@ -153,6 +113,38 @@ public class CartResponse {
 
     public void setFinalAmount(Double finalAmount) {
         this.finalAmount = finalAmount;
+    }
+
+    public List<String> getFreeItems() {
+        return freeItems;
+    }
+
+    public void setFreeItems(List<String> freeItems) {
+        this.freeItems = freeItems;
+    }
+
+    public String getAppliedCoupon() {
+        return appliedCoupon;
+    }
+
+    public void setAppliedCoupon(String appliedCoupon) {
+        this.appliedCoupon = appliedCoupon;
+    }
+
+    public LocalDateTime getLastReminderSentAt() {
+        return lastReminderSentAt;
+    }
+
+    public void setLastReminderSentAt(LocalDateTime lastReminderSentAt) {
+        this.lastReminderSentAt = lastReminderSentAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public LocalDateTime getUpdatedAt() {

@@ -6,28 +6,41 @@ public class UserProfileResponse {
 
     private String id;
     private String phoneNumber;
-    private String fullName;
+    private String firstName;
+    private String lastName;
     private com.ebs.biocrop.entity.Address address;
     private String role;
-    @com.fasterxml.jackson.annotation.JsonProperty("is_delete")
-    private Boolean isDelete;
+    private Boolean isDeleted;
+    private Boolean isProfileComplete;
+    private Boolean isVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public UserProfileResponse() {
     }
 
-    public UserProfileResponse(String id, String phoneNumber, String fullName, com.ebs.biocrop.entity.Address address, String role, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this(id, phoneNumber, fullName, address, role, false, createdAt, updatedAt);
+    public UserProfileResponse(String id, String phoneNumber, String firstName, String lastName, com.ebs.biocrop.entity.Address address, String role, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, phoneNumber, firstName, lastName, address, role, false, createdAt, updatedAt);
     }
 
-    public UserProfileResponse(String id, String phoneNumber, String fullName, com.ebs.biocrop.entity.Address address, String role, Boolean isDelete, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public UserProfileResponse(String id, String phoneNumber, String firstName, String lastName, com.ebs.biocrop.entity.Address address, String role, Boolean isDeleted, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, phoneNumber, firstName, lastName, address, role, isDeleted,
+                false, false, createdAt, updatedAt);
+    }
+
+    public UserProfileResponse(String id, String phoneNumber, String firstName, String lastName,
+                               com.ebs.biocrop.entity.Address address, String role, Boolean isDeleted,
+                               Boolean isProfileComplete, Boolean isVerified,
+                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
-        this.fullName = fullName;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.address = address;
         this.role = role;
-        this.isDelete = isDelete != null ? isDelete : false;
+        this.isDeleted = isDeleted != null ? isDeleted : false;
+        this.isProfileComplete = isProfileComplete != null ? isProfileComplete : false;
+        this.isVerified = isVerified != null ? isVerified : false;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -48,12 +61,20 @@ public class UserProfileResponse {
         this.phoneNumber = phoneNumber;
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 
     public com.ebs.biocrop.entity.Address getAddress() {
@@ -88,11 +109,17 @@ public class UserProfileResponse {
         this.updatedAt = updatedAt;
     }
 
-    public Boolean getIsDelete() {
-        return isDelete != null ? isDelete : false;
+    public Boolean getIsDeleted() {
+        return isDeleted != null ? isDeleted : false;
     }
 
-    public void setIsDelete(Boolean isDelete) {
-        this.isDelete = isDelete != null ? isDelete : false;
+    public void setIsDeleted(Boolean isDeleted) {
+        this.isDeleted = isDeleted != null ? isDeleted : false;
     }
+
+    public Boolean getIsProfileComplete() { return isProfileComplete != null && isProfileComplete; }
+    public void setIsProfileComplete(Boolean isProfileComplete) { this.isProfileComplete = isProfileComplete != null && isProfileComplete; }
+
+    public Boolean getIsVerified() { return isVerified != null && isVerified; }
+    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified != null && isVerified; }
 }

@@ -24,7 +24,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
 
-        if (Boolean.TRUE.equals(user.getIsDelete())) {
+        if (Boolean.TRUE.equals(user.getIsDeleted())) {
             throw new ResourceNotFoundException("User profile not found or has been deleted");
         }
 
@@ -36,12 +36,17 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
 
-        if (Boolean.TRUE.equals(user.getIsDelete())) {
+        if (Boolean.TRUE.equals(user.getIsDeleted())) {
             throw new ResourceNotFoundException("User profile not found or has been deleted");
         }
 
-        user.setFullName(request.getFullName());
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
         user.setAddress(request.getAddress());
+        boolean profileComplete = user.hasCompleteProfile();
+        user.setIsProfileComplete(profileComplete);
+        // Profile updates require an authenticated token, which is issued after OTP verification.
+        user.setIsVerified(profileComplete);
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
@@ -53,11 +58,11 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phoneNumber", phoneNumber));
 
-        if (Boolean.TRUE.equals(user.getIsDelete())) {
+        if (Boolean.TRUE.equals(user.getIsDeleted())) {
             throw new ResourceNotFoundException("User profile has already been deleted");
         }
 
-        user.setIsDelete(true);
+        user.setIsDeleted(true);
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
@@ -68,12 +73,16 @@ public class UserServiceImpl implements UserService {
         return new UserProfileResponse(
                 user.getId(),
                 user.getPhoneNumber(),
-                user.getFullName(),
+                user.getFirstName(),
+                user.getLastName(),
                 user.getAddress(),
                 user.getRole() != null ? user.getRole().name() : "ROLE_CUSTOMER",
-                user.getIsDelete(),
+                user.getIsDeleted(),
+                user.getIsProfileComplete(),
+                user.getIsVerified(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
     }
+
 }

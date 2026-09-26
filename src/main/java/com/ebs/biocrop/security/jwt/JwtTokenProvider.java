@@ -35,9 +35,7 @@ public class JwtTokenProvider {
         }
 
         if (keyBytes.length < 32) {
-            byte[] paddedKey = new byte[32];
-            System.arraycopy(keyBytes, 0, paddedKey, 0, Math.min(keyBytes.length, 32));
-            keyBytes = paddedKey;
+            throw new IllegalArgumentException("app.jwt.secret must contain at least 32 bytes of key material");
         }
 
         this.key = Keys.hmacShaKeyFor(keyBytes);
@@ -100,6 +98,27 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return (String) claims.get("role");
+    }
+
+    public boolean isAccessToken(String token) {
+        return hasTokenType(token, "ACCESS");
+    }
+
+    public boolean isRefreshToken(String token) {
+        return hasTokenType(token, "REFRESH");
+    }
+
+    private boolean hasTokenType(String token, String expectedType) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return expectedType.equals(claims.get("tokenType", String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public boolean validateToken(String token) {

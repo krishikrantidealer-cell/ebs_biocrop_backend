@@ -1,6 +1,7 @@
 package com.ebs.biocrop.config;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,8 @@ public class MongoConfig {
 
     private final MappingMongoConverter mappingMongoConverter;
     private final MongoTemplate mongoTemplate;
+    @Value("${app.database.legacy-migration.enabled:false}")
+    private boolean legacyMigrationEnabled;
 
     public MongoConfig(MappingMongoConverter mappingMongoConverter, MongoTemplate mongoTemplate) {
         this.mappingMongoConverter = mappingMongoConverter;
@@ -24,30 +27,31 @@ public class MongoConfig {
     }
 
     @PostConstruct
-    public void disableAndRemoveClassField() {
-        // 1. Disable writing '_class' attribute on all future MongoDB documents
+    public void configureMongoMapping() {
+        // Disable writing '_class' on future MongoDB documents.
         mappingMongoConverter.setTypeMapper(new DefaultMongoTypeMapper(null));
         log.info("MongoDB MappingMongoConverter configured: '_class' field mapping disabled.");
 
-        // 2. Ensure 'carts' collection exists in database
-        try {
-            if (!mongoTemplate.collectionExists("carts")) {
-                mongoTemplate.createCollection("carts");
-                log.info("Created 'carts' collection in MongoDB Atlas.");
-            }
-        } catch (Exception e) {
-            log.warn("Could not auto-create 'carts' collection: {}", e.getMessage());
+        // Legacy schema changes are opt-in so a normal application startup is read-only.
+        if (!legacyMigrationEnabled) {
+            log.info("Legacy MongoDB migration is disabled.");
+            return;
         }
 
-        // 3. Clean up '_class' field from any existing documents in database
         try {
-            mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "users");
-            mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "products");
-            mongoTemplate.updateMulti(new Query(), new Update().unset("_class"), "carts");
-            log.info("Successfully removed '_class' attribute from existing documents in 'users', 'products', and 'carts' collections.");
+            Update userSchemaUpdate = new Update()
+                    .rename("fullName", "firstName")
+                    .rename("address.address_line_1", "address.villageArea")
+                    .rename("address.near_by_location", "address.address2")
+                    .rename("address.city", "address.cityTehsil")
+                    .rename("address.pin_code", "address.pincode")
+                    .rename("is_delete", "isDeleted");
+            
+            mongoTemplate.updateMulti(new Query(), userSchemaUpdate, "users");
+            log.info("Successfully migrated 'users' schema (renamed legacy fields).");
+
         } catch (Exception e) {
-            log.warn("Could not clean existing '_class' attributes from database: {}", e.getMessage());
+            throw new IllegalStateException("Legacy MongoDB migration failed; startup is stopped to avoid using a partially migrated schema.", e);
         }
     }
 }
-// test

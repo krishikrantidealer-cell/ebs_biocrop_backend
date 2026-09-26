@@ -4,16 +4,21 @@ import com.ebs.biocrop.dto.request.OtpSendRequest;
 import com.ebs.biocrop.dto.response.OtpResponse;
 import com.ebs.biocrop.exception.InvalidOtpException;
 import com.ebs.biocrop.exception.OtpCooldownException;
+import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.service.OtpService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -26,6 +31,10 @@ public class OtpServiceImpl implements OtpService {
     // Zero database storage: Thread-safe in-memory cache for high speed & zero extra cloud cost
     private final ConcurrentMap<String, OtpEntry> otpCache = new ConcurrentHashMap<>();
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
+
+    @Value("${app.otp.console-delivery.enabled:false}")
+    private boolean consoleDeliveryEnabled;
 
     @Value("${app.otp.length:6}")
     private int otpLength;
@@ -39,43 +48,54 @@ public class OtpServiceImpl implements OtpService {
     @Value("${app.otp.max-attempts:3}")
     private int maxAttempts;
 
-    public OtpServiceImpl(PasswordEncoder passwordEncoder) {
+    public OtpServiceImpl(PasswordEncoder passwordEncoder, Environment environment) {
         this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
     }
 
     @Override
     public OtpResponse generateAndSendOtp(OtpSendRequest request) {
         String phoneNumber = request.getPhoneNumber().trim();
-
-        // 1. Check cooldown (prevent spamming OTP requests)
-        OtpEntry existingEntry = otpCache.get(phoneNumber);
-        if (existingEntry != null && !existingEntry.isExpired()) {
-            LocalDateTime cooldownThreshold = LocalDateTime.now().minusSeconds(cooldownSeconds);
-            if (existingEntry.getCreatedAt().isAfter(cooldownThreshold)) {
-                long elapsed = Duration.between(existingEntry.getCreatedAt(), LocalDateTime.now()).getSeconds();
-                long remaining = Math.max(1, cooldownSeconds - elapsed);
-                throw new OtpCooldownException(
-                        "Please wait " + remaining + " seconds before requesting another OTP",
-                        remaining
-                );
-            }
+        boolean devConsoleDelivery = consoleDeliveryEnabled && environment.acceptsProfiles(Profiles.of("dev"));
+        if (!devConsoleDelivery) {
+            throw new AppException("OTP delivery is not configured. Configure an SMS provider before enabling authentication.",
+                    HttpStatus.SERVICE_UNAVAILABLE);
         }
 
-        // 2. Generate secure numeric 6-digit OTP
-        String plainOtp = generateNumericOtp(otpLength);
+        // Fast path avoids password hashing for ordinary repeat requests.
+        long remainingCooldown = getRemainingCooldown(otpCache.get(phoneNumber));
+        if (remainingCooldown > 0) {
+            throw new OtpCooldownException(
+                    "Please wait " + remainingCooldown + " seconds before requesting another OTP",
+                    remainingCooldown
+            );
+        }
 
-        // 3. Hash OTP before in-memory storage for tamper resistance
+        // Generate and hash before the atomic cache update.
+        String plainOtp = generateNumericOtp(otpLength);
         String hashedOtp = passwordEncoder.encode(plainOtp);
         LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(expirationMinutes);
+        OtpEntry candidate = new OtpEntry(hashedOtp, expiryTime);
+        AtomicLong concurrentCooldown = new AtomicLong();
+        otpCache.compute(phoneNumber, (key, current) -> {
+            long currentCooldown = getRemainingCooldown(current);
+            if (currentCooldown > 0) {
+                concurrentCooldown.set(currentCooldown);
+                return current;
+            }
+            return candidate;
+        });
+        if (concurrentCooldown.get() > 0) {
+            long remaining = concurrentCooldown.get();
+            throw new OtpCooldownException(
+                    "Please wait " + remaining + " seconds before requesting another OTP",
+                    remaining
+            );
+        }
 
-        OtpEntry newEntry = new OtpEntry(hashedOtp, expiryTime);
-        otpCache.put(phoneNumber, newEntry);
-
-        // 4. Log OTP in dev/test mode for seamless Postman testing
-        log.info("=================================================================");
-        log.info("🔐 [DEV/TEST] GENERATED OTP FOR PHONE NUMBER [{}]: [{}]", phoneNumber, plainOtp);
-        log.info("⏰ Valid for {} minutes | Max attempts: {}", expirationMinutes, maxAttempts);
-        log.info("=================================================================");
+        // Console delivery is available only in an explicitly enabled dev profile.
+        log.info("Development OTP for phone [{}]: [{}] (expires in {} minutes)",
+                maskPhoneNumber(phoneNumber), plainOtp, expirationMinutes);
 
         return new OtpResponse(
                 maskPhoneNumber(phoneNumber),
@@ -95,35 +115,43 @@ public class OtpServiceImpl implements OtpService {
             throw new InvalidOtpException("No active OTP request found for phone number: " + trimmedPhoneNumber);
         }
 
-        // 1. Check expiration
-        if (otpEntry.isExpired()) {
-            otpCache.remove(trimmedPhoneNumber);
-            throw new InvalidOtpException("The OTP has expired. Please request a new one.");
-        }
-
-        // 2. Check maximum attempts
-        if (otpEntry.getAttempts() >= maxAttempts) {
-            otpCache.remove(trimmedPhoneNumber);
-            throw new InvalidOtpException("Maximum verification attempts exceeded. Please request a new OTP.");
-        }
-
-        // 3. Increment attempts
-        otpEntry.incrementAttempts();
-
-        // 4. Verify hash
-        boolean matches = passwordEncoder.matches(rawOtp.trim(), otpEntry.getHashedOtp());
-        if (!matches) {
-            int remaining = maxAttempts - otpEntry.getAttempts();
-            if (remaining <= 0) {
-                otpCache.remove(trimmedPhoneNumber);
-                throw new InvalidOtpException("Invalid OTP. Maximum attempts reached. Please request a new OTP.");
+        synchronized (otpEntry) {
+            if (otpCache.get(trimmedPhoneNumber) != otpEntry) {
+                throw new InvalidOtpException("The OTP request changed. Please request a new OTP.");
             }
-            throw new InvalidOtpException("Invalid OTP entered. " + remaining + " attempt(s) remaining.");
-        }
 
-        // 5. Successful verification: remove OTP from in-memory cache to prevent replay
-        otpCache.remove(trimmedPhoneNumber);
-        log.info("✅ Successfully verified OTP for phone number: {}", trimmedPhoneNumber);
+            if (otpEntry.isExpired()) {
+                otpCache.remove(trimmedPhoneNumber, otpEntry);
+                throw new InvalidOtpException("The OTP has expired. Please request a new one.");
+            }
+            if (otpEntry.getAttempts() >= maxAttempts) {
+                otpCache.remove(trimmedPhoneNumber, otpEntry);
+                throw new InvalidOtpException("Maximum verification attempts exceeded. Please request a new OTP.");
+            }
+
+            otpEntry.incrementAttempts();
+            boolean matches = passwordEncoder.matches(rawOtp.trim(), otpEntry.getHashedOtp());
+            if (!matches) {
+                int remaining = maxAttempts - otpEntry.getAttempts();
+                if (remaining <= 0) {
+                    otpCache.remove(trimmedPhoneNumber, otpEntry);
+                    throw new InvalidOtpException("Invalid OTP. Maximum attempts reached. Please request a new OTP.");
+                }
+                throw new InvalidOtpException("Invalid OTP entered. " + remaining + " attempt(s) remaining.");
+            }
+
+            // Remove the consumed entry to prevent replay.
+            otpCache.remove(trimmedPhoneNumber, otpEntry);
+        }
+        log.info("Successfully verified OTP for phone [{}]", maskPhoneNumber(trimmedPhoneNumber));
+    }
+
+    private long getRemainingCooldown(OtpEntry entry) {
+        if (entry == null || entry.isExpired()) {
+            return 0;
+        }
+        long elapsed = Duration.between(entry.getCreatedAt(), LocalDateTime.now()).getSeconds();
+        return elapsed < cooldownSeconds ? Math.max(1, cooldownSeconds - elapsed) : 0;
     }
 
     private String generateNumericOtp(int length) {

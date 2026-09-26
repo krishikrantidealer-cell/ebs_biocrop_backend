@@ -106,7 +106,7 @@ class CartControllerTest {
     void addToCartShouldSucceed() throws Exception {
         when(cartService.addToCart(eq("9876543210"), any())).thenReturn(createSampleCartResponse());
 
-        CartItemRequest req = new CartItemRequest("VAR-001", null, 2);
+        CartItemRequest req = new CartItemRequest("6ab3bda4e481d458b5489588", 2);
 
         mockMvc.perform(post("/api/v1/cart/items")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,7 +170,7 @@ class CartControllerTest {
     void syncCartShouldSucceed() throws Exception {
         when(cartService.syncCart(eq("9876543210"), any())).thenReturn(createSampleCartResponse());
 
-        CartSyncRequest syncReq = new CartSyncRequest(List.of(new CartItemRequest("VAR-001", null, 2)));
+        CartSyncRequest syncReq = new CartSyncRequest(List.of(new CartItemRequest("6ab3bda4e481d458b5489588", 2)));
 
         mockMvc.perform(post("/api/v1/cart/sync")
                         .contentType(MediaType.APPLICATION_JSON)

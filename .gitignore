@@ -10,3 +10,11 @@ target/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local secrets
+.env
+
+# Root utility scripts and data dumps
+*.js
+*.json
+!EBS_Biocrop_End_To_End.json

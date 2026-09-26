@@ -1,0 +1,748 @@
+{
+  "info": {
+    "name": "EBS BioCrop Backend - Sequential API Test Flow",
+    "description": "Run in order. OTP requires a configured provider or dev profile with console delivery enabled; copy the logged code into collection variable otp before request 3. Request 7 selects an in-stock product variant for cart tests. Profile deletion is last and optional.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Health endpoint returns 200\", function(){pm.response.to.have.status(200);});",
+              "pm.test(\"Health response is successful\", function(){pm.expect(pm.response.json().success).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Send OTP (provider or dev console required)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/otp/send",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"OTP send returns 200 when delivery is configured\", function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200) pm.test(\"OTP reports OTP_SENT\",function(){pm.expect(pm.response.json().data.status).to.eql(\"OTP_SENT\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Verify OTP and capture tokens",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/otp/verify",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"otp\": \"{{otp}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"OTP verification returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200){const d=pm.response.json().data;pm.collectionVariables.set(\"accessToken\",d.accessToken);pm.collectionVariables.set(\"refreshToken\",d.refreshToken);pm.collectionVariables.set(\"userId\",d.userId);pm.test(\"Customer tokens and role returned\",function(){pm.expect(d.accessToken).to.be.a(\"string\");pm.expect(d.refreshToken).to.be.a(\"string\");pm.expect(d.role).to.eql(\"ROLE_CUSTOMER\");});}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Refresh access token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/token/refresh",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Token refresh returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200){const d=pm.response.json().data;pm.collectionVariables.set(\"accessToken\",d.accessToken);pm.collectionVariables.set(\"refreshToken\",d.refreshToken);pm.test(\"Refreshed tokens returned\",function(){pm.expect(d.accessToken).to.be.a(\"string\");pm.expect(d.refreshToken).to.be.a(\"string\");});}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Get current user profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/user/profile"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Profile request returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Update profile (needed for checkout readiness)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/user/profile",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Postman\",\n  \"lastName\": \"Customer\",\n  \"address\": {\n    \"villageArea\": \"Test address\",\n    \"address2\": \"Postman test\",\n    \"cityTehsil\": \"Indore\",\n    \"state\": \"Madhya Pradesh\",\n    \"pincode\": \"452001\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Profile update returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200){const d=pm.response.json().data;pm.test(\"Profile completion flags are set\",function(){pm.expect(d.isProfileComplete).to.eql(true);pm.expect(d.isVerified).to.eql(true);});}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. List active products and select cartable variant",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products?page=0&size=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Product list returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200){const p=pm.response.json().data;pm.test(\"Paged product content returned\",function(){pm.expect(p.content).to.be.an(\"array\");});const x=p.content.find(x=>(x.variants||[]).some(v=>v.id&&(v.stockQty||0)>=5&&(x.availabilityStatus||\"In Stock\").toLowerCase()===\"in stock\"));if(x){const v=x.variants.find(v=>v.id&&(v.stockQty||0)>=5);pm.collectionVariables.set(\"productId\",x.id);pm.collectionVariables.set(\"variantId\",v.id);pm.collectionVariables.set(\"categoryId\",x.categoryId||x.category||\"\");pm.collectionVariables.set(\"searchTerm\",x.title||x.name||\"\");}else console.warn(\"No active in-stock variant with an id and stock >= 5 found; cart requests need a suitable catalog item.\");}",
+              "if(pm.response.code===200){const p=pm.response.json().data;pm.test(\"Paged product content returned\",function(){pm.expect(p.content).to.be.an(\"array\");});const x=p.content.find(x=>(x.variants||[]).some(v=>v.id&&(v.stockQty||0)>=5&&(x.availabilityStatus||\"In Stock\").toLowerCase()===\"in stock\"));if(x){const v=x.variants.find(v=>v.id&&(v.stockQty||0)>=5);pm.collectionVariables.set(\"productId\",x.id);pm.collectionVariables.set(\"variantId\",v.id);pm.collectionVariables.set(\"categoryId\",x.categoryId||x.category||\"\");pm.collectionVariables.set(\"searchTerm\",(x.title||x.name||\"\").trim().split(/\\s+/)[0]);}else console.warn(\"No active in-stock variant with an id and stock >= 5 found; cart requests need a suitable catalog item.\");}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Get selected product details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Product detail returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200)pm.test(\"Selected id matches\",function(){pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get(\"productId\"));});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. List products by category",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products/category/{{categoryId}}?page=0&size=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Category products returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Search products",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/products/search?q={{searchTerm}}&page=0&size=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Product search returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Get current cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Cart request returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Get cart count",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/count"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Cart count returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Sync one item into cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/sync",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Cart sync returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200)pm.test(\"Synced cart stores the selected variant id\",function(){const id=pm.collectionVariables.get(\"variantId\");pm.expect(pm.response.json().data.items.some(i=>i.variantId===id)).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Add selected product to cart",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/items",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"quantity\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Add to cart returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200)pm.test(\"Cart stores the selected variant id\",function(){const id=pm.collectionVariables.get(\"variantId\");pm.expect(pm.response.json().data.items.some(i=>i.variantId===id)).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Update cart item quantity",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/items/{{variantId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Quantity update returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16. Get checkout summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/checkout-summary"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Checkout summary returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200)pm.test(\"Checkout summary has readiness and errors\",function(){const d=pm.response.json().data;pm.expect(d.readyForCheckout).to.eql(true);pm.expect(d.validationErrors).to.be.an(\"array\").that.is.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17. Remove selected item from cart",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart/items/{{variantId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Remove item returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18. Clear cart",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/cart"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Clear cart returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19. Delete own profile (optional; destructive, run last)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}",
+            "type": "text"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/user/profile"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Profile soft delete returns 200\",function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ],
+      "disabled": true
+    }
+,
+    {
+      "name": "20. List category hierarchy",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/categories"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Category list returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200){const d=pm.response.json().data;pm.test(\"Category data is an array\",function(){pm.expect(d).to.be.an(\"array\");});if(d.length)pm.collectionVariables.set(\"categoryDocumentId\",d[0].id);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21. Get selected category details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/categories/{{categoryDocumentId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Category detail returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200)pm.test(\"Selected category id matches\",function(){pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get(\"categoryDocumentId\"));});"
+            ]
+          }
+        }
+      ]
+    }
+,
+    {
+      "name": "Wishlist. Get my wishlist",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/v1/wishlist"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Wishlist read returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200)pm.test(\"Wishlist items are an array\",function(){pm.expect(pm.response.json().data.items).to.be.an(\"array\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist. Save selected variant",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/v1/wishlist/items/{{variantId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Wishlist add returns 200\",function(){pm.response.to.have.status(200);});",
+              "if(pm.response.code===200){const d=pm.response.json().data;const id=pm.collectionVariables.get(\"variantId\");pm.test(\"Saved variant is present exactly once\",function(){pm.expect(d.items.filter(i=>i.variantId===id)).to.have.lengthOf(1);});pm.test(\"Wishlist count matches item list\",function(){pm.expect(d.count).to.eql(d.items.length);});}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist. Get wishlist after save",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/v1/wishlist"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Wishlist read after save returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200)pm.test(\"Saved variant persists after read\",function(){pm.expect(pm.response.json().data.items.some(i=>i.variantId===pm.collectionVariables.get(\"variantId\"))).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist. Remove selected variant",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/v1/wishlist/items/{{variantId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Wishlist remove returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200){const d=pm.response.json().data;pm.test(\"Removed variant is absent\",function(){pm.expect(d.items.some(i=>i.variantId===pm.collectionVariables.get(\"variantId\"))).to.eql(false);});pm.test(\"Wishlist count matches item list\",function(){pm.expect(d.count).to.eql(d.items.length);});}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wishlist. Clear wishlist (optional; destructive)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}", "type": "text" }
+        ],
+        "url": "{{baseUrl}}/api/v1/wishlist"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Wishlist clear returns 200\",function(){pm.response.to.have.status(200);});if(pm.response.code===200)pm.test(\"Cleared wishlist has no variants\",function(){pm.expect(pm.response.json().data.items).to.be.empty;pm.expect(pm.response.json().data.count).to.eql(0);});"
+            ]
+          }
+        }
+      ],
+      "disabled": true
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "phoneNumber",
+      "value": "9876543210",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "000000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "variantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "searchTerm",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

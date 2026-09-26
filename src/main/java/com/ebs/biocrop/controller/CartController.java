@@ -46,22 +46,22 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Item added to cart successfully", cart));
     }
 
-    @PutMapping("/items/{variationCode}")
+    @PutMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(
             Authentication authentication,
-            @PathVariable String variationCode,
+            @PathVariable String variantId,
             @Valid @RequestBody CartItemUpdateRequest request) {
         String phoneNumber = authentication.getName();
-        CartResponse cart = cartService.updateQuantity(phoneNumber, variationCode, request.getQuantity());
+        CartResponse cart = cartService.updateQuantity(phoneNumber, variantId, request.getQuantity());
         return ResponseEntity.ok(ApiResponse.ok("Cart item quantity updated successfully", cart));
     }
 
-    @DeleteMapping("/items/{variationCode}")
+    @DeleteMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<CartResponse>> removeItem(
             Authentication authentication,
-            @PathVariable String variationCode) {
+            @PathVariable String variantId) {
         String phoneNumber = authentication.getName();
-        CartResponse cart = cartService.removeItem(phoneNumber, variationCode);
+        CartResponse cart = cartService.removeItem(phoneNumber, variantId);
         return ResponseEntity.ok(ApiResponse.ok("Item removed from cart successfully", cart));
     }
 

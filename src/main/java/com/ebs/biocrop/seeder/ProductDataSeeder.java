@@ -1,13 +1,15 @@
 package com.ebs.biocrop.seeder;
 
+import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.entity.enums.PaymentMethod;
-import com.ebs.biocrop.entity.enums.ProductStatus;
 import com.ebs.biocrop.entity.enums.ProductUnit;
 import com.ebs.biocrop.entity.enums.ShippingMethod;
+import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductRepository;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -23,59 +25,66 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Component
+@org.springframework.core.annotation.Order(2)
 public class ProductDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ProductDataSeeder.class);
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
 
-    public ProductDataSeeder(ProductRepository productRepository) {
+    public ProductDataSeeder(ProductRepository productRepository, CategoryRepository categoryRepository) {
         this.productRepository = productRepository;
+        this.categoryRepository = categoryRepository;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
-        this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
+
+    @org.springframework.beans.factory.annotation.Value("${app.seed-data:false}")
+    private boolean seedData;
 
     @Override
     public void run(String... args) {
+        if (!seedData) {
+            log.info("Data Seeder is disabled via app.seed-data=false. Skipping product ingestion.");
+            return;
+        }
+
+        long existingProducts = productRepository.count();
+        if (existingProducts > 0) {
+            log.error("Skipping product ingestion: {} products already exist. Use a reviewed migration/import process to update a non-empty catalog.", existingProducts);
+            return;
+        }
+
+        Map<String, Category> categoriesByName = loadCategoriesByName();
+        if (categoriesByName.isEmpty()) {
+            throw new IllegalStateException("Cannot ingest products until categories have been seeded in seller_hub.categories.");
+        }
+
         log.info("Starting Product Catalog Ingestion from Excel & JSON into MongoDB Atlas...");
-
         File excelFile = new File("resources/product.xlsx");
-        if (!excelFile.exists()) {
-            excelFile = new File("C:/Users/essen/IdeaProjects/ebs_biocrop_web/resources/product.xlsx");
-        }
+        File jsonFile = new File("resources/products_hierarchical.json");
+        List<Product> products;
 
-        File jsonFile = new File("resources/products.json");
-        if (!jsonFile.getParentFile().exists()) {
-            jsonFile.getParentFile().mkdirs();
-        }
-
-        List<Product> products = Collections.emptyList();
-
-        if (excelFile.exists()) {
+        if (excelFile.isFile()) {
             log.info("Found Excel file at: {}", excelFile.getAbsolutePath());
             products = parseProductsFromExcel(excelFile);
-            log.info("Successfully parsed {} products from Excel.", products.size());
-
-            // Save all parsed products as JSON for quick access and persistence if not already present
-            if (!jsonFile.exists()) {
-                try {
-                    objectMapper.writeValue(jsonFile, products);
-                    log.info("Successfully exported {} products to JSON: {}", products.size(), jsonFile.getAbsolutePath());
-                } catch (Exception e) {
-                    log.warn("Could not save products.json file: {}", e.getMessage());
-                }
-            }
-        } else if (jsonFile.exists()) {
-            log.info("Excel not found, fallback to existing JSON file: {}", jsonFile.getAbsolutePath());
+        } else if (jsonFile.isFile()) {
+            log.info("Excel not found, using JSON fallback: {}", jsonFile.getAbsolutePath());
             try {
-                products = Arrays.asList(objectMapper.readValue(jsonFile, Product[].class));
+                products = new ArrayList<>(Arrays.asList(objectMapper.readValue(jsonFile, Product[].class)));
+                for (Product product : products) {
+                    if (product.getStatus() == null || product.getStatus().isBlank()) {
+                        product.setStatus("ACTIVE");
+                    }
+                }
             } catch (Exception e) {
-                log.error("Failed to read products from JSON: {}", e.getMessage());
+                throw new IllegalStateException("Failed to read products from JSON: " + e.getMessage(), e);
             }
         } else {
-            log.warn("Neither product.xlsx nor products.json found. Skipping product ingestion.");
+            log.warn("Neither product.xlsx nor products_hierarchical.json found. Skipping product ingestion.");
             return;
         }
 
@@ -84,60 +93,52 @@ public class ProductDataSeeder implements CommandLineRunner {
             return;
         }
 
-        long existingCount = productRepository.count();
-        if (existingCount >= products.size()) {
-            log.info("=========================================================================");
-            log.info("✅ CATALOG ALREADY FULLY SEEDED IN MONGODB ATLAS (seller_hub.products)");
-            log.info("📊 Current Collection Count: {} (Expected: {}). Skipping redundant re-ingestion.", existingCount, products.size());
-            log.info("=========================================================================");
-            return;
-        }
-
-        // Ingest / Upsert products into MongoDB Atlas (seller_hub.products)
-        List<Product> existingProducts = productRepository.findAll();
-        Map<String, Product> existingMap = new HashMap<>();
-        for (Product ep : existingProducts) {
-            if (ep.getVariationCode() != null) {
-                existingMap.put(ep.getVariationCode(), ep);
-            }
-        }
-
-        List<Product> toSave = new ArrayList<>();
-        int updatedCount = 0;
-        int insertedCount = 0;
-
         for (Product product : products) {
-            if (product.getVariationCode() == null || product.getVariationCode().isBlank()) {
-                continue;
-            }
-
-            Product existing = existingMap.get(product.getVariationCode());
-            if (existing != null) {
-                product.setId(existing.getId());
-                product.setCreatedAt(existing.getCreatedAt() != null ? existing.getCreatedAt() : LocalDateTime.now());
-                product.setUpdatedAt(LocalDateTime.now());
-                updatedCount++;
-            } else {
-                product.setCreatedAt(LocalDateTime.now());
-                product.setUpdatedAt(LocalDateTime.now());
-                insertedCount++;
-            }
-            toSave.add(product);
+            linkCategoryReferences(product, categoriesByName);
         }
 
-        if (!toSave.isEmpty()) {
-            productRepository.saveAll(toSave);
-        }
-
-        long totalCount = productRepository.count();
-        log.info("=========================================================================");
-        log.info("✅ PRODUCT INGESTION COMPLETE IN MONGODB ATLAS (seller_hub.products)");
-        log.info("📊 Inserted: {}, Updated: {}, Total Collection Count: {}", insertedCount, updatedCount, totalCount);
-        log.info("=========================================================================");
+        log.info("Inserting {} products with resolved category references...", products.size());
+        productRepository.saveAll(products);
+        log.info("Product ingestion complete in seller_hub.products; collection count: {}", productRepository.count());
     }
 
+    private Map<String, Category> loadCategoriesByName() {
+        Map<String, Category> categoriesByName = new HashMap<>();
+        for (Category category : categoryRepository.findAll()) {
+            String key = normalizeName(category.getName());
+            if (key.isBlank() || categoriesByName.putIfAbsent(key, category) != null) {
+                throw new IllegalStateException("Category names must be present and unique before product ingestion.");
+            }
+        }
+        return categoriesByName;
+    }
+
+    private void linkCategoryReferences(Product product, Map<String, Category> categoriesByName) {
+        Category category = categoriesByName.get(normalizeName(product.getCategory()));
+        if (category == null || category.getId() == null) {
+            throw new IllegalStateException("No saved category matches product category: " + product.getCategory());
+        }
+
+        Category.SubCategory subCategory = category.getSubCategories().stream()
+                .filter(candidate -> normalizeName(candidate.getName()).equals(normalizeName(product.getSubCategory())))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No subcategory '" + product.getSubCategory()
+                        + "' exists under category '" + category.getName() + "'."));
+        if (subCategory.getId() == null) {
+            throw new IllegalStateException("Subcategory has no saved ID: " + subCategory.getName());
+        }
+
+        product.setCategoryId(category.getId());
+        product.setSubCategoryId(subCategory.getId());
+        product.setCategoryIds(List.of(category.getId()));
+        product.setSubCategoryIds(List.of(subCategory.getId()));
+    }
+
+    private String normalizeName(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
     private List<Product> parseProductsFromExcel(File file) {
-        List<Product> productList = new ArrayList<>();
+        Map<String, Product> productMap = new LinkedHashMap<>();
 
         try (InputStream is = new FileInputStream(file);
              Workbook workbook = new XSSFWorkbook(is)) {
@@ -145,12 +146,12 @@ public class ProductDataSeeder implements CommandLineRunner {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet == null) {
                 log.warn("Sheet at index 0 is empty");
-                return productList;
+                return new ArrayList<>();
             }
 
             Iterator<Row> rowIterator = sheet.iterator();
             if (!rowIterator.hasNext()) {
-                return productList;
+                return new ArrayList<>();
             }
 
             // Read header row
@@ -163,8 +164,6 @@ public class ProductDataSeeder implements CommandLineRunner {
                 colIndexMap.put(header, cell.getColumnIndex());
             }
 
-            log.info("Identified {} columns in Excel header: {}", colIndexMap.size(), colIndexMap.keySet());
-
             while (rowIterator.hasNext()) {
                 Row row = rowIterator.next();
                 if (isRowEmpty(row)) {
@@ -172,12 +171,135 @@ public class ProductDataSeeder implements CommandLineRunner {
                 }
 
                 try {
-                    Product p = mapRowToProduct(row, colIndexMap);
-                    if (p.getVariationCode() != null && !p.getVariationCode().isBlank()) {
-                        productList.add(p);
+                    String name = getStringValue(row, colIndexMap, "name");
+                    if (name == null || name.isBlank()) continue;
+                    
+                    Product product = productMap.get(name);
+                    if (product == null) {
+                        product = new Product();
+                        product.setTitle(name);
+                        product.setStatus(getStringValue(row, colIndexMap, "status"));
+                        product.setProductCode(getStringValue(row, colIndexMap, "product code", "productcode", "product_code"));
+                        
+                        String statusStr = getStringValue(row, colIndexMap, "status");
+                        product.setSourceStatus(statusStr);
+                        
+                        String inStockStr = getStringValue(row, colIndexMap, "in stock", "instock");
+                        if (inStockStr != null) {
+                            if (inStockStr.equalsIgnoreCase("yes") || inStockStr.equalsIgnoreCase("y") || inStockStr.equalsIgnoreCase("true") || inStockStr.equals("1")) {
+                                product.setAvailabilityStatus("In Stock");
+                            } else {
+                                product.setAvailabilityStatus("Out of Stock");
+                            }
+                        } else {
+                            product.setAvailabilityStatus("In Stock");
+                        }
+                        
+                        String companyName = getStringValue(row, colIndexMap, "company");
+                        product.setCompany(companyName);
+                        product.setBrandName(companyName);
+                        product.setVendor(companyName);
+                        
+                        product.setCategory(getStringValue(row, colIndexMap, "category"));
+                        product.setSubCategory(getStringValue(row, colIndexMap, "sub category", "subcategory"));
+                        String keywords = getStringValue(row, colIndexMap, "keywords", "keyword s", "keyword");
+                        product.setKeywords(keywords);
+                        if (keywords != null && !keywords.isBlank()) {
+                            List<String> tags = Arrays.stream(keywords.split(","))
+                                    .map(String::trim)
+                                    .filter(s -> !s.isEmpty())
+                                    .toList();
+                            product.setTags(tags);
+                        }
+                        product.setGst(getIntegerValue(row, colIndexMap, "gst"));
+                        product.setHsnCode(getStringValue(row, colIndexMap, "hsn code", "hsncode"));
+
+                        String shippingStr = getStringValue(row, colIndexMap, "shipping through", "shippingthrough");
+                        product.setShippingThrough(ShippingMethod.fromString(shippingStr));
+
+                        String paymentStr = getStringValue(row, colIndexMap, "payment method", "paymentmethod");
+                        product.setPaymentMethod(PaymentMethod.fromString(paymentStr));
+
+                        product.setShippedBy(getStringValue(row, colIndexMap, "shipped by", "shippedby"));
+
+                        productMap.put(name, product);
                     }
+
+                    // Create Variant
+                    ProductVariant variant = new ProductVariant();
+                    variant.setVariationCode(getStringValue(row, colIndexMap, "variation code", "variationcode"));
+
+                    String unitStr = getStringValue(row, colIndexMap, "unit");
+                    variant.setUnit(ProductUnit.fromString(unitStr));
+
+                    variant.setUnitQty(getIntegerValue(row, colIndexMap, "unit qty", "unitqty"));
+                    
+                    // Set size combining unitQty and unit
+                    if (variant.getUnitQty() != null && variant.getUnit() != null) {
+                        variant.setSize(variant.getUnitQty() + " " + variant.getUnit().name());
+                    }
+
+                    Double excelPrice = getDoubleValue(row, colIndexMap, "price");
+                    Double excelSalePrice = getDoubleValue(row, colIndexMap, "sale price", "saleprice");
+                    
+                    variant.setSalePrice(excelSalePrice);
+                    variant.setPrice(excelSalePrice != null ? excelSalePrice : excelPrice);
+                    if (excelPrice != null) {
+                        variant.setCompareAtPrice(excelPrice.intValue());
+                    }
+
+                    variant.setDiscountRs(getDoubleValue(row, colIndexMap, "discount rs.", "discount rs", "discountrs"));
+                    
+                    variant.setDiscountPercent(getDoubleValue(row, colIndexMap, "discount %", "discount percent", "discountpercent"));
+                    variant.setCourierCharge(getDoubleValue(row, colIndexMap, "courier charge", "couriercharge"));
+                    variant.setProductWeightGm(getDoubleValue(row, colIndexMap, "product weight(gm)", "product weight (gm)", "product weight", "weight"));
+                    
+                    // Set JSON weight
+                    if (variant.getProductWeightGm() != null) {
+                        variant.setWeight(variant.getProductWeightGm().intValue());
+                    }
+                    
+                    variant.setStockQty(getIntegerValue(row, colIndexMap, "stock qty", "stockqty", "stock"));
+
+                    variant.setMinOrderQty(getIntegerValue(row, colIndexMap, "min. order qty", "min order qty", "minorderqty"));
+                    if (variant.getMinOrderQty() == null || variant.getMinOrderQty() <= 0) {
+                        variant.setMinOrderQty(1);
+                    }
+
+                    variant.setSellerWillGet(getDoubleValue(row, colIndexMap, "seller will get", "sellerwillget"));
+
+                    variant.setLength(getDoubleValue(row, colIndexMap, "length"));
+                    variant.setWidth(getDoubleValue(row, colIndexMap, "width"));
+                    variant.setHeight(getDoubleValue(row, colIndexMap, "height"));
+                    variant.setDisplayOrder(getIntegerValue(row, colIndexMap, "display order", "displayorder"));
+                    variant.setNotes(getStringValue(row, colIndexMap, "notes", "note"));
+
+                    String isDefaultStr = getStringValue(row, colIndexMap, "is default", "isdefault", "default");
+                    variant.setIsDefault(isDefaultStr != null && (isDefaultStr.equalsIgnoreCase("y") || isDefaultStr.equalsIgnoreCase("yes") || isDefaultStr.equalsIgnoreCase("true")));
+
+                    if (variant.getVariationCode() != null && !variant.getVariationCode().isBlank()) {
+                        product.getVariants().add(variant);
+                    }
+                    
                 } catch (Exception e) {
                     log.warn("Error parsing row {}: {}", row.getRowNum() + 1, e.getMessage());
+                }
+            }
+
+            // Compute minPrice and maxPrice for each product based on variant prices
+            for (Product p : productMap.values()) {
+                if (p.getVariants() != null && !p.getVariants().isEmpty()) {
+                    int min = Integer.MAX_VALUE;
+                    int max = Integer.MIN_VALUE;
+                    for (ProductVariant v : p.getVariants()) {
+                        if (v.getPrice() != null) {
+                            int vp = v.getPrice().intValue();
+                            if (vp < min) min = vp;
+                            if (vp > max) max = vp;
+                        }
+                    }
+                    if (min != Integer.MAX_VALUE) p.setMinPrice(min);
+                    if (max != Integer.MIN_VALUE) p.setMaxPrice(max);
                 }
             }
 
@@ -185,68 +307,7 @@ public class ProductDataSeeder implements CommandLineRunner {
             log.error("Failed to parse Excel file: {}", e.getMessage(), e);
         }
 
-        return productList;
-    }
-
-    private Product mapRowToProduct(Row row, Map<String, Integer> colMap) {
-        Product p = new Product();
-
-        p.setName(getStringValue(row, colMap, "name"));
-        p.setProductCode(getStringValue(row, colMap, "product code", "productcode", "product_code"));
-        
-        String statusStr = getStringValue(row, colMap, "status");
-        p.setStatus(ProductStatus.fromString(statusStr));
-
-        p.setCompany(getStringValue(row, colMap, "company"));
-        p.setCategory(getStringValue(row, colMap, "category"));
-        p.setSubCategory(getStringValue(row, colMap, "sub category", "subcategory"));
-        p.setSubSubCategory(getStringValue(row, colMap, "sub sub category", "subsubcategory"));
-        p.setKeywords(getStringValue(row, colMap, "keywords", "keyword s", "keyword"));
-
-        p.setGst(getIntegerValue(row, colMap, "gst"));
-        p.setHsnCode(getStringValue(row, colMap, "hsn code", "hsncode"));
-        p.setVariationCode(getStringValue(row, colMap, "variation code", "variationcode"));
-
-        String unitStr = getStringValue(row, colMap, "unit");
-        p.setUnit(ProductUnit.fromString(unitStr));
-
-        p.setUnitQty(getIntegerValue(row, colMap, "unit qty", "unitqty"));
-        p.setPrice(getDoubleValue(row, colMap, "price"));
-        p.setDiscountRs(getDoubleValue(row, colMap, "discount rs.", "discount rs", "discountrs"));
-        p.setSalePrice(getDoubleValue(row, colMap, "sale price", "saleprice"));
-        p.setDiscountPercent(getDoubleValue(row, colMap, "discount %", "discount percent", "discountpercent"));
-        p.setCourierCharge(getDoubleValue(row, colMap, "courier charge", "couriercharge"));
-        p.setProductWeightGm(getDoubleValue(row, colMap, "product weight(gm)", "product weight (gm)", "product weight", "weight"));
-        p.setStockQty(getIntegerValue(row, colMap, "stock qty", "stockqty", "stock"));
-
-        String shippingStr = getStringValue(row, colMap, "shipping through", "shippingthrough");
-        p.setShippingThrough(ShippingMethod.fromString(shippingStr));
-
-        String paymentStr = getStringValue(row, colMap, "payment method", "paymentmethod");
-        p.setPaymentMethod(PaymentMethod.fromString(paymentStr));
-
-        String inStockStr = getStringValue(row, colMap, "in stock", "instock");
-        p.setInStock(inStockStr == null || inStockStr.equalsIgnoreCase("yes") || inStockStr.equalsIgnoreCase("y") || inStockStr.equalsIgnoreCase("true"));
-
-        p.setMinOrderQty(getIntegerValue(row, colMap, "min. order qty", "min order qty", "minorderqty"));
-        if (p.getMinOrderQty() == null || p.getMinOrderQty() <= 0) {
-            p.setMinOrderQty(1);
-        }
-
-        p.setShippedBy(getStringValue(row, colMap, "shipped by", "shippedby"));
-        p.setSellerWillGet(getDoubleValue(row, colMap, "seller will get", "sellerwillget"));
-
-        p.setLength(getDoubleValue(row, colMap, "length"));
-        p.setWidth(getDoubleValue(row, colMap, "width"));
-        p.setHeight(getDoubleValue(row, colMap, "height"));
-
-        p.setDisplayOrder(getIntegerValue(row, colMap, "display order", "displayorder"));
-        p.setNotes(getStringValue(row, colMap, "notes", "note"));
-
-        String isDefaultStr = getStringValue(row, colMap, "is default", "isdefault", "default");
-        p.setIsDefault(isDefaultStr != null && (isDefaultStr.equalsIgnoreCase("y") || isDefaultStr.equalsIgnoreCase("yes") || isDefaultStr.equalsIgnoreCase("true")));
-
-        return p;
+        return new ArrayList<>(productMap.values());
     }
 
     private String getStringValue(Row row, Map<String, Integer> colMap, String... keys) {

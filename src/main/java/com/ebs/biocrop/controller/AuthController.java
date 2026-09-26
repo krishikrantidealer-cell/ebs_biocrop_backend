@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
@@ -33,5 +35,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
         AuthResponse authResponse = authService.verifyOtpAndLogin(request);
         return ResponseEntity.ok(ApiResponse.ok("Authentication successful", authResponse));
+    }
+
+    @PostMapping("/token/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshAccessToken(
+            @RequestBody Map<String, String> request) {
+        AuthResponse authResponse = authService.refreshAccessToken(request.get("refreshToken"));
+        return ResponseEntity.ok(ApiResponse.ok("Access token refreshed successfully", authResponse));
     }
 }

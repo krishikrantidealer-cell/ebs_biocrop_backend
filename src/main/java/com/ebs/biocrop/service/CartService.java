@@ -14,9 +14,9 @@ public interface CartService {
 
     CartResponse addToCart(String phoneNumber, CartItemRequest request);
 
-    CartResponse updateQuantity(String phoneNumber, String variationCode, Integer quantity);
+    CartResponse updateQuantity(String phoneNumber, String variantId, Integer quantity);
 
-    CartResponse removeItem(String phoneNumber, String variationCode);
+    CartResponse removeItem(String phoneNumber, String variantId);
 
     CartResponse clearCart(String phoneNumber);
 
