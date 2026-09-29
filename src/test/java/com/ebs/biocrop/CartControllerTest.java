@@ -56,18 +56,15 @@ class CartControllerTest {
 
     private CartResponse createSampleCartResponse() {
         CartItemResponse item = new CartItemResponse(
-                "prod123", "VAR-001", "Bio Fertilizer",
-                "KG", 1, 500.0, 450.0, 40.0,
-                2, 900.0, 10, true
+                "item123", "product123", "variant123", 2, 450.0
         );
+        LocalDateTime now = LocalDateTime.now();
         return new CartResponse(
-                "cart123", "user123", "9876543210",
-                List.of(item), 1, 2, 1000.0,
-                100.0, 900.0, 40.0, 940.0,
-                LocalDateTime.now()
+                "cart123", "user123", List.of(item),
+                1000.0, 100.0, 900.0,
+                Collections.emptyList(), null, null, now, now
         );
     }
-
     @Test
     void getCartWithoutAuthShouldBeUnauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/cart"))
@@ -82,10 +79,10 @@ class CartControllerTest {
         mockMvc.perform(get("/api/v1/cart"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.phoneNumber").value("9876543210"))
-                .andExpect(jsonPath("$.data.items[0].variationCode").value("VAR-001"))
-                .andExpect(jsonPath("$.data.totalSalePrice").value(900.0))
-                .andExpect(jsonPath("$.data.finalAmount").value(940.0));
+                .andExpect(jsonPath("$.data.user").value("user123"))
+                .andExpect(jsonPath("$.data.items[0].variantId").value("variant123"))
+                .andExpect(jsonPath("$.data.totalAmount").value(1000.0))
+                .andExpect(jsonPath("$.data.finalAmount").value(900.0));
     }
 
     @Test
@@ -135,34 +132,32 @@ class CartControllerTest {
     @WithMockUser(username = "9876543210")
     void removeItemShouldSucceed() throws Exception {
         CartResponse emptyCart = new CartResponse(
-                "cart123", "user123", "9876543210",
-                Collections.emptyList(), 0, 0, 0.0,
-                0.0, 0.0, 0.0, 0.0,
-                LocalDateTime.now()
+                "cart123", "user123", Collections.emptyList(),
+                0.0, 0.0, 0.0, Collections.emptyList(), null, null,
+                LocalDateTime.now(), LocalDateTime.now()
         );
         when(cartService.removeItem("9876543210", "VAR-001")).thenReturn(emptyCart);
 
         mockMvc.perform(delete("/api/v1/cart/items/VAR-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.itemCount").value(0));
+                .andExpect(jsonPath("$.data.items[0]").doesNotExist());
     }
 
     @Test
     @WithMockUser(username = "9876543210")
     void clearCartShouldSucceed() throws Exception {
         CartResponse emptyCart = new CartResponse(
-                "cart123", "user123", "9876543210",
-                Collections.emptyList(), 0, 0, 0.0,
-                0.0, 0.0, 0.0, 0.0,
-                LocalDateTime.now()
+                "cart123", "user123", Collections.emptyList(),
+                0.0, 0.0, 0.0, Collections.emptyList(), null, null,
+                LocalDateTime.now(), LocalDateTime.now()
         );
         when(cartService.clearCart("9876543210")).thenReturn(emptyCart);
 
         mockMvc.perform(delete("/api/v1/cart"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.itemCount").value(0));
+                .andExpect(jsonPath("$.data.items[0]").doesNotExist());
     }
 
     @Test
@@ -182,7 +177,8 @@ class CartControllerTest {
     @Test
     @WithMockUser(username = "9876543210")
     void checkoutSummaryShouldReturnReadiness() throws Exception {
-        Address addr = new Address("Flat 101", "MG Road", "Indore", "MP", "452001");
+        Address addr = new Address("Flat 101", "Indore", "MP", "452001");
+        addr.setAddress2("MG Road");
         CheckoutSummaryResponse summary = new CheckoutSummaryResponse(
                 createSampleCartResponse(), true, Collections.emptyList(),
                 addr, 900.0, 100.0, 40.0, 940.0
@@ -194,6 +190,6 @@ class CartControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.readyForCheckout").value(true))
                 .andExpect(jsonPath("$.data.finalPayableAmount").value(940.0))
-                .andExpect(jsonPath("$.data.deliveryAddress.city").value("Indore"));
+                .andExpect(jsonPath("$.data.deliveryAddress.cityTehsil").value("Indore"));
     }
 }

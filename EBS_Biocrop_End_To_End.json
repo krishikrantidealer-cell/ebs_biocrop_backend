@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "EBS BioCrop Backend - Sequential API Test Flow",
-    "description": "Run in order. OTP requires a configured provider or dev profile with console delivery enabled; copy the logged code into collection variable otp before request 3. Request 7 selects an in-stock product variant for cart tests. Profile deletion is last and optional.",
+    "description": "Run sequentially after starting MongoDB and Redis, then launch the app with the dev profile: .\\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev. The dev profile logs OTPs to the app console; copy the latest code into collection variable otp before request 3. OTP sends are limited to 3 per phone per 15 minutes, so send once then verify. Token refresh is limited to 10 requests per IP per minute; the 11th request returns 429. Request 7 selects an in-stock variant for cart and wishlist tests. Profile deletion and wishlist clearing are optional destructive requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
