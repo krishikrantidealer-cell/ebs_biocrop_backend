@@ -55,6 +55,9 @@ public class RateLimitService {
     /** Returns 0 when allowed; otherwise returns seconds until the counter expires. */
     public long check(String policy, String identifier, int maxRequests, Duration window) {
         String key = "rate-limit:" + policy + ":" + sha256(identifier);
+        boolean fallbackAllowed = inMemoryFallbackEnabled || devInMemoryFallbackEnabled
+                || environment.acceptsProfiles(Profiles.of("dev"));
+
         List<?> result;
         try {
             result = redisTemplate.execute(
@@ -63,7 +66,7 @@ public class RateLimitService {
                     Long.toString(window.toMillis())
             );
         } catch (Exception exception) {
-            if (inMemoryFallbackEnabled || devInMemoryFallbackEnabled || environment.acceptsProfiles(Profiles.of("dev"))) {
+            if (fallbackAllowed) {
                 if (localFallbackWarningLogged.compareAndSet(false, true)) {
                     log.warn("Redis rate limiting is unavailable; using bounded process-local limits.", exception);
                 }
@@ -74,6 +77,12 @@ public class RateLimitService {
         }
 
         if (result == null || result.size() < 2) {
+            if (fallbackAllowed) {
+                if (localFallbackWarningLogged.compareAndSet(false, true)) {
+                    log.warn("Redis rate limiting returned null/empty response; using bounded process-local limits.");
+                }
+                return checkLocal(key, maxRequests, window);
+            }
             throw new AppException("Rate limiting is temporarily unavailable. Please retry shortly.",
                     HttpStatus.SERVICE_UNAVAILABLE);
         }
