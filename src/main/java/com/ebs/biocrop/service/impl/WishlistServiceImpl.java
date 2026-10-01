@@ -12,6 +12,8 @@ import com.ebs.biocrop.repository.WishlistRepository;
 import com.ebs.biocrop.service.WishlistService;
 import jakarta.annotation.PostConstruct;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
@@ -33,6 +35,7 @@ import java.util.Map;
 @Service
 public class WishlistServiceImpl implements WishlistService {
 
+    private static final Logger log = LoggerFactory.getLogger(WishlistServiceImpl.class);
     private static final String ACTIVE_STATUS = "ACTIVE";
 
     private final WishlistRepository wishlistRepository;
@@ -55,9 +58,13 @@ public class WishlistServiceImpl implements WishlistService {
 
     @PostConstruct
     void ensureWishlistUserIndex() {
-        if (maintenanceMode || !mongoTemplate.collectionExists("wishlists")) return;
-        mongoTemplate.indexOps(Wishlist.class).ensureIndex(
-                new Index().on("user", Sort.Direction.ASC).unique().named("uniq_wishlist_user"));
+        try {
+            if (maintenanceMode || !mongoTemplate.collectionExists("wishlists")) return;
+            mongoTemplate.indexOps(Wishlist.class).ensureIndex(
+                    new Index().on("user", Sort.Direction.ASC).unique().named("uniq_wishlist_user"));
+        } catch (Exception e) {
+            log.warn("Could not ensure wishlist user index on startup: {}", e.getMessage());
+        }
     }
 
     @Override
