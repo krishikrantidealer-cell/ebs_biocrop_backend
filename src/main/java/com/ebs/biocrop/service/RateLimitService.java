@@ -55,8 +55,7 @@ public class RateLimitService {
     /** Returns 0 when allowed; otherwise returns seconds until the counter expires. */
     public long check(String policy, String identifier, int maxRequests, Duration window) {
         String key = "rate-limit:" + policy + ":" + sha256(identifier);
-        boolean fallbackAllowed = inMemoryFallbackEnabled || devInMemoryFallbackEnabled
-                || environment.acceptsProfiles(Profiles.of("dev"));
+        boolean fallbackAllowed = true;
 
         List<?> result;
         try {
