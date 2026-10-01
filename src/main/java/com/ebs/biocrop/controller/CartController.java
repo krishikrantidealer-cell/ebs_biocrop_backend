@@ -6,8 +6,10 @@ import com.ebs.biocrop.dto.request.CartSyncRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.CartCountResponse;
 import com.ebs.biocrop.dto.response.CartResponse;
-import com.ebs.biocrop.dto.response.CheckoutSummaryResponse;
 import com.ebs.biocrop.service.CartService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/cart")
+@Tag(name = "Cart", description = "Customer cart operations.")
+@SecurityRequirement(name = "bearerAuth")
 public class CartController {
 
     private final CartService cartService;
@@ -81,10 +85,4 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Cart synchronized successfully", cart));
     }
 
-    @GetMapping("/checkout-summary")
-    public ResponseEntity<ApiResponse<CheckoutSummaryResponse>> getCheckoutSummary(Authentication authentication) {
-        String phoneNumber = authentication.getName();
-        CheckoutSummaryResponse summary = cartService.getCheckoutSummary(phoneNumber);
-        return ResponseEntity.ok(ApiResponse.ok("Checkout summary prepared successfully", summary));
-    }
 }

@@ -16,8 +16,13 @@ public class User {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, name = "uniq_user_phone")
     private String phoneNumber;
+
+    private String email;
+    private String passwordHash;
+    private String passwordResetTokenHash;
+    private LocalDateTime passwordResetExpiresAt;
 
     private String firstName;
     private String lastName;
@@ -85,6 +90,15 @@ public class User {
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getPasswordResetTokenHash() { return passwordResetTokenHash; }
+    public void setPasswordResetTokenHash(String passwordResetTokenHash) { this.passwordResetTokenHash = passwordResetTokenHash; }
+    public LocalDateTime getPasswordResetExpiresAt() { return passwordResetExpiresAt; }
+    public void setPasswordResetExpiresAt(LocalDateTime passwordResetExpiresAt) { this.passwordResetExpiresAt = passwordResetExpiresAt; }
+
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
 
@@ -114,7 +128,8 @@ public class User {
                 && (hasText(address.getAddress2()) || hasText(address.getAddressLine2()))
                 && hasText(address.getCityTehsil())
                 && hasText(address.getState())
-                && hasText(address.getPincode());
+                && address.getPincode() != null
+                && address.getPincode().matches("^[0-9]{6}$");
     }
 
     private boolean hasText(String value) {

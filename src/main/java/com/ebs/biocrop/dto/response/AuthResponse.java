@@ -9,11 +9,17 @@ public class AuthResponse {
     private String userId;
     private String phoneNumber;
     private String role;
+    private boolean isProfileComplete;
 
     public AuthResponse() {
     }
 
     public AuthResponse(String accessToken, String refreshToken, long expiresInMs, String userId, String phoneNumber, String role) {
+        this(accessToken, refreshToken, expiresInMs, userId, phoneNumber, role, false);
+    }
+
+    public AuthResponse(String accessToken, String refreshToken, long expiresInMs, String userId, String phoneNumber,
+                        String role, boolean isProfileComplete) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.tokenType = "Bearer";
@@ -21,6 +27,7 @@ public class AuthResponse {
         this.userId = userId;
         this.phoneNumber = phoneNumber;
         this.role = role;
+        this.isProfileComplete = isProfileComplete;
     }
 
     public String getAccessToken() {
@@ -78,4 +85,7 @@ public class AuthResponse {
     public void setRole(String role) {
         this.role = role;
     }
+
+    public boolean getIsProfileComplete() { return isProfileComplete; }
+    public void setIsProfileComplete(boolean profileComplete) { isProfileComplete = profileComplete; }
 }

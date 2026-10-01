@@ -8,9 +8,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -24,10 +26,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, CustomUserDetailsService userDetailsService,
+                                   AuthenticationEntryPoint authenticationEntryPoint) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Override
@@ -36,32 +41,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        try {
-            String jwt = getJwtFromRequest(request);
-
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt) && tokenProvider.isAccessToken(jwt)) {
+        String jwt = getJwtFromRequest(request);
+        if (jwt != null) {
+            if (!StringUtils.hasText(jwt) || !tokenProvider.validateToken(jwt) || !tokenProvider.isAccessToken(jwt)) {
+                rejectInvalidToken(request, response);
+                return;
+            }
+            try {
                 String phoneNumber = tokenProvider.getPhoneNumberFromToken(jwt);
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(phoneNumber);
-                if (userDetails.isEnabled()) {
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (!userDetails.isEnabled()) {
+                    rejectInvalidToken(request, response);
+                    return;
                 }
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (Exception ex) {
+                log.warn("Could not authenticate supplied bearer token for {}", request.getRequestURI());
+                rejectInvalidToken(request, response);
+                return;
             }
-        } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
         }
 
         filterChain.doFilter(request, response);
     }
 
+    private void rejectInvalidToken(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        SecurityContextHolder.clearContext();
+        authenticationEntryPoint.commence(request, response,
+                new BadCredentialsException("A valid access token is required when an Authorization bearer token is supplied."));
+    }
+
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+        if (StringUtils.hasText(bearerToken)) {
+            if (!bearerToken.startsWith("Bearer ")) return "";
+            return bearerToken.substring(7).trim();
         }
         return null;
     }

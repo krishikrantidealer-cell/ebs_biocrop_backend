@@ -1,0 +1,975 @@
+{
+  "info": {
+    "name": "EBS BioCrop Backend - Redesigned API Flow",
+    "description": "Requests are numbered globally in execution order. Each request name states its action and access requirement. Categories are flat documents in one categories collection, linked by parentId with levels 0-2. Product payload examples use the current product and variant fields, including Display Rate, Printed MRP, cm dimensions, and product weight in g or kg. Replace example values with approved test data. The five database sample products are temporary TEST ONLY records and are not for sale. Seller onboarding details, document storage, shipping rules, GST calculation policy, and order/payment flows remain deferred. Admin and seller authentication now supports email OTP and email/password; customers remain phone OTP only. Phone OTP login is for customers and sellers; admins must use email OTP/password.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{customerAccessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "phoneNumber",
+      "value": ""
+    },
+    {
+      "key": "otp",
+      "value": ""
+    },
+    {
+      "key": "customerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "sellerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "variantId",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "parentCategoryId",
+      "value": ""
+    },
+    {
+      "key": "searchTerm",
+      "value": ""
+    },
+    {
+      "key": "blogId",
+      "value": ""
+    },
+    {
+      "key": "blogSlug",
+      "value": ""
+    },
+    {
+      "key": "passwordResetToken",
+      "value": ""
+    },
+    {
+      "key": "newPassword",
+      "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": ""
+    },
+    {
+      "key": "sellerEmail",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "emailOtp",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Public and customer APIs",
+      "item": [
+        {
+          "name": "1. Health check - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/health"
+          }
+        },
+        {
+          "name": "2. Send customer or seller phone OTP - Public",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/otp/send"
+          }
+        },
+        {
+          "name": "3. Verify customer or seller phone OTP - Public",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": "const response=pm.response.json(); const d=response.data || response; const role=(d.role || 'ROLE_CUSTOMER').toUpperCase(); const tokenVariable={ROLE_CUSTOMER:'customerAccessToken',ROLE_SELLER:'sellerAccessToken',ROLE_ADMIN:'adminAccessToken'}[role]; if(d.accessToken && tokenVariable) pm.collectionVariables.set(tokenVariable,d.accessToken); if(d.refreshToken) pm.collectionVariables.set('refreshToken',d.refreshToken); pm.test('OTP login returns a supported role',()=>pm.expect(tokenVariable,'role: '+role).to.be.ok);"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"otp\": \"{{otp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/otp/verify"
+          }
+        },
+        {
+          "name": "4. Refresh access token - Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/token/refresh"
+          }
+        },
+        {
+          "name": "5. Get own profile - Authenticated user",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/user/profile"
+          }
+        },
+        {
+          "name": "6. Complete or update own profile - Authenticated user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"firstName\": \"Sample\",\r\n  \"lastName\": \"Customer\",\r\n  \"address\": {\r\n    \"villageArea\": \"Sample address\",\r\n    \"cityTehsil\": \"Indore\",\r\n    \"state\": \"Madhya Pradesh\",\r\n    \"pincode\": \"452001\",\r\n    \"address2\": \"Near Sample Landmark\"\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/user/profile"
+          }
+        },
+        {
+          "name": "7. List active products - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products?page=0&size=20"
+          }
+        },
+        {
+          "name": "8. Get product details by ID - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}"
+          }
+        },
+        {
+          "name": "9. List products by category - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/category/{{categoryId}}?page=0&size=20"
+          }
+        },
+        {
+          "name": "10. Search products - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/search?q={{searchTerm}}&page=0&size=20"
+          }
+        },
+        {
+          "name": "11. List category roots - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories?level=0"
+          }
+        },
+        {
+          "name": "12. List category children by parent ID - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories?parentId={{parentCategoryId}}"
+          }
+        },
+        {
+          "name": "13. Get category by ID - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/categories/{{categoryId}}"
+          }
+        },
+        {
+          "name": "14. Get cart - ROLE_CUSTOMER",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/cart"
+          }
+        },
+        {
+          "name": "15. Get cart count - ROLE_CUSTOMER",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/cart/count"
+          }
+        },
+        {
+          "name": "16. Sync cart - ROLE_CUSTOMER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [{ \"variantId\": \"{{variantId}}\", \"quantity\": 1 }]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/cart/sync"
+          }
+        },
+        {
+          "name": "17. Add item to cart - ROLE_CUSTOMER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/cart/items"
+          }
+        },
+        {
+          "name": "18. Update cart item quantity - ROLE_CUSTOMER",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/cart/items/{{variantId}}"
+          }
+        },
+        {
+          "name": "19. Remove item from cart - ROLE_CUSTOMER",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/cart/items/{{variantId}}"
+          }
+        },
+        {
+          "name": "20. Clear cart - ROLE_CUSTOMER",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/cart"
+          }
+        },
+        {
+          "name": "21. Get wishlist - ROLE_CUSTOMER",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/wishlist"
+          }
+        },
+        {
+          "name": "22. Add variant to wishlist - ROLE_CUSTOMER",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/wishlist/items/{{variantId}}"
+          }
+        },
+        {
+          "name": "23. Remove variant from wishlist - ROLE_CUSTOMER",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/wishlist/items/{{variantId}}"
+          }
+        },
+        {
+          "name": "24. Clear wishlist - ROLE_CUSTOMER",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/wishlist"
+          }
+        },
+        {
+          "name": "25. Delete own profile - Authenticated user",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/user/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller catalog APIs",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{sellerAccessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "description": "Seller accounts first authenticate using OTP. The platform team provisions ROLE_SELLER after offline onboarding. Replace examples with the approved product list when available.",
+      "item": [
+        {
+          "name": "26. List my product submissions - ROLE_SELLER",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/seller/products?page=0&size=20"
+          }
+        },
+        {
+          "name": "27. Submit product listing - ROLE_SELLER",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"sku\": \"REPLACE-WITH-APPROVED-SKU\",\r\n  \"title\": \"Replace with approved product title\",\r\n  \"technicalName\": \"\",\r\n  \"vendor\": \"\",\r\n  \"description\": \"\",\r\n  \"images\": [],\r\n  \"technicalContent\": \"\",\r\n  \"features\": [],\r\n  \"benefits\": [],\r\n  \"modeOfAction\": \"\",\r\n  \"suitableCrops\": [],\r\n  \"targetPests\": [],\r\n  \"targetDiseases\": [],\r\n  \"dosage\": \"\",\r\n  \"applicationMethod\": \"\",\r\n  \"categoryId\": \"{{categoryId}}\",\r\n  \"collectionIds\": [],\r\n  \"subCollectionIds\": [],\r\n  \"dimensions\": {\r\n    \"length\": 24,\r\n    \"width\": 12,\r\n    \"height\": 12,\r\n    \"unit\": \"cm\"\r\n  },\r\n  \"variants\": [\r\n    {\r\n      \"label\": \"1 Litre (250 ML x 4 Qty)\",\r\n      \"packSize\": 250,\r\n      \"packSizeUnit\": \"ml\",\r\n      \"packQuantity\": 4,\r\n      \"packUnit\": \"bottle\",\r\n      \"costPrice\": 0,\r\n      \"discountRs\": 0,\r\n      \"gstPercentage\": 0,\r\n      \"discountPercentage\": 0,\r\n      \"stock\": 0,\r\n      \"unit\": \"ml\",\r\n      \"shippedBy\": \"\",\r\n      \"swg\": 0,\r\n      \"displayRate\": 0,\r\n      \"printedMrp\": 0\r\n    }\r\n  ],\r\n  \"productCode\": \"\",\r\n  \"hsnCode\": \"\",\r\n  \"productWeight\": 0,\r\n  \"productWeightUnit\": \"g\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/seller/products"
+          }
+        },
+        {
+          "name": "28. Update my listing - ROLE_SELLER",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"sku\": \"REPLACE-WITH-APPROVED-SKU\",\r\n  \"title\": \"Replace with approved product title\",\r\n  \"categoryId\": \"{{categoryId}}\",\r\n  \"dimensions\": {\r\n    \"length\": 24,\r\n    \"width\": 12,\r\n    \"height\": 12,\r\n    \"unit\": \"cm\"\r\n  },\r\n  \"variants\": [\r\n    {\r\n      \"label\": \"1 Litre (250 ML x 4 Qty)\",\r\n      \"packSize\": 250,\r\n      \"packSizeUnit\": \"ml\",\r\n      \"packQuantity\": 4,\r\n      \"packUnit\": \"bottle\",\r\n      \"gstPercentage\": 0,\r\n      \"stock\": 0,\r\n      \"dimensions\": {\r\n        \"length\": 1,\r\n        \"width\": 1,\r\n        \"height\": 1,\r\n        \"unit\": \"cm\"\r\n      },\r\n      \"unit\": \"ml\",\r\n      \"shippedBy\": \"\",\r\n      \"swg\": 0,\r\n      \"displayRate\": 0\r\n    }\r\n  ],\r\n  \"productCode\": \"\",\r\n  \"hsnCode\": \"\",\r\n  \"productWeight\": 0,\r\n  \"productWeightUnit\": \"g\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/seller/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin operations",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminAccessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "description": "Requires an already provisioned ROLE_ADMIN account. OTP login alone does not grant admin role.",
+      "item": [
+        {
+          "name": "29. Assign account role - ROLE_ADMIN",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ROLE_SELLER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/users/{{userId}}/role"
+          }
+        },
+        {
+          "name": "30. List categories including inactive entries - ROLE_ADMIN",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/categories"
+          }
+        },
+        {
+          "name": "31. Create root category - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Crop Protection\",\n  \"slug\": \"crop-protection\",\n  \"parentId\": null,\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/categories"
+          }
+        },
+        {
+          "name": "32. Create child category - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Insecticides\",\n  \"slug\": \"insecticides\",\n  \"parentId\": \"{{parentCategoryId}}\",\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/categories"
+          }
+        },
+        {
+          "name": "33. Update category - ROLE_ADMIN",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Insecticides\",\n  \"slug\": \"insecticides\",\n  \"parentId\": \"{{parentCategoryId}}\",\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}"
+          }
+        },
+        {
+          "name": "34. Deactivate category - ROLE_ADMIN",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}"
+          }
+        },
+        {
+          "name": "35. List products pending review - ROLE_ADMIN",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/products?status=PENDING_REVIEW&page=0&size=20"
+          }
+        },
+        {
+          "name": "36. Approve seller listing - ROLE_ADMIN",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/review?approved=true"
+          }
+        },
+        {
+          "name": "37. Reject seller listing - ROLE_ADMIN",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/review?approved=false"
+          }
+        },
+        {
+          "name": "38. Set product availability - ROLE_ADMIN",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/availability?available=true"
+          }
+        },
+        {
+          "name": "39. Create blog draft - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sample cultivation guide\",\n  \"slug\": \"sample-cultivation-guide\",\n  \"excerpt\": \"A sample blog draft for API review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/blogs"
+          }
+        },
+        {
+          "name": "40. List admin blogs - ROLE_ADMIN",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/blogs?page=0&size=20"
+          }
+        },
+        {
+          "name": "41. Get admin blog - ROLE_ADMIN",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}"
+          }
+        },
+        {
+          "name": "42. Update admin blog - ROLE_ADMIN",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sample cultivation guide updated\",\n  \"slug\": \"sample-cultivation-guide\",\n  \"excerpt\": \"Updated sample blog excerpt.\",\n  \"content\": { \"format\": \"TIPTAP_JSON\", \"version\": 1, \"body\": { \"type\": \"doc\", \"content\": [] } },\n  \"category\": { \"name\": \"Crop guidance\", \"slug\": \"crop-guidance\" },\n  \"tags\": [],\n  \"relatedBlogIds\": [],\n  \"relatedProductIds\": [],\n  \"isFeatured\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}"
+          }
+        },
+        {
+          "name": "43. Publish blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/publish"
+          }
+        },
+        {
+          "name": "44. Schedule blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduledAt\": \"2026-10-01T12:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/schedule"
+          }
+        },
+        {
+          "name": "45. Unpublish blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/unpublish"
+          }
+        },
+        {
+          "name": "46. Archive blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/archive"
+          }
+        },
+        {
+          "name": "47. Restore archived blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/restore"
+          }
+        },
+        {
+          "name": "48. Soft delete blog - ROLE_ADMIN",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}"
+          }
+        },
+        {
+          "name": "49. Restore soft-deleted blog - ROLE_ADMIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/admin/blogs/{{blogId}}/restore-deleted"
+          }
+        },
+        {
+          "name": "50. Set product featured status - ROLE_ADMIN",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/featured?featured=true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public blog APIs",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "51. List published blogs - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/blogs?page=0&size=20"
+          }
+        },
+        {
+          "name": "52. Get published blog by slug - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/blogs/{{blogSlug}}"
+          }
+        },
+        {
+          "name": "53. List published blog categories - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/blogs/categories"
+          }
+        },
+        {
+          "name": "54. List published blog tags - Public",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/blogs/tags"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin and seller authentication",
+      "item": [
+        {
+          "name": "55. Send admin or seller email OTP - Admin/Seller account",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/email/otp/send",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "56. Verify email OTP - Admin/Seller account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": "const r=pm.response.json();const d=r.data||r;const role=(d.role||'').toUpperCase();const v={ROLE_SELLER:'sellerAccessToken',ROLE_ADMIN:'adminAccessToken'}[role];if(d.accessToken&&v)pm.collectionVariables.set(v,d.accessToken);if(d.refreshToken)pm.collectionVariables.set('refreshToken',d.refreshToken);pm.test('email OTP yields seller/admin role',()=>pm.expect(v,'role: '+role).to.be.ok);",
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/email/otp/verify",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{emailOtp}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "57. Login with email and password - Admin/Seller account",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/password/login",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{newPassword}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "event": [
+            {
+              "script": {
+                "type": "text",
+                "exec": "const r=pm.response.json();const d=r.data||r;const role=(d.role||'').toUpperCase();const v={ROLE_SELLER:'sellerAccessToken',ROLE_ADMIN:'adminAccessToken'}[role];if(d.accessToken&&v)pm.collectionVariables.set(v,d.accessToken);if(d.refreshToken)pm.collectionVariables.set('refreshToken',d.refreshToken);pm.test('password login returns seller/admin role',()=>pm.expect(v,'role: '+role).to.be.ok);"
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "58. Set first password - Authenticated Admin/Seller",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/password/setup",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "type": "string",
+                "value": "{{sellerAccessToken}}",
+                "key": "token"
+              }
+            ]
+          }
+        },
+        {
+          "name": "59. Request password reset email - Admin/Seller account",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/password/forgot",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "60. Reset password with email link - Admin/Seller account",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/password/reset",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"token\": \"{{passwordResetToken}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "61. Set first password - Authenticated Admin",
+          "request": {
+            "url": "{{baseUrl}}/api/v1/auth/password/setup",
+            "method": "POST",
+            "body": {
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "mode": "raw"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "type": "string",
+                "value": "{{adminAccessToken}}",
+                "key": "token"
+              }
+            ]
+          }
+        }
+      ],
+      "description": "Admin accounts must be provisioned with ROLE_ADMIN and email by the platform. Seller accounts must be provisioned with ROLE_SELLER and email. Email OTP and password login are for seller/admin only; password setup requires a signed-in seller/admin. In dev, OTP and reset links are logged by the app when MAIL_CONSOLE_DELIVERY_ENABLED=true."
+    }
+  ]
+}

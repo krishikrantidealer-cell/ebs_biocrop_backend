@@ -2,19 +2,30 @@ package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.exception.AppException;
 import org.springframework.dao.DataAccessException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class RateLimitService {
+    private static final Logger log = LoggerFactory.getLogger(RateLimitService.class);
+    private static final int LOCAL_MAX_KEYS = 10_000;
 
     private static final DefaultRedisScript<List> INCREMENT_SCRIPT =
             new DefaultRedisScript<>("""
@@ -26,9 +37,19 @@ public class RateLimitService {
                     """, List.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final Environment environment;
+    private final Map<String, LocalWindow> localWindows = new HashMap<>();
+    private final AtomicBoolean localFallbackWarningLogged = new AtomicBoolean();
 
-    public RateLimitService(StringRedisTemplate redisTemplate) {
+    @Value("${app.rate-limit.dev-in-memory-fallback:false}")
+    private boolean devInMemoryFallbackEnabled;
+
+    @Value("${app.rate-limit.in-memory-fallback:false}")
+    private boolean inMemoryFallbackEnabled;
+
+    public RateLimitService(StringRedisTemplate redisTemplate, Environment environment) {
         this.redisTemplate = redisTemplate;
+        this.environment = environment;
     }
 
     /** Returns 0 when allowed; otherwise returns seconds until the counter expires. */
@@ -42,6 +63,12 @@ public class RateLimitService {
                     Long.toString(window.toMillis())
             );
         } catch (DataAccessException exception) {
+            if (inMemoryFallbackEnabled || (devInMemoryFallbackEnabled && environment.acceptsProfiles(Profiles.of("dev")))) {
+                if (localFallbackWarningLogged.compareAndSet(false, true)) {
+                    log.warn("Redis rate limiting is unavailable; using bounded process-local limits.", exception);
+                }
+                return checkLocal(key, maxRequests, window);
+            }
             throw new AppException("Rate limiting is temporarily unavailable. Please retry shortly.",
                     HttpStatus.SERVICE_UNAVAILABLE);
         }
@@ -57,6 +84,44 @@ public class RateLimitService {
             return 0;
         }
         return Math.max(1, (ttlMillis + 999) / 1000);
+    }
+
+    private synchronized long checkLocal(String key, int maxRequests, Duration window) {
+        long now = System.nanoTime();
+        long windowNanos = window.toNanos();
+        LocalWindow current = localWindows.get(key);
+        if (current == null || now - current.startedAtNanos >= windowNanos) {
+            if (current == null && localWindows.size() >= LOCAL_MAX_KEYS) {
+                removeExpiredLocalWindows(now, windowNanos);
+                if (localWindows.size() >= LOCAL_MAX_KEYS) {
+                    throw new AppException("Local development rate limiter is at capacity. Please retry shortly.",
+                            HttpStatus.SERVICE_UNAVAILABLE);
+                }
+            }
+            current = new LocalWindow(now);
+            localWindows.put(key, current);
+        }
+        current.count++;
+        if (current.count <= maxRequests) return 0;
+        long remainingNanos = windowNanos - (now - current.startedAtNanos);
+        return Math.max(1, (remainingNanos + 999_999_999L) / 1_000_000_000L);
+    }
+
+    private void removeExpiredLocalWindows(long now, long windowNanos) {
+        Iterator<LocalWindow> iterator = localWindows.values().iterator();
+        while (iterator.hasNext()) {
+            LocalWindow entry = iterator.next();
+            if (now - entry.startedAtNanos >= windowNanos) iterator.remove();
+        }
+    }
+
+    private static final class LocalWindow {
+        private final long startedAtNanos;
+        private long count;
+
+        private LocalWindow(long startedAtNanos) {
+            this.startedAtNanos = startedAtNanos;
+        }
     }
 
     private long asLong(Object value) {

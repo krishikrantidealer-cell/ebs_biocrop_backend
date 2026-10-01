@@ -2,7 +2,6 @@ package com.ebs.biocrop.entity;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -22,8 +21,6 @@ public class Wishlist {
 
     private List<String> variantIds = new ArrayList<>();
     private Map<String, String> variantProductIds = new HashMap<>();
-    @Field("products")
-    private List<String> legacyProductIds = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -46,11 +43,6 @@ public class Wishlist {
     public Map<String, String> getVariantProductIds() { return variantProductIds; }
     public void setVariantProductIds(Map<String, String> variantProductIds) {
         this.variantProductIds = variantProductIds != null ? variantProductIds : new HashMap<>();
-    }
-
-    public List<String> getLegacyProductIds() { return legacyProductIds; }
-    public void setLegacyProductIds(List<String> legacyProductIds) {
-        this.legacyProductIds = legacyProductIds != null ? legacyProductIds : new ArrayList<>();
     }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

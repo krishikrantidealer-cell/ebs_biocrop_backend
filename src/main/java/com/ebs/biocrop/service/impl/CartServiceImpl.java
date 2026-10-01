@@ -13,7 +13,6 @@ import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CartRepository;
-import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.service.CartService;
@@ -36,16 +35,13 @@ public class CartServiceImpl implements CartService {
     private static final Logger log = LoggerFactory.getLogger(CartServiceImpl.class);
 
     private final CartRepository cartRepository;
-    private final ProductRepository productRepository;
     private final ProductVariantLookup productVariantLookup;
     private final UserRepository userRepository;
 
     public CartServiceImpl(CartRepository cartRepository,
-                           ProductRepository productRepository,
                            ProductVariantLookup productVariantLookup,
                            UserRepository userRepository) {
         this.cartRepository = cartRepository;
-        this.productRepository = productRepository;
         this.productVariantLookup = productVariantLookup;
         this.userRepository = userRepository;
     }
@@ -80,7 +76,7 @@ public class CartServiceImpl implements CartService {
 
         validateProductAvailability(product, variant);
 
-        int minOrder = variant.getMinOrderQty() != null && variant.getMinOrderQty() > 0 ? variant.getMinOrderQty() : 1;
+        int minOrder = 1;
         int requestedQty = request.getQuantity() != null && request.getQuantity() > 0 ? request.getQuantity() : minOrder;
 
         if (requestedQty < minOrder) {
@@ -94,7 +90,7 @@ public class CartServiceImpl implements CartService {
                 .filter(item -> variantId.equalsIgnoreCase(item.getVariantId()))
                 .findFirst();
 
-        int availableStock = variant.getStockQty() != null ? variant.getStockQty() : 0;
+        int availableStock = variant.getStock() != null ? variant.getStock() : 0;
 
         if (existingItemOpt.isPresent()) {
             CartItem existingItem = existingItemOpt.get();
@@ -149,7 +145,7 @@ public class CartServiceImpl implements CartService {
             Product product = resolution.product;
             ProductVariant variant = resolution.variant;
             
-            int minOrder = variant.getMinOrderQty() != null && variant.getMinOrderQty() > 0 ? variant.getMinOrderQty() : 1;
+            int minOrder = 1;
 
             if (quantity < minOrder) {
                 throw new AppException(String.format(
@@ -157,7 +153,7 @@ public class CartServiceImpl implements CartService {
                         product.getTitle(), minOrder), HttpStatus.BAD_REQUEST);
             }
 
-            int availableStock = variant.getStockQty() != null ? variant.getStockQty() : 0;
+            int availableStock = variant.getStock() != null ? variant.getStock() : 0;
 
             if (quantity > availableStock) {
                 throw new AppException(String.format(
@@ -212,12 +208,10 @@ public class CartServiceImpl implements CartService {
                     Product product = resolution.product;
                     ProductVariant variant = resolution.variant;
                     
-                    if (!"In Stock".equalsIgnoreCase(product.getAvailabilityStatus())) {
-                        continue;
-                    }
+                    validateProductAvailability(product, variant);
 
                     int requestedQty = itemReq.getQuantity() != null && itemReq.getQuantity() > 0 ? itemReq.getQuantity() : 1;
-                    int availableStock = variant.getStockQty() != null ? variant.getStockQty() : 0;
+                    int availableStock = variant.getStock() != null ? variant.getStock() : 0;
 
                     Optional<CartItem> existingOpt = cart.getItems().stream()
                             .filter(i -> variant.getId().equalsIgnoreCase(i.getVariantId()))
@@ -250,61 +244,6 @@ public class CartServiceImpl implements CartService {
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
         return CartResponse.fromEntity(cart);
-    }
-
-    @Override
-    public CheckoutSummaryResponse getCheckoutSummary(String phoneNumber) {
-        User user = getUser(phoneNumber);
-        if (!Boolean.TRUE.equals(user.getIsProfileComplete())) {
-            throw new AppException("Complete your profile, including delivery address, before checkout.", HttpStatus.BAD_REQUEST);
-        }
-        Cart cart = getOrCreateCart(phoneNumber);
-        recalculateTotals(cart);
-        cart = cartRepository.save(cart);
-
-        List<String> validationErrors = new ArrayList<>();
-
-        if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            validationErrors.add("Your cart is empty. Please add items before proceeding to checkout.");
-        } else {
-            for (CartItem item : cart.getItems()) {
-                try {
-                    ProductResolution res = resolveProductAndVariant(item.getVariantId());
-                    if (!"In Stock".equalsIgnoreCase(res.product.getAvailabilityStatus()) || res.variant.getStockQty() == null || res.variant.getStockQty() < item.getQuantity()) {
-                        validationErrors.add(String.format("Item '%s' (%s) is out of stock or exceeds inventory.",
-                                res.product.getTitle(), item.getVariantId()));
-                    }
-                } catch (Exception e) {
-                    validationErrors.add(String.format("Item '%s' is no longer available.", item.getVariantId()));
-                }
-            }
-        }
-
-        if (user.getAddress() == null || user.getAddress().getPincode() == null || user.getAddress().getPincode().isBlank()) {
-            validationErrors.add("A valid delivery address with pin code is required to proceed to checkout. Please update your profile.");
-        }
-
-        boolean readyForCheckout = validationErrors.isEmpty();
-        
-        // To compute checkout totals correctly we need to re-fetch courier charges since they were removed from Cart entity
-        BigDecimal totalCourier = BigDecimal.ZERO;
-        for (CartItem item : cart.getItems()) {
-             try {
-                ProductResolution res = resolveProductAndVariant(item.getVariantId());
-                 totalCourier = totalCourier.add(amount(res.variant.getCourierCharge()));
-             } catch (Exception ignored) {}
-        }
-
-        return new CheckoutSummaryResponse(
-                CartResponse.fromEntity(cart),
-                readyForCheckout,
-                validationErrors,
-                user.getAddress(),
-                cart.getTotalAmount(),
-                cart.getDiscountAmount(),
-                round(totalCourier),
-                cart.getFinalAmount()
-        );
     }
 
     private Cart getOrCreateCart(String phoneNumber) {
@@ -372,7 +311,7 @@ public class CartServiceImpl implements CartService {
             }
             try {
                 ProductResolution resolution = resolveStoredVariant(item);
-                item.setProduct(resolution.product.getId());
+                item.setProductId(resolution.product.getId());
                 item.setVariantId(resolution.variant.getId());
             } catch (AppException ignored) {
                 // Keep unavailable legacy cart entries intact so a catalog issue does not silently discard a user's cart.
@@ -392,39 +331,32 @@ public class CartServiceImpl implements CartService {
             }
         }
 
-        Product product = item.getProduct() == null
-                ? null
-                : productRepository.findById(item.getProduct()).orElse(null);
-        if (product == null) {
-            product = productRepository.findByVariantsVariationCode(storedId).orElse(null);
-        }
-        if (product != null && product.getVariants() != null) {
-            List<ProductVariant> matches = product.getVariants().stream()
-                    .filter(variant -> storedId.equalsIgnoreCase(variant.getVariationCode()))
-                    .toList();
-            if (matches.size() == 1 && matches.getFirst().getId() != null) {
-                return new ProductResolution(product, matches.getFirst());
-            }
-            if (matches.size() > 1) {
-                throw new AppException("Legacy variation code matches multiple variants.", HttpStatus.CONFLICT);
-            }
-        }
-        throw new ResourceNotFoundException("Product variant", "id or legacy variationCode", storedId);
+        throw new ResourceNotFoundException("Product variant", "id", storedId);
+    }
+
+    @Override
+    public CheckoutSummaryResponse getCheckoutSummary(String phoneNumber) {
+        throw new UnsupportedOperationException("Checkout is outside the current scope");
     }
 
     private void validateProductAvailability(Product product, ProductVariant variant) {
-        if (!"In Stock".equalsIgnoreCase(product.getAvailabilityStatus())) {
+        if (!isProductAvailable(product)) {
             throw new AppException(String.format("Product '%s' is currently inactive or unavailable.", product.getTitle()), HttpStatus.BAD_REQUEST);
         }
-        if (variant.getStockQty() == null || variant.getStockQty() <= 0) {
+        if (variant.getStock() == null || variant.getStock() <= 0) {
             throw new AppException(String.format("Product '%s' is currently out of stock.", product.getTitle()), HttpStatus.BAD_REQUEST);
         }
+    }
+
+    private boolean isProductAvailable(Product product) {
+        return product.getStatus() != null && "ACTIVE".equalsIgnoreCase(product.getStatus())
+                && product.getSellerId() != null && !product.getSellerId().isBlank()
+                && Boolean.TRUE.equals(product.getIsAvailable());
     }
 
     private void recalculateTotals(Cart cart) {
         BigDecimal totalOriginalPrice = BigDecimal.ZERO;
         BigDecimal totalSalePrice = BigDecimal.ZERO;
-        BigDecimal totalCourierCharge = BigDecimal.ZERO;
 
         if (cart.getItems() != null) {
             for (CartItem item : cart.getItems()) {
@@ -437,12 +369,11 @@ public class CartServiceImpl implements CartService {
                     int qty = item.getQuantity() != null ? item.getQuantity() : 0;
                     BigDecimal quantity = BigDecimal.valueOf(qty);
 
-                    BigDecimal originalUnitPrice = res.variant.getCompareAtPrice() != null
-                            ? BigDecimal.valueOf(res.variant.getCompareAtPrice())
-                            : amount(res.variant.getPrice());
+                    BigDecimal originalUnitPrice = res.variant.getPrintedMrp() != null
+                            ? BigDecimal.valueOf(res.variant.getPrintedMrp())
+                            : amount(res.variant.getDisplayRate());
                     totalOriginalPrice = totalOriginalPrice.add(originalUnitPrice.multiply(quantity));
                     totalSalePrice = totalSalePrice.add(amount(salePrice).multiply(quantity));
-                    totalCourierCharge = totalCourierCharge.add(amount(res.variant.getCourierCharge()));
                 } catch (Exception ignored) {
                 }
             }
@@ -451,7 +382,7 @@ public class CartServiceImpl implements CartService {
         cart.setTotalAmount(round(totalOriginalPrice));
         BigDecimal discount = totalOriginalPrice.subtract(totalSalePrice).max(BigDecimal.ZERO);
         cart.setDiscountAmount(round(discount));
-        cart.setFinalAmount(round(totalSalePrice.add(totalCourierCharge)));
+        cart.setFinalAmount(round(totalSalePrice));
         cart.setUpdatedAt(LocalDateTime.now());
     }
 
@@ -460,7 +391,7 @@ public class CartServiceImpl implements CartService {
     }
 
     private Double effectiveSalePrice(ProductVariant variant) {
-        return variant.getSalePrice() != null ? variant.getSalePrice() : variant.getPrice();
+        return variant.getEffectivePrice();
     }
 
     private double round(BigDecimal value) {

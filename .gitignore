@@ -1,4 +1,6 @@
 target/
+.m2/
+.maven-home/
 !.mvn/wrapper/maven-wrapper.jar
 
 ### IDEs ###
@@ -17,4 +19,4 @@ Thumbs.db
 # Root utility scripts and data dumps
 *.js
 *.json
-!EBS_Biocrop_End_To_End.json
+!EBS BioCrop Backend - Redesigned API Flow.postman_collection.json

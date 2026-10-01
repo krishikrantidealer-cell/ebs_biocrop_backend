@@ -1,6 +1,8 @@
 package com.ebs.biocrop.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public class UserProfileUpdateRequest {
@@ -9,8 +11,12 @@ public class UserProfileUpdateRequest {
     @Size(min = 2, max = 50, message = "First Name must be between 2 and 50 characters")
     private String firstName;
 
+    @NotBlank(message = "Last Name cannot be blank")
+    @Size(min = 2, max = 50, message = "Last Name must be between 2 and 50 characters")
     private String lastName;
 
+    @NotNull(message = "Address is required")
+    @Valid
     private com.ebs.biocrop.entity.Address address;
 
     public UserProfileUpdateRequest() {

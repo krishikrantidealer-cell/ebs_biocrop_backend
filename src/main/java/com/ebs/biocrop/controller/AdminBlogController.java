@@ -12,16 +12,23 @@ import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.BlogService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.bson.types.ObjectId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/blogs")
+@PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin blogs", description = "Admin blog publishing and moderation APIs.")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminBlogController {
 
     private final BlogService blogService;

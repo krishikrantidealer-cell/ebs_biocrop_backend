@@ -4,6 +4,7 @@ import com.ebs.biocrop.dto.request.CreateBlogDraftRequest;
 import com.ebs.biocrop.dto.request.UpdateBlogRequest;
 import com.ebs.biocrop.dto.response.BlogDraftResponse;
 import com.ebs.biocrop.dto.response.BlogFacetResponse;
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.entity.Blog;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.enums.BlogStatus;
@@ -17,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.types.ObjectId;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -314,7 +314,8 @@ public class BlogServiceImpl implements BlogService {
                         Aggregation.group("category.slug")
                                 .first("category.name").as("name")
                                 .first("category.slug").as("slug"),
-                        Aggregation.sort(Sort.Direction.ASC, "name")),
+                        Aggregation.sort(Sort.Direction.ASC, "name"),
+                        Aggregation.limit(PageRequestSupport.MAX_SIZE)),
                 "blogs", BlogFacetResponse.class).getMappedResults();
     }
 
@@ -324,14 +325,18 @@ public class BlogServiceImpl implements BlogService {
                         Aggregation.match(publicCriteria()),
                         Aggregation.unwind("tags"),
                         Aggregation.group("tags").first("tags").as("name").first("tags").as("slug"),
-                        Aggregation.sort(Sort.Direction.ASC, "name")),
+                        Aggregation.sort(Sort.Direction.ASC, "name"),
+                        Aggregation.limit(PageRequestSupport.MAX_SIZE)),
                 "blogs", BlogFacetResponse.class).getMappedResults();
     }
 
     @Override
     public void publishDueScheduledBlogs() {
         Instant now = Instant.now();
-        for (Blog blog : blogRepository.findByStatusAndScheduledAtLessThanEqualAndDeletedAtIsNull(BlogStatus.SCHEDULED, now)) {
+        Pageable batch = PageRequestSupport.create(0, PageRequestSupport.MAX_SIZE,
+                Sort.by(Sort.Direction.ASC, "scheduledAt"));
+        for (Blog blog : blogRepository.findByStatusAndScheduledAtLessThanEqualAndDeletedAtIsNull(
+                BlogStatus.SCHEDULED, now, batch)) {
             try {
                 validatePublishGate(blog);
                 blog.setStatus(BlogStatus.PUBLISHED);
@@ -616,9 +621,7 @@ public class BlogServiceImpl implements BlogService {
     }
 
     private Pageable pageable(int page, int size, Sort sort) {
-        if (page < 0) throw new AppException("Page must be zero or greater", HttpStatus.BAD_REQUEST);
-        if (size < 1 || size > MAX_PAGE_SIZE) throw new AppException("Page size must be between 1 and 100", HttpStatus.BAD_REQUEST);
-        return PageRequest.of(page, size, sort);
+        return PageRequestSupport.create(page, size, sort);
     }
 
     private String normalizeSlug(String value) {

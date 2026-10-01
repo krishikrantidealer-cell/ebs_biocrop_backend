@@ -4,6 +4,9 @@ import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.WishlistResponse;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.WishlistService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/wishlist")
 @PreAuthorize("hasRole('CUSTOMER')")
+@Tag(name = "Wishlist", description = "Customer wishlist operations.")
+@SecurityRequirement(name = "bearerAuth")
 public class WishlistController {
 
     private final WishlistService wishlistService;

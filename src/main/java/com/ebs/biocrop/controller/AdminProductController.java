@@ -1,0 +1,62 @@
+package com.ebs.biocrop.controller;
+
+import com.ebs.biocrop.dto.response.ApiResponse;
+import com.ebs.biocrop.dto.response.PagedResponse;
+import com.ebs.biocrop.dto.response.ProductManagementResponse;
+import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.service.AdminProductService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/admin/products")
+@PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Admin products")
+@SecurityRequirement(name = "bearerAuth")
+public class AdminProductController {
+    private final AdminProductService products;
+
+    public AdminProductController(AdminProductService products) {
+        this.products = products;
+    }
+
+    @GetMapping
+    @Operation(summary = "List product listings by review status")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductManagementResponse>>> listForReview(
+            @RequestParam(defaultValue = "PENDING_REVIEW") String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<Product> result = products.listForReview(status, page, size);
+        return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",
+                PagedResponse.from(result, ProductManagementResponse::from)));
+    }
+
+    @PatchMapping("/{id}/review")
+    @Operation(summary = "Approve or reject a seller product listing")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> review(@PathVariable String id,
+                                                                          @RequestParam boolean approved) {
+        return ResponseEntity.ok(ApiResponse.ok(approved ? "Product approved" : "Product rejected",
+                ProductManagementResponse.from(products.review(id, approved))));
+    }
+
+    @PatchMapping("/{id}/availability")
+    @Operation(summary = "Set product availability")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> setAvailability(@PathVariable String id,
+                                                                                  @RequestParam boolean available) {
+        return ResponseEntity.ok(ApiResponse.ok("Product availability updated",
+                ProductManagementResponse.from(products.setAvailability(id, available))));
+    }
+
+    @PatchMapping("/{id}/featured")
+    @Operation(summary = "Set product featured state")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> setFeatured(@PathVariable String id,
+                                                                               @RequestParam boolean featured) {
+        return ResponseEntity.ok(ApiResponse.ok("Product featured status updated",
+                ProductManagementResponse.from(products.setFeatured(id, featured))));
+    }
+}

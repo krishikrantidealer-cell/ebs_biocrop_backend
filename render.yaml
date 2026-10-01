@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ebs-biocrop-backend
+    env: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: MONGODB_DATABASE
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: OTP_CONSOLE_DELIVERY_ENABLED
+        value: "true"
+      - key: MAIL_CONSOLE_DELIVERY_ENABLED
+        value: "true"

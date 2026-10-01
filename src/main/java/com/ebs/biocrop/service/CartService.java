@@ -22,5 +22,7 @@ public interface CartService {
 
     CartResponse syncCart(String phoneNumber, CartSyncRequest request);
 
+    /** Retained for internal source compatibility; no checkout API is exposed in the current scope. */
     CheckoutSummaryResponse getCheckoutSummary(String phoneNumber);
+
 }

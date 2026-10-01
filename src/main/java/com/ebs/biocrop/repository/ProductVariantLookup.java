@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.annotation.PostConstruct;
 
 import java.util.ArrayList;
@@ -19,6 +20,8 @@ import java.util.List;
 public class ProductVariantLookup {
 
     private final MongoTemplate mongoTemplate;
+    @Value("${app.database.maintenance-mode.enabled:false}")
+    private boolean maintenanceMode;
 
     public ProductVariantLookup(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
@@ -26,6 +29,7 @@ public class ProductVariantLookup {
 
     @PostConstruct
     void ensureVariantIdIndex() {
+        if (maintenanceMode || !mongoTemplate.collectionExists("products")) return;
         mongoTemplate.indexOps("products").ensureIndex(
                 new Index().on("variants._id", Sort.Direction.ASC).named("idx_products_variant_id"));
     }

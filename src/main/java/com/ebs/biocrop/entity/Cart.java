@@ -15,7 +15,7 @@ public class Cart {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, name = "uniq_cart_user")
     private String user;
 
     private List<CartItem> items = new ArrayList<>();

@@ -5,7 +5,7 @@ import com.ebs.biocrop.entity.CartItem;
 public class CartItemResponse {
 
     private String id;
-    private String product; // Parent product ID
+    private String productId;
     private String variantId;
     private Integer quantity;
     private Double price;
@@ -13,9 +13,9 @@ public class CartItemResponse {
     public CartItemResponse() {
     }
 
-    public CartItemResponse(String id, String product, String variantId, Integer quantity, Double price) {
+    public CartItemResponse(String id, String productId, String variantId, Integer quantity, Double price) {
         this.id = id;
-        this.product = product;
+        this.productId = productId;
         this.variantId = variantId;
         this.quantity = quantity;
         this.price = price;
@@ -25,7 +25,7 @@ public class CartItemResponse {
         if (item == null) return null;
         return new CartItemResponse(
                 item.getId(),
-                item.getProduct(),
+                item.getProductId(),
                 item.getVariantId(),
                 item.getQuantity(),
                 item.getPrice()
@@ -40,12 +40,12 @@ public class CartItemResponse {
         this.id = id;
     }
 
-    public String getProduct() {
-        return product;
+    public String getProductId() {
+        return productId;
     }
 
-    public void setProduct(String product) {
-        this.product = product;
+    public void setProductId(String productId) {
+        this.productId = productId;
     }
 
     public String getVariantId() {

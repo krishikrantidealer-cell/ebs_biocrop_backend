@@ -1,207 +1,138 @@
 package com.ebs.biocrop.entity;
 
-import com.ebs.biocrop.entity.enums.PaymentMethod;
-import com.ebs.biocrop.entity.enums.ShippingMethod;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import com.fasterxml.jackson.annotation.JsonAlias;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+/** Product content schema based on the approved product fields. Seller offers are variants. */
 @Document(collection = "products")
+@CompoundIndexes({
+        @CompoundIndex(name = "product_category_status_idx", def = "{ 'categoryId': 1, 'status': 1 }"),
+        @CompoundIndex(name = "product_seller_updated_idx", def = "{ 'sellerId': 1, 'updatedAt': -1 }")
+})
 public class Product {
 
     @Id
     private String id;
 
-    @JsonAlias("name")
-    private String title;
-    private String brandName;
-    private String technicalName;
-    private String thumbnail;
-    private String vendor;
-
-    @Indexed
+    @Indexed(unique = true, name = "uniq_product_sku")
+    private String sku;
     private String productCode;
-
-    // Categories
-    private String categoryId;
-    private String subCategoryId;
-    private List<String> categoryIds = new ArrayList<>();
-    private List<String> subCategoryIds = new ArrayList<>();
-
-    // We keep these legacy fields for mapping Excel safely if needed
-    private String company;
-    private String category;
-    private String subCategory;
-    private String keywords;
-    private Integer gst;
     private String hsnCode;
-    private String availabilityStatus = "In Stock";
-    private ShippingMethod shippingThrough;
-    private PaymentMethod paymentMethod;
-    private String shippedBy;
-    private String sourceStatus;
-    @JsonAlias("status")
-    private String status;
-    
-    // The nested variants array
-    private List<ProductVariant> variants = new ArrayList<>();
-
-    private List<String> images = new ArrayList<>();
-    private List<String> mediumImages = new ArrayList<>();
-    private List<String> originalImages = new ArrayList<>();
-    private Double averageRating = 0.0;
-    private Integer numReviews = 0;
-    private Integer minPrice;
-    private Integer maxPrice;
-    private List<String> assignedCollections = new ArrayList<>();
-    private Boolean isFeatured = false;
+    @Indexed
+    private String sellerId;
+    private String title;
+    private String technicalName;
+    private String vendor;
     private String description;
-    private List<String> tags = new ArrayList<>();
-    private Map<String, Integer> customOrders = new HashMap<>();
-    private Integer order = 0;
-    private Map<String, String> dosage = new HashMap<>();
+    private List<String> images = new ArrayList<>();
+    private String technicalContent;
+    private List<String> features = new ArrayList<>();
+    private List<String> benefits = new ArrayList<>();
+    private String modeOfAction;
+    private List<String> suitableCrops = new ArrayList<>();
+    private List<String> targetPests = new ArrayList<>();
+    private List<String> targetDiseases = new ArrayList<>();
+    private String dosage;
+    private String applicationMethod;
 
+    /** Leaf category document selected for this product/listing. */
+    private String categoryId;
+    private List<String> collectionIds = new ArrayList<>();
+    private List<String> subCollectionIds = new ArrayList<>();
+    /** Product-level package dimensions from the approved schema; a variant may override these. */
+    private ProductDimensions dimensions;
+
+    private Boolean isAvailable;
+    private Boolean isFeatured;
+    private List<ProductVariant> variants = new ArrayList<>();
+    private Double ratings;
+    private String refundPolicy;
+    private Double productWeight;
+    private String productWeightUnit;
+
+    private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     @Version
     private Integer version;
 
-    public Product() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
+    public Product() { }
 
-    // Getters and Setters
-    
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public String getBrandName() { return brandName; }
-    public void setBrandName(String brandName) { this.brandName = brandName; }
-
-    public String getTechnicalName() { return technicalName; }
-    public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
-
-    public String getThumbnail() { return thumbnail; }
-    public void setThumbnail(String thumbnail) { this.thumbnail = thumbnail; }
-
-    public String getVendor() { return vendor; }
-    public void setVendor(String vendor) { this.vendor = vendor; }
-
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
     public String getProductCode() { return productCode; }
     public void setProductCode(String productCode) { this.productCode = productCode; }
-
-    public String getCategoryId() { return categoryId; }
-    public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
-
-    public String getSubCategoryId() { return subCategoryId; }
-    public void setSubCategoryId(String subCategoryId) { this.subCategoryId = subCategoryId; }
-
-    public List<String> getCategoryIds() { return categoryIds; }
-    public void setCategoryIds(List<String> categoryIds) { this.categoryIds = categoryIds; }
-
-    public List<String> getSubCategoryIds() { return subCategoryIds; }
-    public void setSubCategoryIds(List<String> subCategoryIds) { this.subCategoryIds = subCategoryIds; }
-
-    public String getCompany() { return company; }
-    public void setCompany(String company) { this.company = company; }
-
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public String getSubCategory() { return subCategory; }
-    public void setSubCategory(String subCategory) { this.subCategory = subCategory; }
-
-    public String getKeywords() { return keywords; }
-    public void setKeywords(String keywords) { this.keywords = keywords; }
-
-    public Integer getGst() { return gst; }
-    public void setGst(Integer gst) { this.gst = gst; }
-
     public String getHsnCode() { return hsnCode; }
     public void setHsnCode(String hsnCode) { this.hsnCode = hsnCode; }
-
-    public String getAvailabilityStatus() { return availabilityStatus; }
-    public void setAvailabilityStatus(String availabilityStatus) { this.availabilityStatus = availabilityStatus; }
-
-    public String getSourceStatus() { return sourceStatus; }
-    public void setSourceStatus(String sourceStatus) { this.sourceStatus = sourceStatus; }
-
-    public ShippingMethod getShippingThrough() { return shippingThrough; }
-    public void setShippingThrough(ShippingMethod shippingThrough) { this.shippingThrough = shippingThrough; }
-
-    public PaymentMethod getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
-
-    public String getShippedBy() { return shippedBy; }
-    public void setShippedBy(String shippedBy) { this.shippedBy = shippedBy; }
-
-    public List<ProductVariant> getVariants() { return variants; }
-    public void setVariants(List<ProductVariant> variants) { this.variants = variants; }
-
-    public List<String> getImages() { return images; }
-    public void setImages(List<String> images) { this.images = images; }
-
-    public List<String> getMediumImages() { return mediumImages; }
-    public void setMediumImages(List<String> mediumImages) { this.mediumImages = mediumImages; }
-
-    public List<String> getOriginalImages() { return originalImages; }
-    public void setOriginalImages(List<String> originalImages) { this.originalImages = originalImages; }
-
-    public Double getAverageRating() { return averageRating; }
-    public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
-
-    public Integer getNumReviews() { return numReviews; }
-    public void setNumReviews(Integer numReviews) { this.numReviews = numReviews; }
-
-    public Integer getMinPrice() { return minPrice; }
-    public void setMinPrice(Integer minPrice) { this.minPrice = minPrice; }
-
-    public Integer getMaxPrice() { return maxPrice; }
-    public void setMaxPrice(Integer maxPrice) { this.maxPrice = maxPrice; }
-
-    public List<String> getAssignedCollections() { return assignedCollections; }
-    public void setAssignedCollections(List<String> assignedCollections) { this.assignedCollections = assignedCollections; }
-
-    public Boolean getIsFeatured() { return isFeatured; }
-    public void setIsFeatured(Boolean isFeatured) { this.isFeatured = isFeatured; }
-
+    public String getSellerId() { return sellerId; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    public String getTechnicalName() { return technicalName; }
+    public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
+    public String getVendor() { return vendor; }
+    public void setVendor(String vendor) { this.vendor = vendor; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
-    public List<String> getTags() { return tags; }
-    public void setTags(List<String> tags) { this.tags = tags; }
-
-    public Map<String, Integer> getCustomOrders() { return customOrders; }
-    public void setCustomOrders(Map<String, Integer> customOrders) { this.customOrders = customOrders; }
-
-    public Integer getOrder() { return order; }
-    public void setOrder(Integer order) { this.order = order; }
-
-    public Map<String, String> getDosage() { return dosage; }
-    public void setDosage(Map<String, String> dosage) { this.dosage = dosage; }
-
+    public List<String> getImages() { return images; }
+    public void setImages(List<String> images) { this.images = images != null ? images : new ArrayList<>(); }
+    public String getTechnicalContent() { return technicalContent; }
+    public void setTechnicalContent(String technicalContent) { this.technicalContent = technicalContent; }
+    public List<String> getFeatures() { return features; }
+    public void setFeatures(List<String> features) { this.features = features != null ? features : new ArrayList<>(); }
+    public List<String> getBenefits() { return benefits; }
+    public void setBenefits(List<String> benefits) { this.benefits = benefits != null ? benefits : new ArrayList<>(); }
+    public String getModeOfAction() { return modeOfAction; }
+    public void setModeOfAction(String modeOfAction) { this.modeOfAction = modeOfAction; }
+    public List<String> getSuitableCrops() { return suitableCrops; }
+    public void setSuitableCrops(List<String> suitableCrops) { this.suitableCrops = suitableCrops != null ? suitableCrops : new ArrayList<>(); }
+    public List<String> getTargetPests() { return targetPests; }
+    public void setTargetPests(List<String> targetPests) { this.targetPests = targetPests != null ? targetPests : new ArrayList<>(); }
+    public List<String> getTargetDiseases() { return targetDiseases; }
+    public void setTargetDiseases(List<String> targetDiseases) { this.targetDiseases = targetDiseases != null ? targetDiseases : new ArrayList<>(); }
+    public String getDosage() { return dosage; }
+    public void setDosage(String dosage) { this.dosage = dosage; }
+    public String getApplicationMethod() { return applicationMethod; }
+    public void setApplicationMethod(String applicationMethod) { this.applicationMethod = applicationMethod; }
+    public String getCategoryId() { return categoryId; }
+    public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public List<String> getCollectionIds() { return collectionIds; }
+    public void setCollectionIds(List<String> collectionIds) { this.collectionIds = collectionIds != null ? collectionIds : new ArrayList<>(); }
+    public List<String> getSubCollectionIds() { return subCollectionIds; }
+    public void setSubCollectionIds(List<String> subCollectionIds) { this.subCollectionIds = subCollectionIds != null ? subCollectionIds : new ArrayList<>(); }
+    public ProductDimensions getDimensions() { return dimensions; }
+    public void setDimensions(ProductDimensions dimensions) { this.dimensions = dimensions; }
+    public Boolean getIsAvailable() { return isAvailable; }
+    public void setIsAvailable(Boolean available) { isAvailable = available; }
+    public Boolean getIsFeatured() { return isFeatured; }
+    public void setIsFeatured(Boolean featured) { isFeatured = featured; }
+    public List<ProductVariant> getVariants() { return variants; }
+    public void setVariants(List<ProductVariant> variants) { this.variants = variants != null ? variants : new ArrayList<>(); }
+    public Double getRatings() { return ratings; }
+    public void setRatings(Double ratings) { this.ratings = ratings; }
+    public String getRefundPolicy() { return refundPolicy; }
+    public void setRefundPolicy(String refundPolicy) { this.refundPolicy = refundPolicy; }
+    public Double getProductWeight() { return productWeight; }
+    public void setProductWeight(Double productWeight) { this.productWeight = productWeight; }
+    public String getProductWeightUnit() { return productWeightUnit; }
+    public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
 }

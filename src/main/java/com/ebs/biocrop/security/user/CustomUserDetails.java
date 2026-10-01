@@ -13,13 +13,17 @@ public class CustomUserDetails implements UserDetails {
 
     private final String id;
     private final String phoneNumber;
+    private final String email;
+    private final String password;
     private final UserRole role;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
 
-    public CustomUserDetails(String id, String phoneNumber, UserRole role, Collection<? extends GrantedAuthority> authorities, boolean enabled) {
+    public CustomUserDetails(String id, String phoneNumber, String email, String password, UserRole role, Collection<? extends GrantedAuthority> authorities, boolean enabled) {
         this.id = id;
         this.phoneNumber = phoneNumber;
+        this.email = email;
+        this.password = password;
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
         this.authorities = authorities;
         this.enabled = enabled;
@@ -31,6 +35,8 @@ public class CustomUserDetails implements UserDetails {
         return new CustomUserDetails(
                 user.getId(),
                 user.getPhoneNumber(),
+                user.getEmail(),
+                user.getPasswordHash(),
                 userRole,
                 authorities,
                 !Boolean.TRUE.equals(user.getIsDeleted()) && !Boolean.TRUE.equals(user.getIsBlocked())
@@ -56,12 +62,12 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getPassword() {
-        return ""; // Passwordless OTP-based authentication
+        return password != null ? password : "";
     }
 
     @Override
     public String getUsername() {
-        return phoneNumber;
+        return phoneNumber != null && !phoneNumber.isBlank() ? phoneNumber : email;
     }
 
     @Override

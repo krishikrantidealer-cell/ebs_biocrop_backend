@@ -6,22 +6,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ProductRepository extends MongoRepository<Product, String> {
-    Optional<Product> findByVariantsVariationCode(String variationCode);
+public interface ProductRepository extends MongoRepository<Product, String>, ProductCatalogQueryRepository {
+    Page<Product> findBySellerId(String sellerId, Pageable pageable);
+    boolean existsBySkuIgnoreCase(String sku);
+    Optional<Product> findByIdAndSellerId(String id, String sellerId);
 
-    List<Product> findByProductCode(String productCode);
-
-    Page<Product> findByStatusIgnoreCaseOrStatusIsNull(String status, Pageable pageable);
-
-    Page<Product> findByStatusIgnoreCaseAndCategoryIdOrStatusIsNullAndCategoryId(
-            String activeStatus, String activeCategoryId, String legacyCategoryId, Pageable pageable);
-
-    Page<Product> findByStatusIgnoreCaseAndCategoryOrStatusIsNullAndCategory(
-            String activeStatus, String activeCategory, String legacyCategory, Pageable pageable);
-
-    boolean existsByVariantsVariationCode(String variationCode);
+    Page<Product> findByStatusIgnoreCase(String status, Pageable pageable);
 }

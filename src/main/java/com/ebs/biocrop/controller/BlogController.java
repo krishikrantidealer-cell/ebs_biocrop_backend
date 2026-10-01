@@ -6,6 +6,8 @@ import com.ebs.biocrop.dto.response.BlogPublicResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Blog;
 import com.ebs.biocrop.service.BlogService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/blogs")
+@Tag(name = "Blogs", description = "Public published blog content and browse facets.")
 public class BlogController {
 
     private final BlogService blogService;
@@ -27,6 +30,7 @@ public class BlogController {
     }
 
     @GetMapping
+    @Operation(summary = "List published blogs")
     public ResponseEntity<ApiResponse<PagedResponse<BlogPublicResponse>>> listBlogs(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String tag,
@@ -39,18 +43,21 @@ public class BlogController {
     }
 
     @GetMapping("/categories")
+    @Operation(summary = "List blog categories")
     public ResponseEntity<ApiResponse<List<BlogFacetResponse>>> categories() {
         return ResponseEntity.ok(ApiResponse.ok("Published blog categories retrieved successfully",
                 blogService.publicCategories()));
     }
 
     @GetMapping("/tags")
+    @Operation(summary = "List blog tags")
     public ResponseEntity<ApiResponse<List<BlogFacetResponse>>> tags() {
         return ResponseEntity.ok(ApiResponse.ok("Published blog tags retrieved successfully",
                 blogService.publicTags()));
     }
 
     @GetMapping("/{slug}")
+    @Operation(summary = "Get a published blog by slug")
     public ResponseEntity<ApiResponse<BlogPublicResponse>> getBlog(@PathVariable String slug) {
         return ResponseEntity.ok(ApiResponse.ok("Published blog retrieved successfully",
                 BlogPublicResponse.from(blogService.getPublicBlog(slug))));

@@ -13,6 +13,7 @@ import com.ebs.biocrop.service.WishlistService;
 import jakarta.annotation.PostConstruct;
 import org.bson.types.ObjectId;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -38,6 +39,8 @@ public class WishlistServiceImpl implements WishlistService {
     private final ProductRepository productRepository;
     private final ProductVariantLookup productVariantLookup;
     private final MongoTemplate mongoTemplate;
+    @Value("${app.database.maintenance-mode.enabled:false}")
+    private boolean maintenanceMode;
 
     public WishlistServiceImpl(
             WishlistRepository wishlistRepository,
@@ -52,6 +55,7 @@ public class WishlistServiceImpl implements WishlistService {
 
     @PostConstruct
     void ensureWishlistUserIndex() {
+        if (maintenanceMode || !mongoTemplate.collectionExists("wishlists")) return;
         mongoTemplate.indexOps(Wishlist.class).ensureIndex(
                 new Index().on("user", Sort.Direction.ASC).unique().named("uniq_wishlist_user"));
     }
@@ -60,7 +64,7 @@ public class WishlistServiceImpl implements WishlistService {
     public WishlistResponse getWishlist(String userId) {
         return wishlistRepository.findByUser(userId)
                 .map(this::toResponse)
-                .orElseGet(() -> new WishlistResponse(List.of(), List.of(), null, null));
+                .orElseGet(() -> new WishlistResponse(List.of(), null, null));
     }
 
     @Override
@@ -77,8 +81,7 @@ public class WishlistServiceImpl implements WishlistService {
                 .setOnInsert("createdAt", now)
                 .set("updatedAt", now)
                 .addToSet("variantIds", normalizedVariantId)
-                .set("variantProductIds." + normalizedVariantId, selection.product().getId())
-                .pull("products", selection.product().getId());
+                .set("variantProductIds." + normalizedVariantId, selection.product().getId());
 
         Wishlist wishlist;
         try {
@@ -113,7 +116,7 @@ public class WishlistServiceImpl implements WishlistService {
                 Wishlist.class);
         return wishlist != null
                 ? toResponse(wishlist)
-                : new WishlistResponse(List.of(), List.of(), null, null);
+                : new WishlistResponse(List.of(), null, null);
     }
 
     @Override
@@ -128,7 +131,7 @@ public class WishlistServiceImpl implements WishlistService {
                 Wishlist.class);
         return wishlist != null
                 ? toResponse(wishlist)
-                : new WishlistResponse(List.of(), List.of(), null, null);
+                : new WishlistResponse(List.of(), null, null);
     }
 
     private VariantSelection requireActiveVariant(String variantId) {
@@ -154,10 +157,9 @@ public class WishlistServiceImpl implements WishlistService {
     }
 
     private WishlistResponse toResponse(Wishlist wishlist) {
-        wishlist = migrateLegacyProductEntries(wishlist);
         List<String> variantIds = wishlist.getVariantIds() == null ? List.of() : wishlist.getVariantIds();
         if (variantIds.isEmpty()) {
-            return new WishlistResponse(List.of(), wishlist.getLegacyProductIds(), wishlist.getCreatedAt(), wishlist.getUpdatedAt());
+            return new WishlistResponse(List.of(), wishlist.getCreatedAt(), wishlist.getUpdatedAt());
         }
 
         List<String> validIds = variantIds.stream()
@@ -203,65 +205,12 @@ public class WishlistServiceImpl implements WishlistService {
                         selection.product().getId(),
                         selection.variant().getId(),
                         selection.product().getTitle(),
-                        selection.product().getBrandName(),
-                        selection.product().getThumbnail(),
-                        selection.variant()))
+                        selection.product().getVendor(),
+                        selection.product().getImages() == null || selection.product().getImages().isEmpty()
+                                ? null : selection.product().getImages().getFirst(),
+                        com.ebs.biocrop.dto.response.PublicProductResponse.PublicVariant.from(selection.variant())))
                 .toList();
-        return new WishlistResponse(items, wishlist.getLegacyProductIds(), wishlist.getCreatedAt(), wishlist.getUpdatedAt());
-    }
-
-    private Wishlist migrateLegacyProductEntries(Wishlist wishlist) {
-        List<String> legacyProductIds = wishlist.getLegacyProductIds();
-        if (legacyProductIds == null || legacyProductIds.isEmpty()) {
-            return wishlist;
-        }
-
-        List<String> validProductIds = legacyProductIds.stream()
-                .filter(id -> id != null && ObjectId.isValid(id))
-                .map(id -> new ObjectId(id).toHexString())
-                .distinct()
-                .toList();
-        Map<String, Product> productsById = new HashMap<>();
-        productRepository.findAllById(validProductIds).forEach(product -> productsById.put(product.getId(), product));
-
-        List<String> migratedProductIds = new ArrayList<>();
-        List<String> migratedVariantIds = new ArrayList<>();
-        Map<String, String> migratedVariantProductIds = new HashMap<>();
-        for (String productId : validProductIds) {
-            Product product = productsById.get(productId);
-            if (product == null || product.getVariants() == null || product.getVariants().isEmpty()) {
-                continue;
-            }
-            List<ProductVariant> defaults = product.getVariants().stream()
-                    .filter(variant -> Boolean.TRUE.equals(variant.getIsDefault()))
-                    .toList();
-            ProductVariant selected = defaults.size() == 1
-                    ? defaults.getFirst()
-                    : defaults.isEmpty() && product.getVariants().size() == 1
-                    ? product.getVariants().getFirst()
-                    : null;
-            if (selected != null && selected.getId() != null && ObjectId.isValid(selected.getId())) {
-                migratedProductIds.add(productId);
-                String variantId = new ObjectId(selected.getId()).toHexString();
-                migratedVariantIds.add(variantId);
-                migratedVariantProductIds.put(variantId, productId);
-            }
-        }
-
-        if (migratedProductIds.isEmpty()) {
-            return wishlist;
-        }
-        Update update = new Update()
-                .addToSet("variantIds").each(migratedVariantIds.toArray())
-                .pullAll("products", migratedProductIds.toArray());
-        migratedVariantProductIds.forEach((variantId, productId) ->
-                update.set("variantProductIds." + variantId, productId));
-        mongoTemplate.updateFirst(
-                Query.query(Criteria.where("_id").is(wishlist.getId())
-                        .and("products").in(migratedProductIds)),
-                update,
-                Wishlist.class);
-        return wishlistRepository.findById(wishlist.getId()).orElse(wishlist);
+        return new WishlistResponse(items, wishlist.getCreatedAt(), wishlist.getUpdatedAt());
     }
 
     private List<VariantSelection> findSelections(List<String> variantIds) {
@@ -290,7 +239,9 @@ public class WishlistServiceImpl implements WishlistService {
 
     private boolean isActive(Product product) {
         String status = product.getStatus();
-        return status == null || ACTIVE_STATUS.equalsIgnoreCase(status.trim());
+        return status != null && ACTIVE_STATUS.equalsIgnoreCase(status.trim())
+                && product.getSellerId() != null && !product.getSellerId().isBlank()
+                && Boolean.TRUE.equals(product.getIsAvailable());
     }
 
     private record VariantSelection(Product product, ProductVariant variant) {}

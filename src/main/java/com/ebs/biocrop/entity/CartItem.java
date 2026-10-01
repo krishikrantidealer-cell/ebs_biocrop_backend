@@ -7,7 +7,7 @@ public class CartItem {
 
     @org.springframework.data.mongodb.core.mapping.Field("_id")
     private String id;
-    private String product; // productId
+    private String productId;
     private String variantId;
     private Integer quantity;
     private Double price;
@@ -16,9 +16,9 @@ public class CartItem {
         this.id = new ObjectId().toHexString();
     }
 
-    public CartItem(String product, String variantId, Integer quantity, Double price) {
+    public CartItem(String productId, String variantId, Integer quantity, Double price) {
         this();
-        this.product = product;
+        this.productId = productId;
         this.variantId = variantId;
         this.quantity = quantity;
         this.price = price;
@@ -32,12 +32,12 @@ public class CartItem {
         this.id = id;
     }
 
-    public String getProduct() {
-        return product;
+    public String getProductId() {
+        return productId;
     }
 
-    public void setProduct(String product) {
-        this.product = product;
+    public void setProductId(String productId) {
+        this.productId = productId;
     }
 
     public String getVariantId() {
