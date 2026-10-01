@@ -4,6 +4,8 @@ import com.ebs.biocrop.entity.Product;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.index.Index;
@@ -19,6 +21,8 @@ import java.util.List;
 @Component
 public class ProductVariantLookup {
 
+    private static final Logger log = LoggerFactory.getLogger(ProductVariantLookup.class);
+
     private final MongoTemplate mongoTemplate;
     @Value("${app.database.maintenance-mode.enabled:false}")
     private boolean maintenanceMode;
@@ -29,9 +33,13 @@ public class ProductVariantLookup {
 
     @PostConstruct
     void ensureVariantIdIndex() {
-        if (maintenanceMode || !mongoTemplate.collectionExists("products")) return;
-        mongoTemplate.indexOps("products").ensureIndex(
-                new Index().on("variants._id", Sort.Direction.ASC).named("idx_products_variant_id"));
+        try {
+            if (maintenanceMode || !mongoTemplate.collectionExists("products")) return;
+            mongoTemplate.indexOps("products").ensureIndex(
+                    new Index().on("variants._id", Sort.Direction.ASC).named("idx_products_variant_id"));
+        } catch (Exception e) {
+            log.warn("Could not ensure variant ID index on startup: {}", e.getMessage());
+        }
     }
 
     public List<Product> findProductsContainingVariants(Collection<String> variantIds) {

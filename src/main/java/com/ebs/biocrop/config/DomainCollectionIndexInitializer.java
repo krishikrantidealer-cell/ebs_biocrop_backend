@@ -62,20 +62,24 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
     }
 
     private void ensure(String collection, String requestedName, Map<String, Integer> requestedKeys, Index index) {
-        if (!mongoTemplate.collectionExists(collection)) {
-            log.warn("Skipping an index because existing collection {} is missing; startup will not create it.", collection);
-            return;
+        try {
+            if (!mongoTemplate.collectionExists(collection)) {
+                log.warn("Skipping an index because existing collection {} is missing; startup will not create it.", collection);
+                return;
+            }
+            List<IndexInfo> existingIndexes = mongoTemplate.indexOps(collection).getIndexInfo();
+            boolean nameConflict = existingIndexes.stream()
+                    .filter(existing -> requestedName != null && requestedName.equals(existing.getName()))
+                    .anyMatch(existing -> !indexKeys(existing).equals(requestedKeys));
+            if (nameConflict) {
+                log.warn("Skipping index {} on {} because an existing index with that name has a different key definition. " +
+                        "Resolve the index drift explicitly; startup will not drop or replace database indexes.", requestedName, collection);
+                return;
+            }
+            mongoTemplate.indexOps(collection).ensureIndex(index);
+        } catch (Exception e) {
+            log.warn("Could not ensure index {} on {}: {}", requestedName, collection, e.getMessage());
         }
-        List<IndexInfo> existingIndexes = mongoTemplate.indexOps(collection).getIndexInfo();
-        boolean nameConflict = existingIndexes.stream()
-                .filter(existing -> requestedName != null && requestedName.equals(existing.getName()))
-                .anyMatch(existing -> !indexKeys(existing).equals(requestedKeys));
-        if (nameConflict) {
-            log.warn("Skipping index {} on {} because an existing index with that name has a different key definition. " +
-                    "Resolve the index drift explicitly; startup will not drop or replace database indexes.", requestedName, collection);
-            return;
-        }
-        mongoTemplate.indexOps(collection).ensureIndex(index);
     }
 
     private Map<String, Integer> indexKeys(IndexInfo indexInfo) {
