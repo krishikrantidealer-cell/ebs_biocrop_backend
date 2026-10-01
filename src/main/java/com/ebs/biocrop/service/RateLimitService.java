@@ -62,8 +62,8 @@ public class RateLimitService {
                     List.of(key),
                     Long.toString(window.toMillis())
             );
-        } catch (DataAccessException exception) {
-            if (inMemoryFallbackEnabled || (devInMemoryFallbackEnabled && environment.acceptsProfiles(Profiles.of("dev")))) {
+        } catch (Exception exception) {
+            if (inMemoryFallbackEnabled || devInMemoryFallbackEnabled || environment.acceptsProfiles(Profiles.of("dev"))) {
                 if (localFallbackWarningLogged.compareAndSet(false, true)) {
                     log.warn("Redis rate limiting is unavailable; using bounded process-local limits.", exception);
                 }
