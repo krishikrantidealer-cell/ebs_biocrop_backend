@@ -33,6 +33,7 @@ public class Product {
     private String vendor;
     private String description;
     private List<String> images = new ArrayList<>();
+    private List<ProductImage> productImages = new ArrayList<>();
     private String technicalContent;
     private List<String> features = new ArrayList<>();
     private List<String> benefits = new ArrayList<>();
@@ -87,6 +88,12 @@ public class Product {
     public void setDescription(String description) { this.description = description; }
     public List<String> getImages() { return images; }
     public void setImages(List<String> images) { this.images = images != null ? images : new ArrayList<>(); }
+    public List<ProductImage> getProductImages() {
+        return productImages;
+    }
+    public void setProductImages(List<ProductImage> productImages) {
+        this.productImages = productImages != null ? productImages : new ArrayList<>();
+    }
     public String getTechnicalContent() { return technicalContent; }
     public void setTechnicalContent(String technicalContent) { this.technicalContent = technicalContent; }
     public List<String> getFeatures() { return features; }

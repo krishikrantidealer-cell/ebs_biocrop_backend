@@ -8,4 +8,6 @@ public interface AdminProductService {
     Product review(String id, boolean approved);
     Product setAvailability(String id, boolean available);
     Product setFeatured(String id, boolean featured);
+    Product addImage(String productId, byte[] imageBytes);
+    Product deleteImage(String productId, String imageId);
 }

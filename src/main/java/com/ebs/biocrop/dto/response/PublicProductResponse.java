@@ -3,6 +3,7 @@ package com.ebs.biocrop.dto.response;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.service.GcsImageStorageService;
 
 import java.util.List;
 
@@ -17,6 +18,7 @@ public record PublicProductResponse(
         String vendor,
         String description,
         List<String> images,
+        List<ProductImageUrls> productImages,
         String technicalContent,
         List<String> features,
         List<String> benefits,
@@ -38,16 +40,39 @@ public record PublicProductResponse(
         Double productWeight,
         String productWeightUnit) {
 
-    public static PublicProductResponse from(Product product) {
+    public static PublicProductResponse from(Product product, GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
                 product.getId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
-                product.getVendor(), product.getDescription(), product.getImages(), product.getTechnicalContent(),
+                product.getVendor(), product.getDescription(), product.getImages(),
+                product.getProductImages() == null
+                        ? List.of()
+                        : product.getProductImages().stream()
+                                .map(image -> new ProductImageUrls(
+                                        image.getId(),
+                                        image.getDisplayOrder(),
+                                        imageStorage.createReadUrl(
+                                                product.getSellerId(),
+                                                product.getId(),
+                                                image.getMidObjectName()),
+                                        imageStorage.createReadUrl(
+                                                product.getSellerId(),
+                                                product.getId(),
+                                                image.getLowObjectName())))
+                                .toList(),
+                product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
                 product.getApplicationMethod(), product.getCategoryId(), product.getCollectionIds(),
                 product.getSubCollectionIds(), product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(PublicVariant::from).toList(),
                 product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit());
+    }
+
+    public record ProductImageUrls(
+            String id,
+            Integer displayOrder,
+            String midUrl,
+            String lowUrl) {
     }
 
     public record PublicVariant(

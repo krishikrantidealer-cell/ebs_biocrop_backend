@@ -148,6 +148,8 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setTitle(source.getTitle().trim()); target.setTechnicalName(source.getTechnicalName());
         target.setVendor(source.getVendor()); target.setDescription(source.getDescription());
         target.setImages(source.getImages()); target.setTechnicalContent(source.getTechnicalContent());
+        target.setProductImages(
+                existing == null ? List.of() : existing.getProductImages());
         target.setFeatures(source.getFeatures()); target.setBenefits(source.getBenefits());
         target.setModeOfAction(source.getModeOfAction()); target.setSuitableCrops(source.getSuitableCrops());
         target.setTargetPests(source.getTargetPests()); target.setTargetDiseases(source.getTargetDiseases());

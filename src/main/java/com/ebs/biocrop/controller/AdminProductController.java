@@ -12,6 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/admin/products")
@@ -58,5 +61,33 @@ public class AdminProductController {
                                                                                @RequestParam boolean featured) {
         return ResponseEntity.ok(ApiResponse.ok("Product featured status updated",
                 ProductManagementResponse.from(products.setFeatured(id, featured))));
+    }
+
+    @PostMapping(
+            value = "/{id}/images",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a product image")
+    public ResponseEntity<ApiResponse<String>> addImage(
+            @PathVariable String id,
+            @RequestPart("file") MultipartFile file) throws IOException {
+
+        Product updated = products.addImage(id, file.getBytes());
+
+        String imageId = updated.getProductImages()
+                .get(updated.getProductImages().size() - 1)
+                .getId();
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("Product image uploaded", imageId));
+    }
+
+    @DeleteMapping("/{id}/images/{imageId}")
+    @Operation(summary = "Delete a product image")
+    public ResponseEntity<ApiResponse<String>> deleteImage(
+            @PathVariable String id,
+            @PathVariable String imageId) {
+        products.deleteImage(id, imageId);
+
+        return ResponseEntity.ok(ApiResponse.ok("Product image deleted", id));
     }
 }

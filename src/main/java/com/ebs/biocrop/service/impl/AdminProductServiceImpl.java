@@ -16,16 +16,28 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
+import com.ebs.biocrop.service.GcsImageStorageService;
+import com.ebs.biocrop.service.ProductImageVariantService;
+import com.ebs.biocrop.entity.ProductImage;
+
 
 @Service
 public class AdminProductServiceImpl implements AdminProductService {
     private static final Set<String> ALLOWED_STATUSES = Set.of("PENDING_REVIEW", "ACTIVE", "REJECTED", "INACTIVE");
     private final ProductRepository products;
     private final CategoryRepository categories;
+    private final GcsImageStorageService imageStorage;
+    private final ProductImageVariantService imageVariants;
 
-    public AdminProductServiceImpl(ProductRepository products, CategoryRepository categories) {
+    public AdminProductServiceImpl(
+            ProductRepository products,
+            CategoryRepository categories,
+            GcsImageStorageService imageStorage,
+            ProductImageVariantService imageVariants) {
         this.products = products;
         this.categories = categories;
+        this.imageStorage = imageStorage;
+        this.imageVariants = imageVariants;
     }
 
     @Override
@@ -84,6 +96,78 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setIsFeatured(featured);
         product.setUpdatedAt(LocalDateTime.now());
         return products.save(product);
+    }
+
+    @Override
+    public Product addImage(String productId, byte[] imageBytes) {
+        Product product = findProduct(productId);
+
+        if (product.getSellerId() == null || product.getSellerId().isBlank()) {
+            throw new AppException(
+                    "Product must have a seller before images can be uploaded",
+                    HttpStatus.CONFLICT);
+        }
+
+        ProductImageVariantService.Variants variants =
+                imageVariants.createVariants(imageBytes);
+
+        int displayOrder = product.getProductImages() == null
+                ? 0
+                : product.getProductImages().size();
+
+        ProductImage image = imageStorage.uploadImage(
+                product.getSellerId(),
+                product.getId(),
+                variants,
+                displayOrder);
+
+        if (product.getProductImages() == null) {
+            product.setProductImages(new java.util.ArrayList<>());
+        }
+        product.getProductImages().add(image);
+        product.setUpdatedAt(LocalDateTime.now());
+
+        try {
+            return products.save(product);
+        } catch (RuntimeException saveFailure) {
+            try {
+                imageStorage.deleteImageVariants(
+                        product.getSellerId(),
+                        product.getId(),
+                        image);
+            } catch (RuntimeException cleanupFailure) {
+                saveFailure.addSuppressed(cleanupFailure);
+            }
+            throw saveFailure;
+        }
+    }
+
+    @Override
+    public Product deleteImage(String productId, String imageId) {
+        Product product = findProduct(productId);
+
+        if (product.getProductImages() == null || product.getProductImages().isEmpty()) {
+            throw new ResourceNotFoundException("Product image", "id", imageId);
+        }
+
+        ProductImage image = product.getProductImages().stream()
+                .filter(item -> imageId.equals(item.getId()))
+                .findFirst()
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product image", "id", imageId));
+
+        product.getProductImages().remove(image);
+        product.setUpdatedAt(LocalDateTime.now());
+
+        Product saved = products.save(product);
+
+        // Delete from GCS only after MongoDB no longer references the image.
+        imageStorage.deleteImageVariants(
+                product.getSellerId(),
+                product.getId(),
+                image);
+
+        return saved;
     }
 
     private Product findProduct(String id) {

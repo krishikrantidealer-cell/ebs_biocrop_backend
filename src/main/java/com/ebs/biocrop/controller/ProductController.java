@@ -4,6 +4,7 @@ import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.PublicProductResponse;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.ProductCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,9 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Products", description = "Public product catalog endpoints. List endpoints use bounded server-side pagination.")
 public class ProductController {
     private final ProductCatalogService productCatalog;
+    private final GcsImageStorageService imageStorage;
 
-    public ProductController(ProductCatalogService productCatalog) {
+    public ProductController(ProductCatalogService productCatalog, GcsImageStorageService imageStorage) {
         this.productCatalog = productCatalog;
+        this.imageStorage = imageStorage;
     }
 
     @GetMapping
@@ -37,7 +40,7 @@ public class ProductController {
     @Operation(summary = "Get available product details")
     public ResponseEntity<ApiResponse<PublicProductResponse>> getProductById(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully",
-                PublicProductResponse.from(productCatalog.getPublic(id))));
+                PublicProductResponse.from(productCatalog.getPublic(id), imageStorage)));
     }
 
     @GetMapping("/category/{categoryId}")
@@ -59,8 +62,10 @@ public class ProductController {
     }
 
     private ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> pageResponse(
-            Page<Product> products, String message) {
+        Page<Product> products, String message) {
         return ResponseEntity.ok(ApiResponse.ok(message,
-                PagedResponse.from(products, PublicProductResponse::from)));
+                PagedResponse.from(
+                        products,
+                        product -> PublicProductResponse.from(product, imageStorage))));
     }
 }
