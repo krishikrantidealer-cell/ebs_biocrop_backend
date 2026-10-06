@@ -180,4 +180,18 @@ public class GlobalExceptionHandler {
                 .header("Retry-After", Long.toString(ex.getRetryAfterSeconds()))
                 .body(body);
     }
+
+    @ExceptionHandler(OtpCooldownException.class)
+    public ResponseEntity<ErrorResponse> handleOtpCooldown(
+            OtpCooldownException ex, HttpServletRequest request) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(ex.getRemainingSeconds()))
+                .body(body);
+    }
 }

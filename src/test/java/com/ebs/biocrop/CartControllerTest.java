@@ -54,6 +54,9 @@ class CartControllerTest {
     @MockitoBean
     private CartRepository cartRepository;
 
+    @MockitoBean
+    private com.ebs.biocrop.service.RateLimitService rateLimitService;
+
     private CartResponse createSampleCartResponse() {
         CartItemResponse item = new CartItemResponse(
                 "item123", "product123", "variant123", 2, 450.0
@@ -72,7 +75,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void getCartWithAuthShouldReturnCart() throws Exception {
         when(cartService.getCart("9876543210")).thenReturn(createSampleCartResponse());
 
@@ -86,7 +89,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void getCartCountWithAuthShouldReturnCounts() throws Exception {
         when(cartService.getCartCount("9876543210"))
                 .thenReturn(new com.ebs.biocrop.dto.response.CartCountResponse(2, 5));
@@ -99,7 +102,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void addToCartShouldSucceed() throws Exception {
         when(cartService.addToCart(eq("9876543210"), any())).thenReturn(createSampleCartResponse());
 
@@ -114,7 +117,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void updateQuantityShouldSucceed() throws Exception {
         when(cartService.updateQuantity(eq("9876543210"), eq("VAR-001"), eq(3)))
                 .thenReturn(createSampleCartResponse());
@@ -129,7 +132,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void removeItemShouldSucceed() throws Exception {
         CartResponse emptyCart = new CartResponse(
                 "cart123", "user123", Collections.emptyList(),
@@ -145,7 +148,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void clearCartShouldSucceed() throws Exception {
         CartResponse emptyCart = new CartResponse(
                 "cart123", "user123", Collections.emptyList(),
@@ -161,7 +164,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void syncCartShouldSucceed() throws Exception {
         when(cartService.syncCart(eq("9876543210"), any())).thenReturn(createSampleCartResponse());
 
@@ -175,7 +178,7 @@ class CartControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "9876543210")
+    @WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void checkoutSummaryShouldReturnReadiness() throws Exception {
         Address addr = new Address("Flat 101", "Indore", "MP", "452001");
         addr.setAddress2("MG Road");

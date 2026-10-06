@@ -27,6 +27,10 @@ public class User {
     private String firstName;
     private String lastName;
     private String shopName;
+    /** Atomic per-seller counter used to issue stable seller product codes. */
+    private Long productCodeSequence = 0L;
+    /** Atomic per-seller counter used to issue seller order numbers. */
+    private Long orderNumberSequence = 0L;
     private String source;
     
     private String assignedAgent; // ObjectId
@@ -107,6 +111,10 @@ public class User {
 
     public String getShopName() { return shopName; }
     public void setShopName(String shopName) { this.shopName = shopName; }
+    public Long getProductCodeSequence() { return productCodeSequence; }
+    public void setProductCodeSequence(Long productCodeSequence) { this.productCodeSequence = productCodeSequence; }
+    public Long getOrderNumberSequence() { return orderNumberSequence; }
+    public void setOrderNumberSequence(Long orderNumberSequence) { this.orderNumberSequence = orderNumberSequence; }
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }

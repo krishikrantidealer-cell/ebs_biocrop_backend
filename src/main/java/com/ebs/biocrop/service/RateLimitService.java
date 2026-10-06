@@ -12,20 +12,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class RateLimitService {
     private static final Logger log = LoggerFactory.getLogger(RateLimitService.class);
     private static final int LOCAL_MAX_KEYS = 10_000;
+    private static final Set<String> EMAIL_IDENTIFIER_POLICIES = Set.of(
+            "email-otp-send", "email-otp-verify", "password-login-email", "password-reset-email");
 
     private static final DefaultRedisScript<List> INCREMENT_SCRIPT =
             new DefaultRedisScript<>("""
@@ -38,6 +38,7 @@ public class RateLimitService {
 
     private final StringRedisTemplate redisTemplate;
     private final Environment environment;
+    private final SensitiveIdentifierHasher identifierHasher;
     private final Map<String, LocalWindow> localWindows = new HashMap<>();
     private final AtomicBoolean localFallbackWarningLogged = new AtomicBoolean();
 
@@ -47,15 +48,23 @@ public class RateLimitService {
     @Value("${app.rate-limit.in-memory-fallback:false}")
     private boolean inMemoryFallbackEnabled;
 
-    public RateLimitService(StringRedisTemplate redisTemplate, Environment environment) {
+    public RateLimitService(StringRedisTemplate redisTemplate, Environment environment,
+                            SensitiveIdentifierHasher identifierHasher) {
         this.redisTemplate = redisTemplate;
         this.environment = environment;
+        this.identifierHasher = identifierHasher;
     }
 
     /** Returns 0 when allowed; otherwise returns seconds until the counter expires. */
     public long check(String policy, String identifier, int maxRequests, Duration window) {
-        String key = "rate-limit:" + policy + ":" + sha256(identifier);
-        boolean fallbackAllowed = true;
+        String normalizedIdentifier = identifier.trim();
+        if (EMAIL_IDENTIFIER_POLICIES.contains(policy)) {
+            normalizedIdentifier = normalizedIdentifier.toLowerCase(java.util.Locale.ROOT);
+        }
+        String key = "rate-limit:" + policy + ":" + identifierHasher.hash(normalizedIdentifier);
+        boolean fallbackAllowed = environment.acceptsProfiles(Profiles.of("dev"))
+                ? devInMemoryFallbackEnabled
+                : inMemoryFallbackEnabled;
 
         List<?> result;
         try {
@@ -67,7 +76,8 @@ public class RateLimitService {
         } catch (Exception exception) {
             if (fallbackAllowed) {
                 if (localFallbackWarningLogged.compareAndSet(false, true)) {
-                    log.warn("Redis rate limiting is unavailable; using bounded process-local limits.", exception);
+                    log.warn("Redis rate limiting is unavailable; using bounded process-local limits (exception type: {}).",
+                            exception.getClass().getSimpleName());
                 }
                 return checkLocal(key, maxRequests, window);
             }
@@ -144,13 +154,4 @@ public class RateLimitService {
         }
     }
 
-    private String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.trim().getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (Exception exception) {
-            throw new IllegalStateException("Could not hash rate-limit key", exception);
-        }
-    }
 }

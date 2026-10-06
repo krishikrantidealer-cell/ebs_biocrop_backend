@@ -7,6 +7,7 @@ import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.service.CategoryService;
+import com.ebs.biocrop.service.RedisJsonCache;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,11 @@ public class CategoryServiceImpl implements CategoryService {
             .and(Sort.by(Sort.Direction.ASC, "name"));
 
     private final CategoryRepository categories;
+    private final RedisJsonCache redisCache;
 
-    public CategoryServiceImpl(CategoryRepository categories) {
+    public CategoryServiceImpl(CategoryRepository categories, RedisJsonCache redisCache) {
         this.categories = categories;
+        this.redisCache = redisCache;
     }
 
     @Override
@@ -54,7 +57,9 @@ public class CategoryServiceImpl implements CategoryService {
         Instant now = Instant.now();
         category.setCreatedAt(now);
         category.setUpdatedAt(now);
-        return categories.save(category);
+        Category saved = categories.save(category);
+        invalidatePublicCatalogCaches();
+        return saved;
     }
 
     @Override
@@ -69,6 +74,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (!Objects.equals(current.getLevel(), saved.getLevel())) {
             relevelChildren(saved.getId(), saved.getLevel() + 1);
         }
+        invalidatePublicCatalogCaches();
         return saved;
     }
 
@@ -80,7 +86,9 @@ public class CategoryServiceImpl implements CategoryService {
         }
         category.setIsActive(false);
         category.setUpdatedAt(Instant.now());
-        return categories.save(category);
+        Category saved = categories.save(category);
+        invalidatePublicCatalogCaches();
+        return saved;
     }
 
     private void apply(CategoryWriteRequest request, Category candidate, Category current) {
@@ -169,6 +177,11 @@ public class CategoryServiceImpl implements CategoryService {
             categories.save(child);
             relevelChildren(child.getId(), childLevel + 1);
         }
+    }
+
+    private void invalidatePublicCatalogCaches() {
+        redisCache.invalidateRegion("public-categories");
+        redisCache.invalidateRegion("public-products");
     }
 
     private String normalize(String value) {

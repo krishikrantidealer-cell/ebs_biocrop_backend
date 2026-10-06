@@ -150,8 +150,7 @@ class AuthControllerTest {
 
         Map<String, String> req = Map.of(
                 "phoneNumber", "9876543210",
-                "otp", "123456",
-                "role", "ROLE_SELLER"
+                "otp", "123456"
         );
 
         mockMvc.perform(post("/api/v1/auth/otp/verify")

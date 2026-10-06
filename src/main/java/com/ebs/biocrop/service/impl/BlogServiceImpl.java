@@ -13,6 +13,7 @@ import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.BlogRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.service.BlogService;
+import com.ebs.biocrop.service.RedisJsonCache;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.types.ObjectId;
@@ -58,13 +59,15 @@ public class BlogServiceImpl implements BlogService {
     private final ProductRepository productRepository;
     private final MongoTemplate mongoTemplate;
     private final ObjectMapper objectMapper;
+    private final RedisJsonCache redisCache;
 
     public BlogServiceImpl(BlogRepository blogRepository, ProductRepository productRepository,
-                           MongoTemplate mongoTemplate, ObjectMapper objectMapper) {
+                           MongoTemplate mongoTemplate, ObjectMapper objectMapper, RedisJsonCache redisCache) {
         this.blogRepository = blogRepository;
         this.productRepository = productRepository;
         this.mongoTemplate = mongoTemplate;
         this.objectMapper = objectMapper;
+        this.redisCache = redisCache;
     }
 
     @Override
@@ -89,7 +92,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setCreatedAt(now);
         blog.setUpdatedAt(now);
         try {
-            return new BlogDraftResponse(blogRepository.save(blog));
+            return new BlogDraftResponse(saveBlog(blog));
         } catch (DuplicateKeyException exception) {
             throw duplicateSlug();
         }
@@ -169,7 +172,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setUpdatedAt(Instant.now());
 
         try {
-            return blogRepository.save(blog);
+            return saveBlog(blog);
         } catch (DuplicateKeyException exception) {
             throw duplicateSlug();
         }
@@ -193,7 +196,7 @@ public class BlogServiceImpl implements BlogService {
         if (blog.getSeo().getNoIndex() == null) {
             blog.getSeo().setNoIndex(false);
         }
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -209,7 +212,7 @@ public class BlogServiceImpl implements BlogService {
         blog.getSeo().setNoIndex(false);
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(Instant.now());
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -221,7 +224,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setStatus(BlogStatus.UNPUBLISHED);
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(Instant.now());
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -234,7 +237,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setScheduledAt(null);
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(Instant.now());
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -248,7 +251,7 @@ public class BlogServiceImpl implements BlogService {
         if (blog.getSeo() != null) blog.getSeo().setNoIndex(true);
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(Instant.now());
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -269,7 +272,7 @@ public class BlogServiceImpl implements BlogService {
         if (blog.getSeo() != null) blog.getSeo().setNoIndex(true);
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(now);
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -278,7 +281,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setDeletedAt(Instant.now());
         blog.setUpdatedBy(adminId);
         blog.setUpdatedAt(Instant.now());
-        return blogRepository.save(blog);
+        return saveBlog(blog);
     }
 
     @Override
@@ -345,13 +348,19 @@ public class BlogServiceImpl implements BlogService {
                 blog.setPublishedBy(blog.getUpdatedBy());
                 if (blog.getSeo() != null) blog.getSeo().setNoIndex(false);
                 blog.setUpdatedAt(now);
-                blogRepository.save(blog);
+                saveBlog(blog);
             } catch (RuntimeException exception) {
                 // Keep the scheduled record for inspection/retry rather than silently publishing invalid content.
                 org.slf4j.LoggerFactory.getLogger(BlogServiceImpl.class)
                         .error("Could not publish scheduled blog [{}]", blog.getId(), exception);
             }
         }
+    }
+
+    private Blog saveBlog(Blog blog) {
+        Blog saved = blogRepository.save(blog);
+        redisCache.invalidateRegion("public-blogs");
+        return saved;
     }
 
     private Blog findAdminBlog(String id) {

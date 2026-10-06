@@ -6,6 +6,10 @@ import com.ebs.biocrop.dto.response.PublicProductResponse;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.ProductCatalogService;
+import com.ebs.biocrop.service.RedisJsonCache;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -16,16 +20,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
+
 @RestController
 @RequestMapping("/api/v1/products")
 @Tag(name = "Products", description = "Public product catalog endpoints. List endpoints use bounded server-side pagination.")
 public class ProductController {
     private final ProductCatalogService productCatalog;
     private final GcsImageStorageService imageStorage;
+    private final RedisJsonCache redisCache;
+    private final TypeFactory typeFactory;
 
-    public ProductController(ProductCatalogService productCatalog, GcsImageStorageService imageStorage) {
+    public ProductController(ProductCatalogService productCatalog, GcsImageStorageService imageStorage,
+                             RedisJsonCache redisCache, ObjectMapper objectMapper) {
         this.productCatalog = productCatalog;
         this.imageStorage = imageStorage;
+        this.redisCache = redisCache;
+        this.typeFactory = objectMapper.getTypeFactory();
     }
 
     @GetMapping
@@ -33,14 +44,17 @@ public class ProductController {
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return pageResponse(productCatalog.listPublic(page, size), "Products retrieved successfully");
+        return pageResponse("list|page=" + page + "|size=" + size,
+                () -> productCatalog.listPublic(page, size), "Products retrieved successfully");
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get available product details")
     public ResponseEntity<ApiResponse<PublicProductResponse>> getProductById(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully",
-                PublicProductResponse.from(productCatalog.getPublic(id), imageStorage)));
+        PublicProductResponse response = redisCache.getOrLoad("public-products", "id=" + id,
+                typeFactory.constructType(PublicProductResponse.class), Duration.ofSeconds(30),
+                () -> PublicProductResponse.from(productCatalog.getPublic(id), imageStorage));
+        return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully", response));
     }
 
     @GetMapping("/category/{categoryId}")
@@ -49,7 +63,8 @@ public class ProductController {
             @PathVariable String categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return pageResponse(productCatalog.listByCategory(categoryId, page, size), "Products retrieved successfully");
+        return pageResponse("category=" + categoryId + "|page=" + page + "|size=" + size,
+                () -> productCatalog.listByCategory(categoryId, page, size), "Products retrieved successfully");
     }
 
     @GetMapping("/search")
@@ -58,14 +73,16 @@ public class ProductController {
             @RequestParam String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return pageResponse(productCatalog.search(q, page, size), "Products retrieved successfully");
+        return pageResponse("search=" + q + "|page=" + page + "|size=" + size,
+                () -> productCatalog.search(q, page, size), "Products retrieved successfully");
     }
 
     private ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> pageResponse(
-        Page<Product> products, String message) {
-        return ResponseEntity.ok(ApiResponse.ok(message,
-                PagedResponse.from(
-                        products,
-                        product -> PublicProductResponse.from(product, imageStorage))));
+        String queryKey, java.util.function.Supplier<Page<Product>> loader, String message) {
+        JavaType responseType = typeFactory.constructParametricType(PagedResponse.class, PublicProductResponse.class);
+        PagedResponse<PublicProductResponse> response = redisCache.getOrLoad(
+                "public-products", queryKey, responseType, Duration.ofSeconds(30),
+                () -> PagedResponse.from(loader.get(), product -> PublicProductResponse.from(product, imageStorage)));
+        return ResponseEntity.ok(ApiResponse.ok(message, response));
     }
 }

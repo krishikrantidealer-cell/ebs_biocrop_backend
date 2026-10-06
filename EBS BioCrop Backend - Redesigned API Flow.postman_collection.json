@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "EBS BioCrop Backend - Redesigned API Flow",
-    "description": "Requests are numbered globally in execution order. Each request name states its action and access requirement. Categories are flat documents in one categories collection, linked by parentId with levels 0-2. Product payload examples use the current product and variant fields, including Display Rate, Printed MRP, cm dimensions, and product weight in g or kg. Replace example values with approved test data. The five database sample products are temporary TEST ONLY records and are not for sale. Seller onboarding details, document storage, shipping rules, GST calculation policy, and order/payment flows remain deferred. Admin and seller authentication now supports email OTP and email/password; customers remain phone OTP only. Phone OTP login is for customers and sellers; admins must use email OTP/password.",
+    "description": "Requests are numbered globally in execution order. Each request name states its action and access requirement. Categories are flat documents in one categories collection, linked by parentId with levels 0-2. Product payload examples use the current product and variant fields, including Display Rate, Printed MRP, cm dimensions, and product weight in g or kg. Replace example values with approved test data. The five database sample products are temporary TEST ONLY records and are not for sale. Seller onboarding, document storage, GST calculation, payment-provider confirmation, and seller order transitions remain deferred. Order creation supports customer advances of 10%, 20%, or 50%, plus an admin-assisted custom percentage. Admin and seller authentication now supports email OTP and email/password; customers remain phone OTP only. Phone OTP login is for customers and sellers; admins must use email OTP/password.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -97,6 +97,14 @@
     },
     {
       "key": "emailOtp",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "checkoutGroupId",
       "value": ""
     }
   ],
@@ -970,6 +978,174 @@
         }
       ],
       "description": "Admin accounts must be provisioned with ROLE_ADMIN and email by the platform. Seller accounts must be provisioned with ROLE_SELLER and email. Email OTP and password login are for seller/admin only; password setup requires a signed-in seller/admin. In dev, OTP and reset links are logged by the app when MAIL_CONSOLE_DELIVERY_ENABLED=true."
+    },
+    {
+      "name": "Customer order APIs",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{customerAccessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "description": "Order creation reserves stock and clears the customer cart. Use a dedicated test cart. Payment is not confirmed by these requests.",
+      "item": [
+        {
+          "name": "62. Create partial-payment order (customer 10%)",
+          "description": "Try advancePercentage 20 or 50 for the other supported customer options. Expected before payment confirmation: paymentState AWAITING_PAYMENT, paymentStatus null, amountPaid 0, advanceAmountDue equal to the selected percent of totalAmount.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"PARTIAL\",\n  \"advancePercentage\": 10,\n  \"shippingAddress\": {\n    \"name\": \"Test Customer\",\n    \"phoneNumber\": \"{{phoneNumber}}\",\n    \"villageArea\": \"Test address\",\n    \"addressLine2\": \"Test landmark\",\n    \"cityTehsil\": \"Indore\",\n    \"state\": \"Madhya Pradesh\",\n    \"pincode\": \"452001\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/orders/create"
+          }
+        },
+        {
+          "name": "63. Create prepaid order (customer)",
+          "description": "Omit advancePercentage. Full total is due upfront; selecting PREPAID does not mean payment has been confirmed.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"PREPAID\",\n  \"shippingAddress\": {\n    \"name\": \"Test Customer\",\n    \"phoneNumber\": \"{{phoneNumber}}\",\n    \"villageArea\": \"Test address\",\n    \"addressLine2\": \"Test landmark\",\n    \"cityTehsil\": \"Indore\",\n    \"state\": \"Madhya Pradesh\",\n    \"pincode\": \"452001\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/orders/create"
+          }
+        },
+        {
+          "name": "64. List my orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/orders/customer?page=0&size=20"
+          }
+        },
+        {
+          "name": "65. Get my order by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "66. List orders from one checkout",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/orders/group/{{checkoutGroupId}}"
+          }
+        },
+        {
+          "name": "67. Cancel my unpaid order",
+          "description": "Currently only an unpaid ORDERED order can be canceled.",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller order APIs",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{sellerAccessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "description": "Seller order reads are scoped to the authenticated seller. Status transition updates are not implemented yet.",
+      "item": [
+        {
+          "name": "68. List my orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/seller/orders?page=0&size=20"
+          }
+        },
+        {
+          "name": "69. Get my order by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/seller/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "70. Cancel my unpaid order",
+          "description": "Currently only an unpaid ORDERED order can be canceled.",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/seller/orders/{{orderId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin-assisted order APIs",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminAccessToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "description": "Admin can create an order from an active customer account’s cart with a custom partial advance from 1% to 99%.",
+      "item": [
+        {
+          "name": "71. Create partial-payment order for customer (admin custom 5%)",
+          "description": "Replace userId with an active customer ID. This consumes that customer’s cart and reserves stock. Change 5 to the approved custom whole-number percentage.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"PARTIAL\",\n  \"advancePercentage\": 5,\n  \"shippingAddress\": {\n    \"name\": \"Test Customer\",\n    \"phoneNumber\": \"{{phoneNumber}}\",\n    \"villageArea\": \"Test address\",\n    \"addressLine2\": \"Test landmark\",\n    \"cityTehsil\": \"Indore\",\n    \"state\": \"Madhya Pradesh\",\n    \"pincode\": \"452001\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/orders/customers/{{userId}}/create"
+          }
+        }
+      ]
     }
   ]
 }

@@ -4,15 +4,16 @@ import com.ebs.biocrop.exception.InvalidOtpException;
 import com.ebs.biocrop.exception.OtpCooldownException;
 import com.ebs.biocrop.service.EmailDeliveryService;
 import com.ebs.biocrop.service.EmailOtpService;
+import com.ebs.biocrop.service.RedisOtpCooldown;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpService {
@@ -20,35 +21,36 @@ public class EmailOtpServiceImpl implements EmailOtpService {
     private final ConcurrentHashMap<String, Entry> cache = new ConcurrentHashMap<>();
     private final PasswordEncoder encoder;
     private final EmailDeliveryService delivery;
+    private final RedisOtpCooldown redisOtpCooldown;
     @Value("${app.otp.expiration-minutes:5}") private int expiryMinutes;
-    @Value("${app.otp.cooldown-seconds:60}") private int cooldownSeconds;
     @Value("${app.otp.max-attempts:3}") private int maxAttempts;
     @Value("${app.otp.cooldown-seconds:60}") private int configuredCooldownSeconds;
 
-    public EmailOtpServiceImpl(PasswordEncoder encoder, EmailDeliveryService delivery) {
+    public EmailOtpServiceImpl(PasswordEncoder encoder, EmailDeliveryService delivery,
+                               RedisOtpCooldown redisOtpCooldown) {
         this.encoder = encoder;
         this.delivery = delivery;
+        this.redisOtpCooldown = redisOtpCooldown;
     }
 
     @Override
     public void send(String email) {
         String key = email.trim().toLowerCase();
-        Entry current = cache.get(key);
-        if (current != null && !current.expired() && current.cooldownSeconds() > 0)
-            throw new OtpCooldownException("Please wait before requesting another OTP", current.cooldownSeconds());
-        String otp = String.format("%06d", RANDOM.nextInt(1_000_000));
-        Entry entry = new Entry(encoder.encode(otp), LocalDateTime.now().plusMinutes(expiryMinutes), LocalDateTime.now(), configuredCooldownSeconds);
-        java.util.concurrent.atomic.AtomicLong blockedFor = new java.util.concurrent.atomic.AtomicLong();
-        cache.compute(key, (ignored, currentEntry) -> {
-            long remaining = currentEntry == null || currentEntry.expired() ? 0 : currentEntry.cooldownSeconds();
-            if (remaining > 0) { blockedFor.set(remaining); return currentEntry; }
-            return entry;
-        });
-        if (blockedFor.get() > 0) throw new OtpCooldownException("Please wait before requesting another OTP", blockedFor.get());
+        String reservationToken = UUID.randomUUID().toString();
+        long remainingCooldown = redisOtpCooldown.acquire("email-send", key,
+                java.time.Duration.ofSeconds(configuredCooldownSeconds), reservationToken);
+        if (remainingCooldown > 0)
+            throw new OtpCooldownException("Please wait before requesting another OTP", remainingCooldown);
+
+        Entry entry = null;
         try {
+            String otp = String.format("%06d", RANDOM.nextInt(1_000_000));
+            entry = new Entry(encoder.encode(otp), LocalDateTime.now().plusMinutes(expiryMinutes));
+            cache.put(key, entry);
             delivery.send(key, "Your EBS BioCrop login code", "Your one-time login code is " + otp + ". It expires in " + expiryMinutes + " minutes.");
         } catch (RuntimeException exception) {
-            cache.remove(key, entry);
+            if (entry != null) cache.remove(key, entry);
+            redisOtpCooldown.release("email-send", key, reservationToken);
             throw exception;
         }
     }
@@ -76,9 +78,8 @@ public class EmailOtpServiceImpl implements EmailOtpService {
     }
 
     private static class Entry {
-        final String hash; final LocalDateTime expiresAt; final LocalDateTime createdAt; final int cooldown; int attempts;
-        Entry(String hash, LocalDateTime expiresAt, LocalDateTime createdAt, int cooldown) { this.hash=hash; this.expiresAt=expiresAt; this.createdAt=createdAt; this.cooldown=cooldown; }
+        final String hash; final LocalDateTime expiresAt; int attempts;
+        Entry(String hash, LocalDateTime expiresAt) { this.hash=hash; this.expiresAt=expiresAt; }
         boolean expired() { return LocalDateTime.now().isAfter(expiresAt); }
-        long cooldownSeconds() { long elapsed=Duration.between(createdAt, LocalDateTime.now()).getSeconds(); return elapsed < cooldown ? Math.max(1,cooldown-elapsed) : 0; }
     }
 }

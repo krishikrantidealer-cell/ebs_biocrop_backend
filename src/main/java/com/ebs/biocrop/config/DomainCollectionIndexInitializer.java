@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
-/** Ensures indexes only on collections that already exist; startup never creates a collection. */
+/** Ensures indexes on existing collections and creates the explicitly provisioned orders collection. */
 @Component
 public class DomainCollectionIndexInitializer implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(DomainCollectionIndexInitializer.class);
@@ -53,12 +53,36 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
 
         ensure("products", "uniq_product_sku", Map.of("sku", 1), new Index().on("sku", Sort.Direction.ASC)
                 .unique().named("uniq_product_sku"));
+        ensure("products", "uniq_product_code", Map.of("productCode", 1), new Index().on("productCode", Sort.Direction.ASC)
+                .unique().partial(PartialIndexFilter.of(Criteria.where("productCode").type(2))).named("uniq_product_code"));
         ensure("products", "product_category_status_idx", Map.of("categoryId", 1, "status", 1), new Index().on("categoryId", Sort.Direction.ASC)
                 .on("status", Sort.Direction.ASC).named("product_category_status_idx"));
         ensure("products", "product_seller_updated_idx", Map.of("sellerId", 1, "updatedAt", -1), new Index().on("sellerId", Sort.Direction.ASC)
                 .on("updatedAt", Sort.Direction.DESC).named("product_seller_updated_idx"));
         ensure("products", "idx_products_variant_id", Map.of("variants._id", 1), new Index().on("variants._id", Sort.Direction.ASC)
                 .named("idx_products_variant_id"));
+
+        if (!mongoTemplate.collectionExists("orders")) {
+            try {
+                mongoTemplate.createCollection("orders");
+            } catch (Exception e) {
+                log.warn("Could not create orders collection: {}", e.getMessage());
+            }
+        }
+        ensure("orders", "uniq_order_seller_number", Map.of("sellerId", 1, "orderNumber", 1),
+                new Index().on("sellerId", Sort.Direction.ASC).on("orderNumber", Sort.Direction.ASC)
+                        .unique().named("uniq_order_seller_number"));
+        ensure("orders", "order_customer_created_idx", Map.of("customerId", 1, "createdAt", -1),
+                new Index().on("customerId", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
+                        .named("order_customer_created_idx"));
+        ensure("orders", "order_seller_created_idx", Map.of("sellerId", 1, "createdAt", -1),
+                new Index().on("sellerId", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
+                        .named("order_seller_created_idx"));
+        ensure("orders", "order_checkout_group_idx", Map.of("checkoutGroupId", 1),
+                new Index().on("checkoutGroupId", Sort.Direction.ASC).named("order_checkout_group_idx"));
+        ensure("orders", "order_status_created_idx", Map.of("orderStatus", 1, "createdAt", -1),
+                new Index().on("orderStatus", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
+                        .named("order_status_created_idx"));
     }
 
     private void ensure(String collection, String requestedName, Map<String, Integer> requestedKeys, Index index) {

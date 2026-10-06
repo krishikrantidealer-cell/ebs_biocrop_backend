@@ -71,6 +71,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/admin/blogs/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/orders/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")

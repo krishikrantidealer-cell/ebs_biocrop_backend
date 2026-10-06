@@ -7,6 +7,7 @@ import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.CartCountResponse;
 import com.ebs.biocrop.dto.response.CartResponse;
 import com.ebs.biocrop.service.CartService;
+import com.ebs.biocrop.service.RateLimitGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+
 @RestController
 @RequestMapping("/api/v1/cart")
 @Tag(name = "Cart", description = "Customer cart operations.")
@@ -22,9 +25,11 @@ import org.springframework.web.bind.annotation.*;
 public class CartController {
 
     private final CartService cartService;
+    private final RateLimitGuard rateLimitGuard;
 
-    public CartController(CartService cartService) {
+    public CartController(CartService cartService, RateLimitGuard rateLimitGuard) {
         this.cartService = cartService;
+        this.rateLimitGuard = rateLimitGuard;
     }
 
     @GetMapping
@@ -46,6 +51,7 @@ public class CartController {
             Authentication authentication,
             @Valid @RequestBody CartItemRequest request) {
         String phoneNumber = authentication.getName();
+        rateLimitGuard.enforce("cart-write", phoneNumber, 60, Duration.ofMinutes(1));
         CartResponse cart = cartService.addToCart(phoneNumber, request);
         return ResponseEntity.ok(ApiResponse.ok("Item added to cart successfully", cart));
     }
@@ -56,6 +62,7 @@ public class CartController {
             @PathVariable String variantId,
             @Valid @RequestBody CartItemUpdateRequest request) {
         String phoneNumber = authentication.getName();
+        rateLimitGuard.enforce("cart-write", phoneNumber, 60, Duration.ofMinutes(1));
         CartResponse cart = cartService.updateQuantity(phoneNumber, variantId, request.getQuantity());
         return ResponseEntity.ok(ApiResponse.ok("Cart item quantity updated successfully", cart));
     }
@@ -65,6 +72,7 @@ public class CartController {
             Authentication authentication,
             @PathVariable String variantId) {
         String phoneNumber = authentication.getName();
+        rateLimitGuard.enforce("cart-write", phoneNumber, 60, Duration.ofMinutes(1));
         CartResponse cart = cartService.removeItem(phoneNumber, variantId);
         return ResponseEntity.ok(ApiResponse.ok("Item removed from cart successfully", cart));
     }
@@ -72,6 +80,7 @@ public class CartController {
     @DeleteMapping
     public ResponseEntity<ApiResponse<CartResponse>> clearCart(Authentication authentication) {
         String phoneNumber = authentication.getName();
+        rateLimitGuard.enforce("cart-write", phoneNumber, 60, Duration.ofMinutes(1));
         CartResponse cart = cartService.clearCart(phoneNumber);
         return ResponseEntity.ok(ApiResponse.ok("Cart cleared successfully", cart));
     }
@@ -81,6 +90,8 @@ public class CartController {
             Authentication authentication,
             @Valid @RequestBody CartSyncRequest request) {
         String phoneNumber = authentication.getName();
+        rateLimitGuard.enforce("cart-write", phoneNumber, 60, Duration.ofMinutes(1));
+        rateLimitGuard.enforce("cart-sync", phoneNumber, 10, Duration.ofMinutes(1));
         CartResponse cart = cartService.syncCart(phoneNumber, request);
         return ResponseEntity.ok(ApiResponse.ok("Cart synchronized successfully", cart));
     }
