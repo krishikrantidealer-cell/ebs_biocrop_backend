@@ -17,7 +17,6 @@ import java.util.List;
 /** Seller-controlled product content; server-owned identity, moderation, and metrics are excluded. */
 public class SellerProductWriteRequest {
     @NotBlank @Size(max = 80) private String sku;
-    @Size(max = 80) private String productCode;
     @Size(max = 32) private String hsnCode;
     @NotBlank @Size(max = 200) private String title;
     @Size(max = 300) private String technicalName;
@@ -44,7 +43,7 @@ public class SellerProductWriteRequest {
 
     public Product toProduct() {
         Product product = new Product();
-        product.setSku(sku); product.setProductCode(productCode); product.setHsnCode(hsnCode);
+        product.setSku(sku); product.setHsnCode(hsnCode);
         product.setTitle(title); product.setTechnicalName(technicalName); product.setVendor(vendor);
         product.setDescription(description); product.setImages(images); product.setTechnicalContent(technicalContent);
         product.setFeatures(features); product.setBenefits(benefits); product.setModeOfAction(modeOfAction);
@@ -58,8 +57,6 @@ public class SellerProductWriteRequest {
 
     public String getSku() { return sku; }
     public void setSku(String sku) { this.sku = sku; }
-    public String getProductCode() { return productCode; }
-    public void setProductCode(String productCode) { this.productCode = productCode; }
     public String getHsnCode() { return hsnCode; }
     public void setHsnCode(String hsnCode) { this.hsnCode = hsnCode; }
     public String getTitle() { return title; }

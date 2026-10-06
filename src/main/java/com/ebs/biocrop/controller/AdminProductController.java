@@ -3,6 +3,7 @@ package com.ebs.biocrop.controller;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.ProductManagementResponse;
+import com.ebs.biocrop.dto.request.DeleteProductImagesRequest;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.AdminProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +15,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
+import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/admin/products")
@@ -66,19 +68,22 @@ public class AdminProductController {
     @PostMapping(
             value = "/{id}/images",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload a product image")
-    public ResponseEntity<ApiResponse<String>> addImage(
+    @Operation(summary = "Upload 1 to 6 product images in one batch")
+    public ResponseEntity<ApiResponse<List<String>>> addImages(
             @PathVariable String id,
-            @RequestPart("file") MultipartFile file) throws IOException {
+            @RequestPart("files") List<MultipartFile> files) {
 
-        Product updated = products.addImage(id, file.getBytes());
+        Product updated = products.addImages(id, files);
 
-        String imageId = updated.getProductImages()
-                .get(updated.getProductImages().size() - 1)
-                .getId();
+        List<String> imageIds = updated.getProductImages().subList(
+                        updated.getProductImages().size() - files.size(),
+                        updated.getProductImages().size())
+                .stream()
+                .map(image -> image.getId())
+                .toList();
 
         return ResponseEntity.ok(
-                ApiResponse.ok("Product image uploaded", imageId));
+                ApiResponse.ok("Product images uploaded", imageIds));
     }
 
     @DeleteMapping("/{id}/images/{imageId}")
@@ -89,5 +94,16 @@ public class AdminProductController {
         products.deleteImage(id, imageId);
 
         return ResponseEntity.ok(ApiResponse.ok("Product image deleted", id));
+    }
+
+    @DeleteMapping("/{id}/images")
+    @Operation(summary = "Delete one or more product images")
+    public ResponseEntity<ApiResponse<List<String>>> deleteImages(
+            @PathVariable String id,
+            @Valid @RequestBody DeleteProductImagesRequest request) {
+        products.deleteImages(id, request.imageIds());
+
+        return ResponseEntity.ok(
+                ApiResponse.ok("Product images deleted", request.imageIds()));
     }
 }

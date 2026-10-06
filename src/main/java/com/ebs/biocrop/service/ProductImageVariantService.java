@@ -24,13 +24,17 @@ public class ProductImageVariantService {
     private static final int MID_MAX_DIMENSION = 1200;
     private static final int LOW_MAX_DIMENSION = 400;
 
+    public void validateImage(byte[] imageBytes) {
+        validateImageSize(imageBytes);
+        try {
+            inspect(imageBytes);
+        } catch (IOException exception) {
+            throw badRequest("Image could not be decoded");
+        }
+    }
+
     public Variants createVariants(byte[] originalBytes) {
-        if (originalBytes == null || originalBytes.length == 0) {
-            throw badRequest("Image file is empty");
-        }
-        if (originalBytes.length > MAX_IMAGE_BYTES) {
-            throw badRequest("Image must be 8 MB or smaller");
-        }
+        validateImageSize(originalBytes);
 
         try {
             ImageInfo info = inspect(originalBytes);
@@ -43,6 +47,15 @@ public class ProductImageVariantService {
                     info.contentType());
         } catch (IOException exception) {
             throw badRequest("Image could not be decoded");
+        }
+    }
+
+    private void validateImageSize(byte[] imageBytes) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Image file is empty");
+        }
+        if (imageBytes.length > MAX_IMAGE_BYTES) {
+            throw badRequest("Image must be 8 MB or smaller");
         }
     }
 

@@ -15,7 +15,7 @@ public record PagedResponse<T>(
         boolean last) {
 
     public static <S, T> PagedResponse<T> from(Page<S> page, Function<S, T> mapper) {
-        return new PagedResponse<>(page.getContent().stream().map(mapper).toList(), page.getNumber(),
+        return new PagedResponse<>(page.getContent().stream().map(entity -> mapper.apply(entity)).toList(), page.getNumber(),
                 page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isFirst(), page.isLast());
     }
 }

@@ -11,10 +11,16 @@ import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.service.SellerProductService;
+import com.ebs.biocrop.service.RedisJsonCache;
 import org.bson.types.ObjectId;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -29,10 +35,15 @@ import java.util.Set;
 public class SellerProductServiceImpl implements SellerProductService {
     private final ProductRepository products;
     private final CategoryRepository categories;
+    private final MongoTemplate mongoTemplate;
+    private final RedisJsonCache redisCache;
 
-    public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories) {
+    public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories, MongoTemplate mongoTemplate,
+                                    RedisJsonCache redisCache) {
         this.products = products;
         this.categories = categories;
+        this.mongoTemplate = mongoTemplate;
+        this.redisCache = redisCache;
     }
 
     @Override
@@ -45,6 +56,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product listing = new Product();
         copySellerFields(request, listing, null);
         listing.setSellerId(sellerId);
+        listing.setProductCode(nextProductCode(sellerId));
         listing.setStatus("PENDING_REVIEW");
         listing.setIsAvailable(false);
         listing.setIsFeatured(false);
@@ -73,6 +85,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product listing = new Product();
         copySellerFields(request, listing, current);
         listing.setId(current.getId());
+        listing.setProductCode(current.getProductCode());
         listing.setSellerId(current.getSellerId());
         listing.setStatus("PENDING_REVIEW");
         listing.setIsAvailable(false);
@@ -86,10 +99,30 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     private Product save(Product product) {
         try {
-            return products.save(product);
+            Product saved = products.save(product);
+            redisCache.invalidateRegion("public-products");
+            return saved;
         } catch (DuplicateKeyException exception) {
             throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
         }
+    }
+
+    private String nextProductCode(String sellerId) {
+        if (!ObjectId.isValid(sellerId)) {
+            throw new AppException("Seller ID must be a valid MongoDB ObjectId", HttpStatus.CONFLICT);
+        }
+        Query sellerQuery = Query.query(Criteria.where("_id").is(new ObjectId(sellerId)));
+        UserSequence sequence = mongoTemplate.findAndModify(
+                sellerQuery,
+                new Update().inc("productCodeSequence", 1),
+                FindAndModifyOptions.options().returnNew(true),
+                UserSequence.class,
+                "users");
+        if (sequence == null || sequence.getProductCodeSequence() == null) {
+            throw new ResourceNotFoundException("Seller", "id", sellerId);
+        }
+        return "PRD-" + sellerId.toUpperCase(Locale.ROOT) + "-"
+                + String.format(Locale.ROOT, "%06d", sequence.getProductCodeSequence());
     }
 
     private void validate(Product product) {
@@ -144,7 +177,7 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     private void copySellerFields(Product source, Product target, Product existing) {
         target.setSku(source.getSku().trim());
-        target.setProductCode(source.getProductCode()); target.setHsnCode(source.getHsnCode());
+        target.setHsnCode(source.getHsnCode());
         target.setTitle(source.getTitle().trim()); target.setTechnicalName(source.getTechnicalName());
         target.setVendor(source.getVendor()); target.setDescription(source.getDescription());
         target.setImages(source.getImages()); target.setTechnicalContent(source.getTechnicalContent());
@@ -195,5 +228,11 @@ public class SellerProductServiceImpl implements SellerProductService {
     private boolean finiteNonnegative(Double value) { return value != null && Double.isFinite(value) && value >= 0; }
     private ProductDimensions normalizeDimensions(ProductDimensions value) {
         return value == null ? null : new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm");
+    }
+
+    private static class UserSequence {
+        private Long productCodeSequence;
+        public Long getProductCodeSequence() { return productCodeSequence; }
+        public void setProductCodeSequence(Long productCodeSequence) { this.productCodeSequence = productCodeSequence; }
     }
 }
