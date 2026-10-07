@@ -12,8 +12,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.authorization.AuthorizationDecision;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -84,15 +82,7 @@ public class SecurityConfig {
                                 "/api/v1/blogs",
                                 "/api/v1/blogs/**",
                                 "/api/v1/health")
-                        .access((authentication, context) -> {
-                            var current = authentication.get();
-                            boolean anonymous = current == null || current instanceof AnonymousAuthenticationToken
-                                    || !current.isAuthenticated();
-                            boolean customer = current != null && current.isAuthenticated()
-                                    && current.getAuthorities().stream()
-                                    .anyMatch(authority -> "ROLE_CUSTOMER".equals(authority.getAuthority()));
-                            return new AuthorizationDecision(anonymous || customer);
-                        })
+                        .permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/v3/api-docs/**",

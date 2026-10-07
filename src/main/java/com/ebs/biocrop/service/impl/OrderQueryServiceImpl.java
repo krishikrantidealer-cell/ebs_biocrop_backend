@@ -37,6 +37,18 @@ public class OrderQueryServiceImpl implements OrderQueryService {
     }
 
     @Override
+    public Page<Order> listForAdmin(int page, int size) {
+        return orders.findAll(PageRequestSupport.create(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    @Override
+    public Order getForAdmin(String orderId) {
+        return orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+    }
+
+    @Override
     public Page<Order> listForSeller(String sellerId, int page, int size) {
         return orders.findBySellerId(sellerId,
                 PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));

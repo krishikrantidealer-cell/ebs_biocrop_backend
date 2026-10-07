@@ -4,6 +4,7 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderAddressSnapshot;
 import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.OrderPaymentDetails;
+import com.ebs.biocrop.entity.OrderStatusEvent;
 import com.ebs.biocrop.service.OrderStatusPresentation;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import java.util.List;
 public record OrderResponse(
         String id,
         String orderNumber,
+        String checkoutGroupId,
         String orderStatus,
         String paymentMethod,
         String paymentState,
@@ -32,20 +34,37 @@ public record OrderResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         String customerName,
-        String customerPhoneNumber) {
+        String customerPhoneNumber,
+        SellerSummary seller,
+        CustomerSummary customer,
+        List<StatusEvent> statusHistory) {
 
-    public static OrderResponse forCustomer(Order order) { return from(order, false); }
-    public static OrderResponse forSeller(Order order) { return from(order, true); }
+    public static OrderResponse forCustomer(Order order) { return from(order, true, false, false); }
+    public static OrderResponse forSeller(Order order) { return from(order, false, true, false); }
+    public static OrderResponse forAdmin(Order order) { return from(order, true, true, true); }
 
-    private static OrderResponse from(Order order, boolean sellerView) {
+    private static OrderResponse from(Order order, boolean includeSeller, boolean includeCustomer, boolean adminView) {
         OrderPaymentDetails details = order.getPayment();
         PaymentSummary summary = details == null ? null : new PaymentSummary(
                 safe(details.getAmountPaid()), safe(details.getAdvanceAmount()), safe(details.getRemainingAmount()),
                 safe(details.getPaidPercentage()), safe(details.getRemainingPercentage()));
-        String displayStatus = sellerView
+        String displayStatus = adminView ? order.getOrderStatus() : includeCustomer
                 ? OrderStatusPresentation.forSeller(order.getOrderStatus())
                 : OrderStatusPresentation.forCustomer(order.getOrderStatus());
-        return new OrderResponse(order.getId(), order.getOrderNumber(), displayStatus,
+        var sellerSnapshot = order.getSellerSnapshot();
+        SellerSummary seller = includeSeller && sellerSnapshot != null
+                ? new SellerSummary(sellerSnapshot.getDisplayName(), sellerSnapshot.getPhoneNumber(),
+                        adminView ? sellerSnapshot.getEmail() : null,
+                        adminView ? sellerSnapshot.getGstNumber() : null)
+                : null;
+        var customerSnapshot = order.getCustomerSnapshot();
+        CustomerSummary customer = includeCustomer && customerSnapshot != null
+                ? new CustomerSummary(customerSnapshot.getName(), customerSnapshot.getPhoneNumber(),
+                        customerSnapshot.getCompanyName(), adminView ? customerSnapshot.getGstNumber() : null)
+                : null;
+        List<StatusEvent> history = order.getStatusHistory() == null ? List.of()
+                : order.getStatusHistory().stream().map(event -> StatusEvent.from(event, includeCustomer, adminView)).toList();
+        return new OrderResponse(order.getId(), order.getOrderNumber(), order.getCheckoutGroupId(), displayStatus,
                 order.getPaymentMethod() == null ? null : order.getPaymentMethod().name(),
                 order.getPaymentState() == null ? null : order.getPaymentState().name(),
                 order.getAdvancePercentage(), order.getAdvanceAmountDue(), order.getPaymentStatus(), summary,
@@ -53,14 +72,29 @@ public record OrderResponse(
                 order.getSubtotalAmount(), order.getDiscountAmount(), order.getShippingAmount(),
                 order.getTotalAmount(), order.getCurrency(), order.getShippingAddress(), order.getBillingAddress(),
                 order.getPlacedAt(), order.getCreatedAt(), order.getUpdatedAt(),
-                sellerView && order.getCustomerSnapshot() != null ? order.getCustomerSnapshot().getName() : null,
-                sellerView && order.getCustomerSnapshot() != null ? order.getCustomerSnapshot().getPhoneNumber() : null);
+                includeCustomer && customerSnapshot != null ? customerSnapshot.getName() : null,
+                includeCustomer && customerSnapshot != null ? customerSnapshot.getPhoneNumber() : null,
+                seller, customer, history);
     }
 
     private static Double safe(Double value) { return value == null ? 0.0 : value; }
 
     public record PaymentSummary(Double amountPaid, Double advanceAmount, Double remainingAmount,
                                  Double paidPercentage, Double remainingPercentage) { }
+
+    public record SellerSummary(String displayName, String phoneNumber, String email, String gstNumber) { }
+
+    public record CustomerSummary(String name, String phoneNumber, String companyName, String gstNumber) { }
+
+    /** Public timeline fields only; actor database IDs and internal notes are intentionally omitted. */
+    public record StatusEvent(String status, LocalDateTime changedAt) {
+        private static StatusEvent from(OrderStatusEvent event, boolean sellerView, boolean adminView) {
+            String status = adminView ? event.getStatus() : sellerView
+                    ? OrderStatusPresentation.forSeller(event.getStatus())
+                    : OrderStatusPresentation.forCustomer(event.getStatus());
+            return new StatusEvent(status, event.getChangedAt());
+        }
+    }
 
     public record Item(String productId, String variantId, String title, String vendor, String image,
                        String variant, Integer quantity, Double listPrice, Double unitPrice, Double lineTotal) {

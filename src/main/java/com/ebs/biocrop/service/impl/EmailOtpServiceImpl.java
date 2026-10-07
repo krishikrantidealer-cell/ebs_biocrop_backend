@@ -5,32 +5,32 @@ import com.ebs.biocrop.exception.OtpCooldownException;
 import com.ebs.biocrop.service.EmailDeliveryService;
 import com.ebs.biocrop.service.EmailOtpService;
 import com.ebs.biocrop.service.RedisOtpCooldown;
+import com.ebs.biocrop.service.RedisOtpStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
 @Service
 public class EmailOtpServiceImpl implements EmailOtpService {
     private static final SecureRandom RANDOM = new SecureRandom();
-    private final ConcurrentHashMap<String, Entry> cache = new ConcurrentHashMap<>();
     private final PasswordEncoder encoder;
     private final EmailDeliveryService delivery;
     private final RedisOtpCooldown redisOtpCooldown;
+    private final RedisOtpStore redisOtpStore;
     @Value("${app.otp.expiration-minutes:5}") private int expiryMinutes;
     @Value("${app.otp.max-attempts:3}") private int maxAttempts;
     @Value("${app.otp.cooldown-seconds:60}") private int configuredCooldownSeconds;
 
     public EmailOtpServiceImpl(PasswordEncoder encoder, EmailDeliveryService delivery,
-                               RedisOtpCooldown redisOtpCooldown) {
+                               RedisOtpCooldown redisOtpCooldown, RedisOtpStore redisOtpStore) {
         this.encoder = encoder;
         this.delivery = delivery;
         this.redisOtpCooldown = redisOtpCooldown;
+        this.redisOtpStore = redisOtpStore;
     }
 
     @Override
@@ -42,14 +42,19 @@ public class EmailOtpServiceImpl implements EmailOtpService {
         if (remainingCooldown > 0)
             throw new OtpCooldownException("Please wait before requesting another OTP", remainingCooldown);
 
-        Entry entry = null;
+        String entryId = null;
         try {
             String otp = String.format("%06d", RANDOM.nextInt(1_000_000));
-            entry = new Entry(encoder.encode(otp), LocalDateTime.now().plusMinutes(expiryMinutes));
-            cache.put(key, entry);
+            entryId = redisOtpStore.save("email", key, encoder.encode(otp), java.time.Duration.ofMinutes(expiryMinutes));
             delivery.send(key, "Your EBS BioCrop login code", "Your one-time login code is " + otp + ". It expires in " + expiryMinutes + " minutes.");
         } catch (RuntimeException exception) {
-            if (entry != null) cache.remove(key, entry);
+            if (entryId != null) {
+                try {
+                    redisOtpStore.deleteIfCurrent("email", key, entryId);
+                } catch (RuntimeException cleanupFailure) {
+                    exception.addSuppressed(cleanupFailure);
+                }
+            }
             redisOtpCooldown.release("email-send", key, reservationToken);
             throw exception;
         }
@@ -57,29 +62,15 @@ public class EmailOtpServiceImpl implements EmailOtpService {
 
     @Override
     public void verify(String email, String otp) {
-        String key = email.trim().toLowerCase();
-        Entry entry = cache.get(key);
-        if (entry == null || entry.expired()) {
-            cache.remove(key);
-            throw new InvalidOtpException("No active email OTP request found. Please request a new code.");
+        String key = email.trim().toLowerCase(java.util.Locale.ROOT);
+        RedisOtpStore.Verification verification = redisOtpStore.beginVerification("email", key, maxAttempts);
+        if (encoder.matches(otp.trim(), verification.encodedOtp())) {
+            redisOtpStore.complete("email", key, verification);
+            return;
         }
-        synchronized (entry) {
-            if (cache.get(key) != entry) throw new InvalidOtpException("The OTP request changed. Please request a new code.");
-            if (++entry.attempts > maxAttempts) {
-                cache.remove(key, entry);
-                throw new InvalidOtpException("Maximum verification attempts exceeded. Please request a new OTP.");
-            }
-            if (!encoder.matches(otp.trim(), entry.hash)) {
-                if (entry.attempts >= maxAttempts) cache.remove(key, entry);
-                throw new InvalidOtpException("Invalid email OTP.");
-            }
-            cache.remove(key, entry);
-        }
-    }
-
-    private static class Entry {
-        final String hash; final LocalDateTime expiresAt; int attempts;
-        Entry(String hash, LocalDateTime expiresAt) { this.hash=hash; this.expiresAt=expiresAt; }
-        boolean expired() { return LocalDateTime.now().isAfter(expiresAt); }
+        int attempts = redisOtpStore.reject("email", key, verification, maxAttempts);
+        int remaining = maxAttempts - attempts;
+        if (remaining <= 0) throw new InvalidOtpException("Maximum verification attempts exceeded. Please request a new OTP.");
+        throw new InvalidOtpException("Invalid email OTP. " + remaining + " attempt(s) remaining.");
     }
 }

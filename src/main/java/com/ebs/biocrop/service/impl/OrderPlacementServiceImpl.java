@@ -208,7 +208,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         List<Order> saved = orders.saveAll(created);
         carts.delete(cart);
         redisCache.invalidateRegionAfterCommit("public-products");
-        return new PlacedOrdersResponse(checkoutGroupId, saved.stream().map(OrderResponse::forCustomer).toList());
+        return new PlacedOrdersResponse(checkoutGroupId, saved.stream()
+                .map(order -> adminOverride ? OrderResponse.forAdmin(order) : OrderResponse.forCustomer(order))
+                .toList());
     }
 
     private BigDecimal resolveAdvancePercentage(PlaceOrderRequest request, boolean adminOverride) {

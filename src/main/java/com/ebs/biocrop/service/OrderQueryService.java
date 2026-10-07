@@ -9,6 +9,8 @@ public interface OrderQueryService {
     Page<Order> listForCustomer(String customerId, int page, int size);
     Order getForCustomer(String customerId, String orderId);
     List<Order> getCheckoutGroupForCustomer(String customerId, String checkoutGroupId);
+    Page<Order> listForAdmin(int page, int size);
+    Order getForAdmin(String orderId);
     Page<Order> listForSeller(String sellerId, int page, int size);
     Order getForSeller(String sellerId, String orderId);
 }
