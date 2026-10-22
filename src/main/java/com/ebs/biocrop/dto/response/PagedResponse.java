@@ -1,5 +1,6 @@
 package com.ebs.biocrop.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -13,6 +14,12 @@ public record PagedResponse<T>(
         int totalPages,
         boolean first,
         boolean last) {
+
+    /** Total number of matching records across all pages. */
+    @JsonProperty("count")
+    public long count() {
+        return totalElements;
+    }
 
     public static <S, T> PagedResponse<T> from(Page<S> page, Function<S, T> mapper) {
         return new PagedResponse<>(page.getContent().stream().map(entity -> mapper.apply(entity)).toList(), page.getNumber(),

@@ -3,7 +3,9 @@ package com.ebs.biocrop.controller;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.ProductManagementResponse;
+import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.request.DeleteProductImagesRequest;
+import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.AdminProductService;
 import com.ebs.biocrop.service.RateLimitGuard;
@@ -37,9 +39,9 @@ public class AdminProductController {
     }
 
     @GetMapping
-    @Operation(summary = "List product listings by review status")
+    @Operation(summary = "List product listings by status")
     public ResponseEntity<ApiResponse<PagedResponse<ProductManagementResponse>>> listForReview(
-            @RequestParam(defaultValue = "PENDING_REVIEW") String status,
+            @RequestParam(defaultValue = "INACTIVE") String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<Product> result = products.listForReview(status, page, size);
@@ -80,11 +82,22 @@ public class AdminProductController {
                 ProductManagementResponse.from(products.setFeatured(id, featured))));
     }
 
+    @PatchMapping("/{id}/collections")
+    @Operation(summary = "Assign a product to collections and subcollections")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> assignCollections(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String id,
+            @Valid @RequestBody ProductCollectionAssignmentRequest request) {
+        rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Product collections updated",
+                ProductManagementResponse.from(products.assignCollections(id, request))));
+    }
+
     @PostMapping(
             value = "/{id}/images",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload 1 to 6 product images in one batch")
-    public ResponseEntity<ApiResponse<List<String>>> addImages(
+    public ResponseEntity<ApiResponse<CountedListResponse<String>>> addImages(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String id,
             @RequestPart("files") List<MultipartFile> files) {
@@ -100,7 +113,7 @@ public class AdminProductController {
                 .toList();
 
         return ResponseEntity.ok(
-                ApiResponse.ok("Product images uploaded", imageIds));
+                ApiResponse.ok("Product images uploaded", CountedListResponse.from(imageIds)));
     }
 
     @DeleteMapping("/{id}/images/{imageId}")
@@ -117,7 +130,7 @@ public class AdminProductController {
 
     @DeleteMapping("/{id}/images")
     @Operation(summary = "Delete one or more product images")
-    public ResponseEntity<ApiResponse<List<String>>> deleteImages(
+    public ResponseEntity<ApiResponse<CountedListResponse<String>>> deleteImages(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String id,
             @Valid @RequestBody DeleteProductImagesRequest request) {
@@ -125,6 +138,6 @@ public class AdminProductController {
         products.deleteImages(id, request.imageIds());
 
         return ResponseEntity.ok(
-                ApiResponse.ok("Product images deleted", request.imageIds()));
+                ApiResponse.ok("Product images deleted", CountedListResponse.from(request.imageIds())));
     }
 }

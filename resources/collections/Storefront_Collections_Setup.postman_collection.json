@@ -1,0 +1,118 @@
+{
+  "info": {
+    "name": "EBS Storefront Collections Setup",
+    "description": "Run once with a valid adminAccessToken to create the initial merchandising collections. Shop By Crops is intentionally omitted because it already exists. Product membership is assigned separately through products.assignedCollections.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "bestSellersCollectionId", "value": "" },
+    { "key": "todaysOffersCollectionId", "value": "" },
+    { "key": "diseasePestCollectionId", "value": "" },
+    { "key": "newArrivalsCollectionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Create initial storefront collections (run once)",
+      "item": [
+        {
+          "name": "1. Create Best Sellers",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Best Sellers\",\n  \"slug\": \"best-sellers\",\n  \"description\": \"Popular products selected for our customers.\",\n  \"isActive\": true,\n  \"priority\": 1,\n  \"bannerTitle\": \"Best Sellers\",\n  \"subCollections\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/collections",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "if (pm.response.code === 201) { const body = pm.response.json(); pm.collectionVariables.set('bestSellersCollectionId', body.data.id); }",
+                "pm.test('Best Sellers collection created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().success).to.eql(true); });"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "2. Create Today's Offers",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Today's Offers\",\n  \"slug\": \"todays-offers\",\n  \"description\": \"Products currently featured in our offers.\",\n  \"isActive\": true,\n  \"priority\": 2,\n  \"bannerTitle\": \"Today's Offers\",\n  \"subCollections\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/collections",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "if (pm.response.code === 201) { const body = pm.response.json(); pm.collectionVariables.set('todaysOffersCollectionId', body.data.id); }",
+                "pm.test('Today’s Offers collection created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().success).to.eql(true); });"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "3. Create Shop By Disease & Pest",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Shop By Disease & Pest\",\n  \"slug\": \"shop-by-disease-pest\",\n  \"description\": \"Browse products by the pest or disease affecting your crop.\",\n  \"isActive\": true,\n  \"priority\": 3,\n  \"bannerTitle\": \"Shop By Disease & Pest\",\n  \"subCollections\": [\n    { \"name\": \"Mustard Aphid\", \"slug\": \"mustard-aphid\", \"isActive\": true },\n    { \"name\": \"Paddy Sheath Blight\", \"slug\": \"paddy-sheath-blight\", \"isActive\": true },\n    { \"name\": \"Gram Pod Borers\", \"slug\": \"gram-pod-borers\", \"isActive\": true },\n    { \"name\": \"Rice Blast\", \"slug\": \"rice-blast\", \"isActive\": true },\n    { \"name\": \"Bacterial Leaf Blight\", \"slug\": \"bacterial-leaf-blight\", \"isActive\": true },\n    { \"name\": \"Helicoverpa armigera\", \"slug\": \"helicoverpa-armigera\", \"isActive\": true }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/collections",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "if (pm.response.code === 201) { const body = pm.response.json(); pm.collectionVariables.set('diseasePestCollectionId', body.data.id); }",
+                "pm.test('Disease & Pest collection created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().data.subCollections).to.have.lengthOf(6); });"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "4. Create New Arrivals",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Arrivals\",\n  \"slug\": \"new-arrivals\",\n  \"description\": \"Recently added products.\",\n  \"isActive\": true,\n  \"priority\": 4,\n  \"bannerTitle\": \"New Arrivals\",\n  \"subCollections\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/admin/collections",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminAccessToken}}", "type": "string" }] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "if (pm.response.code === 201) { const body = pm.response.json(); pm.collectionVariables.set('newArrivalsCollectionId', body.data.id); }",
+                "pm.test('New Arrivals collection created', function () { pm.response.to.have.status(201); pm.expect(pm.response.json().success).to.eql(true); });"
+              ]
+            }
+          }]
+        }
+      ]
+    }
+  ]
+}

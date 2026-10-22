@@ -76,7 +76,7 @@ public class ProductVariant {
     public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
     public Double getCostPrice() { return costPrice; }
     public void setCostPrice(Double costPrice) { this.costPrice = costPrice; }
-    public Double getDiscountRs() { return printedMrp != null ? getCalculatedDiscountAmount() : discountRs; }
+    public Double getDiscountRs() { return getCalculatedDiscountAmount(); }
     public void setDiscountRs(Double discountRs) { this.discountRs = discountRs; }
     public Double getGstPercentage() { return gstPercentage; }
     public void setGstPercentage(Double gstPercentage) { this.gstPercentage = gstPercentage; }
@@ -91,11 +91,21 @@ public class ProductVariant {
     }
 
     public Double getCalculatedDiscountAmount() {
+        // An explicitly supplied amount (including zero) takes precedence over an
+        // inferred MRP/display-rate difference. This lets sellers opt out of a
+        // discount while retaining the printed MRP for display/compliance.
+        if (discountRs != null) {
+            return BigDecimal.valueOf(discountRs).max(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP).doubleValue();
+        }
+        if (discountPercentage != null && printedMrp != null) {
+            return BigDecimal.valueOf(printedMrp).multiply(BigDecimal.valueOf(discountPercentage))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).doubleValue();
+        }
         if (printedMrp != null && getEffectivePrice() != null) {
             return BigDecimal.valueOf(printedMrp).subtract(BigDecimal.valueOf(getEffectivePrice())).max(BigDecimal.ZERO)
                     .setScale(2, RoundingMode.HALF_UP).doubleValue();
         }
-        if (discountRs != null) return Math.max(0.0, discountRs);
         if (displayRate != null && discountPercentage != null) {
             return BigDecimal.valueOf(displayRate).multiply(BigDecimal.valueOf(discountPercentage))
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).doubleValue();
@@ -104,8 +114,8 @@ public class ProductVariant {
     }
 
     public Double getCalculatedDiscountPercent() {
+        if (discountPercentage != null) return Math.max(0.0, discountPercentage);
         if (printedMrp == null) {
-            if (discountPercentage != null) return discountPercentage;
             if (displayRate == null || displayRate <= 0 || discountRs == null) return null;
             return BigDecimal.valueOf(discountRs).multiply(BigDecimal.valueOf(100))
                     .divide(BigDecimal.valueOf(displayRate), 2, RoundingMode.HALF_UP).doubleValue();

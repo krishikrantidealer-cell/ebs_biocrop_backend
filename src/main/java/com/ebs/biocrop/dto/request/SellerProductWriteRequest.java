@@ -33,8 +33,6 @@ public class SellerProductWriteRequest {
     @Size(max = 2000) private String dosage;
     @Size(max = 2000) private String applicationMethod;
     @NotBlank private String categoryId;
-    @Size(max = 50) private List<@NotBlank String> collectionIds = new ArrayList<>();
-    @Size(max = 50) private List<@NotBlank String> subCollectionIds = new ArrayList<>();
     @Valid private ProductDimensions dimensions;
     @Size(max = 2000) private String refundPolicy;
     @PositiveOrZero private Double productWeight;
@@ -49,7 +47,7 @@ public class SellerProductWriteRequest {
         product.setFeatures(features); product.setBenefits(benefits); product.setModeOfAction(modeOfAction);
         product.setSuitableCrops(suitableCrops); product.setTargetPests(targetPests); product.setTargetDiseases(targetDiseases);
         product.setDosage(dosage); product.setApplicationMethod(applicationMethod); product.setCategoryId(categoryId);
-        product.setCollectionIds(collectionIds); product.setSubCollectionIds(subCollectionIds); product.setDimensions(dimensions);
+        product.setDimensions(dimensions);
         product.setRefundPolicy(refundPolicy); product.setProductWeight(productWeight); product.setProductWeightUnit(productWeightUnit);
         product.setVariants(variants == null ? List.of() : variants.stream().map(VariantWriteRequest::toVariant).toList());
         return product;
@@ -89,10 +87,6 @@ public class SellerProductWriteRequest {
     public void setApplicationMethod(String applicationMethod) { this.applicationMethod = applicationMethod; }
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
-    public List<String> getCollectionIds() { return collectionIds; }
-    public void setCollectionIds(List<String> collectionIds) { this.collectionIds = collectionIds; }
-    public List<String> getSubCollectionIds() { return subCollectionIds; }
-    public void setSubCollectionIds(List<String> subCollectionIds) { this.subCollectionIds = subCollectionIds; }
     public ProductDimensions getDimensions() { return dimensions; }
     public void setDimensions(ProductDimensions dimensions) { this.dimensions = dimensions; }
     public String getRefundPolicy() { return refundPolicy; }

@@ -587,10 +587,10 @@
           }
         },
         {
-          "name": "35. List products pending review - ROLE_ADMIN",
+          "name": "35. List inactive products - ROLE_ADMIN",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/v1/admin/products?status=PENDING_REVIEW&page=0&size=20"
+            "url": "{{baseUrl}}/api/v1/admin/products?status=INACTIVE&page=0&size=20"
           }
         },
         {

@@ -38,7 +38,8 @@ public class SellerProductServiceImpl implements SellerProductService {
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
 
-    public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories, MongoTemplate mongoTemplate,
+    public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories,
+                                    MongoTemplate mongoTemplate,
                                     RedisJsonCache redisCache) {
         this.products = products;
         this.categories = categories;
@@ -57,7 +58,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         copySellerFields(request, listing, null);
         listing.setSellerId(sellerId);
         listing.setProductCode(nextProductCode(sellerId));
-        listing.setStatus("PENDING_REVIEW");
+        listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
         listing.setIsFeatured(false);
         listing.setRatings(null);
@@ -87,7 +88,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setId(current.getId());
         listing.setProductCode(current.getProductCode());
         listing.setSellerId(current.getSellerId());
-        listing.setStatus("PENDING_REVIEW");
+        listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
         listing.setIsFeatured(Boolean.TRUE.equals(current.getIsFeatured()));
         listing.setRatings(current.getRatings());
@@ -101,6 +102,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         try {
             Product saved = products.save(product);
             redisCache.invalidateRegion("public-products");
+            redisCache.invalidateRegion("public-collections");
             return saved;
         } catch (DuplicateKeyException exception) {
             throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
@@ -187,12 +189,20 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setModeOfAction(source.getModeOfAction()); target.setSuitableCrops(source.getSuitableCrops());
         target.setTargetPests(source.getTargetPests()); target.setTargetDiseases(source.getTargetDiseases());
         target.setDosage(source.getDosage()); target.setApplicationMethod(source.getApplicationMethod());
-        target.setCategoryId(source.getCategoryId()); target.setCollectionIds(source.getCollectionIds());
-        target.setSubCollectionIds(source.getSubCollectionIds()); target.setDimensions(normalizeDimensions(source.getDimensions()));
+        target.setCategoryId(source.getCategoryId());
+        target.setAssignedCollections(existing == null ? List.of()
+                : normalizeAssignedCollections(existing.getAssignedCollections()));
+        target.setDimensions(normalizeDimensions(source.getDimensions()));
         target.setRefundPolicy(source.getRefundPolicy()); target.setProductWeight(source.getProductWeight());
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
         target.setVariants(sanitizeVariants(source.getVariants(), oldVariants));
+    }
+
+    private List<String> normalizeAssignedCollections(List<String> assignedCollections) {
+        if (assignedCollections == null) return List.of();
+        return assignedCollections.stream().filter(value -> value != null && !value.isBlank())
+                .map(String::trim).distinct().toList();
     }
 
     private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current) {

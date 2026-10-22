@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/blogs/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/orders/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/collections/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                         .requestMatchers("/api/v1/cart/**").hasRole("CUSTOMER")
@@ -79,6 +80,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",
+                                "/api/v1/collections/**",
                                 "/api/v1/blogs",
                                 "/api/v1/blogs/**",
                                 "/api/v1/health")

@@ -51,6 +51,19 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 .on("slug", Sort.Direction.ASC).unique().named("category_parent_slug_unique_idx"));
         ensure("categories", "category_level_idx", Map.of("level", 1), new Index().on("level", Sort.Direction.ASC).named("category_level_idx"));
 
+        if (!mongoTemplate.collectionExists("collections")) {
+            try {
+                mongoTemplate.createCollection("collections");
+            } catch (Exception e) {
+                log.warn("Could not create collections collection: {}", e.getMessage());
+            }
+        }
+        ensure("collections", "uniq_collection_slug", Map.of("slug", 1), new Index().on("slug", Sort.Direction.ASC)
+                .unique().named("uniq_collection_slug"));
+        ensure("collections", "collection_active_priority_idx", Map.of("isActive", 1, "priority", 1, "name", 1),
+                new Index().on("isActive", Sort.Direction.ASC).on("priority", Sort.Direction.ASC)
+                        .on("name", Sort.Direction.ASC).named("collection_active_priority_idx"));
+
         ensure("products", "uniq_product_sku", Map.of("sku", 1), new Index().on("sku", Sort.Direction.ASC)
                 .unique().named("uniq_product_sku"));
         ensure("products", "uniq_product_code", Map.of("productCode", 1), new Index().on("productCode", Sort.Direction.ASC)
@@ -61,6 +74,10 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 .on("updatedAt", Sort.Direction.DESC).named("product_seller_updated_idx"));
         ensure("products", "idx_products_variant_id", Map.of("variants._id", 1), new Index().on("variants._id", Sort.Direction.ASC)
                 .named("idx_products_variant_id"));
+        ensure("products", "product_assigned_collections_status_available_idx",
+                Map.of("assignedCollections", 1, "status", 1, "isAvailable", 1),
+                new Index().on("assignedCollections", Sort.Direction.ASC).on("status", Sort.Direction.ASC)
+                        .on("isAvailable", Sort.Direction.ASC).named("product_assigned_collections_status_available_idx"));
 
         if (!mongoTemplate.collectionExists("orders")) {
             try {

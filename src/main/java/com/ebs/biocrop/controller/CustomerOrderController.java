@@ -2,6 +2,7 @@ package com.ebs.biocrop.controller;
 
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
+import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
 import com.ebs.biocrop.dto.response.OrderResponse;
@@ -82,12 +83,12 @@ public class CustomerOrderController {
 
     @GetMapping("/group/{checkoutGroupId}")
     @Operation(summary = "List the authenticated customer's seller orders from one checkout")
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrdersByCheckoutGroup(
+    public ResponseEntity<ApiResponse<CountedListResponse<OrderResponse>>> getOrdersByCheckoutGroup(
             @AuthenticationPrincipal CustomUserDetails customer,
             @PathVariable String checkoutGroupId) {
         return ResponseEntity.ok(ApiResponse.ok("Checkout orders retrieved",
-                orderQueries.getCheckoutGroupForCustomer(customer.getId(), checkoutGroupId).stream()
-                        .map(OrderResponse::forCustomer).toList()));
+                CountedListResponse.from(orderQueries.getCheckoutGroupForCustomer(customer.getId(), checkoutGroupId).stream()
+                        .map(OrderResponse::forCustomer).toList())));
     }
 
     @PostMapping("/{orderId}/cancel")

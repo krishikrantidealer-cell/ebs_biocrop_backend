@@ -3,10 +3,15 @@ package com.ebs.biocrop.service.impl;
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.entity.ProductCollection;
+import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
+import com.ebs.biocrop.entity.ProductDimensions;
+import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductRepository;
+import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.service.AdminProductService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -27,14 +32,16 @@ import org.springframework.web.multipart.MultipartFile;
 import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.ProductImageVariantService;
 import com.ebs.biocrop.service.RedisJsonCache;
+import org.bson.types.ObjectId;
 import com.ebs.biocrop.entity.ProductImage;
 
 
 @Service
 public class AdminProductServiceImpl implements AdminProductService {
-    private static final Set<String> ALLOWED_STATUSES = Set.of("PENDING_REVIEW", "ACTIVE", "REJECTED", "INACTIVE");
+    private static final Set<String> ALLOWED_STATUSES = Set.of("ACTIVE", "INACTIVE");
     private static final int MAX_PRODUCT_IMAGES = 6;
     private final ProductRepository products;
+    private final ProductCollectionRepository collections;
     private final CategoryRepository categories;
     private final GcsImageStorageService imageStorage;
     private final ProductImageVariantService imageVariants;
@@ -42,11 +49,13 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     public AdminProductServiceImpl(
             ProductRepository products,
+            ProductCollectionRepository collections,
             CategoryRepository categories,
             GcsImageStorageService imageStorage,
             ProductImageVariantService imageVariants,
             RedisJsonCache redisCache) {
         this.products = products;
+        this.collections = collections;
         this.categories = categories;
         this.imageStorage = imageStorage;
         this.imageVariants = imageVariants;
@@ -55,7 +64,7 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override
     public Page<Product> listForReview(String status, int page, int size) {
-        String normalized = status == null || status.isBlank() ? "PENDING_REVIEW" : status.trim().toUpperCase(Locale.ROOT);
+        String normalized = status == null || status.isBlank() ? "INACTIVE" : status.trim().toUpperCase(Locale.ROOT);
         if (!ALLOWED_STATUSES.contains(normalized)) {
             throw new AppException("Unsupported product status filter", HttpStatus.BAD_REQUEST);
         }
@@ -86,11 +95,44 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (hasChildren) {
                 throw new AppException("Products must use a subcategory or a category without children", HttpStatus.CONFLICT);
             }
+            validatePublishReady(product);
         }
-        product.setStatus(approved ? "ACTIVE" : "REJECTED");
+        product.setStatus(approved ? "ACTIVE" : "INACTIVE");
         product.setIsAvailable(approved);
         product.setUpdatedAt(LocalDateTime.now());
         return saveAndInvalidatePublicCatalog(product);
+    }
+
+    private void validatePublishReady(Product product) {
+        if (product.getVariants() == null || product.getVariants().isEmpty()) {
+            throw new AppException("At least one complete sellable variant is required before approval", HttpStatus.CONFLICT);
+        }
+        for (ProductVariant variant : product.getVariants()) {
+            if (variant == null || variant.getLabel() == null || variant.getLabel().isBlank()
+                    || "default title".equalsIgnoreCase(variant.getLabel().trim())) {
+                throw new AppException("Every variant needs a specific package label before approval", HttpStatus.CONFLICT);
+            }
+            if (variant.getPackSize() == null || variant.getPackSize() <= 0
+                    || variant.getPackSizeUnit() == null || variant.getPackSizeUnit().isBlank()
+                    || variant.getPackQuantity() == null || variant.getPackQuantity() <= 0) {
+                throw new AppException("Every variant needs a complete package size and quantity before approval", HttpStatus.CONFLICT);
+            }
+            if (variant.getDisplayRate() == null || !Double.isFinite(variant.getDisplayRate()) || variant.getDisplayRate() <= 0) {
+                throw new AppException("Every variant needs a positive selling price before approval", HttpStatus.CONFLICT);
+            }
+            if (variant.getStock() == null || variant.getStock() < 0) {
+                throw new AppException("Every variant needs a confirmed stock quantity before approval", HttpStatus.CONFLICT);
+            }
+            ProductDimensions dimensions = variant.getDimensions() == null ? product.getDimensions() : variant.getDimensions();
+            if (dimensions == null || !"cm".equalsIgnoreCase(dimensions.getUnit())
+                    || !positive(dimensions.getLength()) || !positive(dimensions.getWidth()) || !positive(dimensions.getHeight())) {
+                throw new AppException("Every variant needs positive package dimensions in centimeters before approval", HttpStatus.CONFLICT);
+            }
+        }
+    }
+
+    private boolean positive(Double value) {
+        return value != null && Double.isFinite(value) && value > 0;
     }
 
     @Override
@@ -114,6 +156,53 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setIsFeatured(featured);
         product.setUpdatedAt(LocalDateTime.now());
         return saveAndInvalidatePublicCatalog(product);
+    }
+
+    @Override
+    public Product assignCollections(String productId, ProductCollectionAssignmentRequest request) {
+        Product product = findProduct(productId);
+        Set<String> collectionIds = normalizeObjectIds(request.collectionIds(), "collection");
+        Set<String> subCollectionIds = normalizeObjectIds(request.subCollectionIds(), "subcollection");
+        List<String> assigned = new ArrayList<>();
+        List<String> assignedSubcollections = new ArrayList<>();
+        for (String collectionId : collectionIds) {
+            ProductCollection collection = collections.findById(collectionId)
+                    .filter(value -> Boolean.TRUE.equals(value.getIsActive()))
+                    .orElseThrow(() -> new AppException(
+                            "Every selected collection must exist and be active", HttpStatus.BAD_REQUEST));
+            assigned.add(collectionId);
+            if (collection.getSubCollections() == null) continue;
+            for (String subCollectionId : subCollectionIds) {
+                ProductCollection.SubCollection sub = collection.getSubCollections().stream()
+                        .filter(value -> value.getId() != null
+                                && subCollectionId.equals(value.getId().toHexString())
+                                && Boolean.TRUE.equals(value.getIsActive()))
+                        .findFirst().orElse(null);
+                if (sub != null) assignedSubcollections.add(subCollectionId);
+            }
+        }
+        if (assignedSubcollections.size() != subCollectionIds.size()) {
+            throw new AppException(
+                    "Every selected subcollection must belong to one of the selected active collections",
+                    HttpStatus.BAD_REQUEST);
+        }
+        assigned.addAll(assignedSubcollections);
+        product.setAssignedCollections(assigned.stream().distinct().toList());
+        product.setUpdatedAt(LocalDateTime.now());
+        return saveAndInvalidatePublicCatalog(product);
+    }
+
+    private Set<String> normalizeObjectIds(List<String> ids, String label) {
+        Set<String> normalized = new java.util.LinkedHashSet<>();
+        for (String id : ids) {
+            if (!ObjectId.isValid(id)) {
+                throw new AppException("Each " + label + " ID must be a valid MongoDB ObjectId", HttpStatus.BAD_REQUEST);
+            }
+            if (!normalized.add(new ObjectId(id).toHexString())) {
+                throw new AppException("Duplicate " + label + " IDs are not allowed", HttpStatus.BAD_REQUEST);
+            }
+        }
+        return normalized;
     }
 
     @Override
@@ -268,6 +357,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     private Product saveAndInvalidatePublicCatalog(Product product) {
         Product saved = products.save(product);
         redisCache.invalidateRegion("public-products");
+        redisCache.invalidateRegion("public-collections");
         return saved;
     }
 

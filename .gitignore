@@ -20,3 +20,8 @@ Thumbs.db
 *.js
 *.json
 !EBS BioCrop Backend - Redesigned API Flow.postman_collection.json
+!resources/collections/Storefront_Collections_Setup.postman_collection.json
+
+resourcesData/
+/scratch/
+/resources/product-image-upload/

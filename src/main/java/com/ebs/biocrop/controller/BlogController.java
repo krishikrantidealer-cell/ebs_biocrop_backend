@@ -4,6 +4,7 @@ import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.BlogFacetResponse;
 import com.ebs.biocrop.dto.response.BlogPublicResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
+import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.entity.Blog;
 import com.ebs.biocrop.service.BlogService;
 import com.ebs.biocrop.service.RedisJsonCache;
@@ -57,19 +58,19 @@ public class BlogController {
 
     @GetMapping("/categories")
     @Operation(summary = "List blog categories")
-    public ResponseEntity<ApiResponse<List<BlogFacetResponse>>> categories() {
-        JavaType responseType = typeFactory.constructCollectionType(List.class, BlogFacetResponse.class);
-        List<BlogFacetResponse> response = redisCache.getOrLoad("public-blogs", "categories", responseType,
-                Duration.ofMinutes(5), blogService::publicCategories);
+    public ResponseEntity<ApiResponse<CountedListResponse<BlogFacetResponse>>> categories() {
+        JavaType responseType = typeFactory.constructParametricType(CountedListResponse.class, BlogFacetResponse.class);
+        CountedListResponse<BlogFacetResponse> response = redisCache.getOrLoad("public-blogs", "categories", responseType,
+                Duration.ofMinutes(5), () -> CountedListResponse.from(blogService.publicCategories()));
         return ResponseEntity.ok(ApiResponse.ok("Published blog categories retrieved successfully", response));
     }
 
     @GetMapping("/tags")
     @Operation(summary = "List blog tags")
-    public ResponseEntity<ApiResponse<List<BlogFacetResponse>>> tags() {
-        JavaType responseType = typeFactory.constructCollectionType(List.class, BlogFacetResponse.class);
-        List<BlogFacetResponse> response = redisCache.getOrLoad("public-blogs", "tags", responseType,
-                Duration.ofMinutes(5), blogService::publicTags);
+    public ResponseEntity<ApiResponse<CountedListResponse<BlogFacetResponse>>> tags() {
+        JavaType responseType = typeFactory.constructParametricType(CountedListResponse.class, BlogFacetResponse.class);
+        CountedListResponse<BlogFacetResponse> response = redisCache.getOrLoad("public-blogs", "tags", responseType,
+                Duration.ofMinutes(5), () -> CountedListResponse.from(blogService.publicTags()));
         return ResponseEntity.ok(ApiResponse.ok("Published blog tags retrieved successfully", response));
     }
 

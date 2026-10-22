@@ -46,7 +46,11 @@ public class Product {
 
     /** Leaf category document selected for this product/listing. */
     private String categoryId;
+    /** String-based merchandising membership; values may match a collection or subcollection name, slug, or ID. */
+    private List<String> assignedCollections = new ArrayList<>();
+    /** Legacy compatibility field; new merchandising membership uses assignedCollections. */
     private List<String> collectionIds = new ArrayList<>();
+    /** Legacy compatibility field; new merchandising membership uses assignedCollections. */
     private List<String> subCollectionIds = new ArrayList<>();
     /** Product-level package dimensions from the approved schema; a variant may override these. */
     private ProductDimensions dimensions;
@@ -114,6 +118,8 @@ public class Product {
     public void setApplicationMethod(String applicationMethod) { this.applicationMethod = applicationMethod; }
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public List<String> getAssignedCollections() { return assignedCollections; }
+    public void setAssignedCollections(List<String> assignedCollections) { this.assignedCollections = assignedCollections != null ? assignedCollections : new ArrayList<>(); }
     public List<String> getCollectionIds() { return collectionIds; }
     public void setCollectionIds(List<String> collectionIds) { this.collectionIds = collectionIds != null ? collectionIds : new ArrayList<>(); }
     public List<String> getSubCollectionIds() { return subCollectionIds; }
