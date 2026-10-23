@@ -3,6 +3,7 @@ package com.ebs.biocrop.service.impl;
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
 import com.ebs.biocrop.entity.ProductDimensions;
@@ -13,6 +14,16 @@ import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.service.AdminProductService;
+import com.ebs.biocrop.service.SellerProductService;
+import com.ebs.biocrop.service.CartService;
+import com.ebs.biocrop.dto.request.AdminProductWriteRequest;
+import com.ebs.biocrop.dto.request.AdminProductPatchRequest;
+import com.ebs.biocrop.dto.request.AdminProductVariantPatchRequest;
+import com.ebs.biocrop.dto.request.AdminProductVariantWriteRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -46,6 +57,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final GcsImageStorageService imageStorage;
     private final ProductImageVariantService imageVariants;
     private final RedisJsonCache redisCache;
+    private final SellerProductService sellerProducts;
+    private final MongoTemplate mongoTemplate;
+    private final CartService cartService;
 
     public AdminProductServiceImpl(
             ProductRepository products,
@@ -53,28 +67,250 @@ public class AdminProductServiceImpl implements AdminProductService {
             CategoryRepository categories,
             GcsImageStorageService imageStorage,
             ProductImageVariantService imageVariants,
-            RedisJsonCache redisCache) {
+            RedisJsonCache redisCache, SellerProductService sellerProducts, MongoTemplate mongoTemplate, CartService cartService) {
         this.products = products;
         this.collections = collections;
         this.categories = categories;
         this.imageStorage = imageStorage;
         this.imageVariants = imageVariants;
         this.redisCache = redisCache;
+        this.sellerProducts = sellerProducts;
+        this.mongoTemplate = mongoTemplate;
+        this.cartService = cartService;
     }
 
     @Override
-    public Page<Product> listForReview(String status, int page, int size) {
-        String normalized = status == null || status.isBlank() ? "INACTIVE" : status.trim().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_STATUSES.contains(normalized)) {
+    public Page<Product> listAdminProducts(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size) {
+        String normalized = status == null || status.isBlank() || "ALL".equalsIgnoreCase(status) ? null : status.trim().toUpperCase(Locale.ROOT);
+        if (normalized != null && !ALLOWED_STATUSES.contains(normalized)) {
             throw new AppException("Unsupported product status filter", HttpStatus.BAD_REQUEST);
         }
-        return products.findByStatusIgnoreCase(normalized,
-                PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "updatedAt")));
+        Pageable pageable = PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        List<Criteria> filters = new ArrayList<>();
+        if (deleted != null) filters.add(Criteria.where("isDeleted").is(deleted));
+        else filters.add(new Criteria().orOperator(Criteria.where("isDeleted").is(false), Criteria.where("isDeleted").exists(false), Criteria.where("isDeleted").is(null)));
+        if (normalized != null) filters.add(Criteria.where("status").regex("^" + normalized + "$", "i"));
+        if (sellerId != null && !sellerId.isBlank()) filters.add(Criteria.where("sellerId").is(sellerId.trim()));
+        if (categoryId != null && !categoryId.isBlank()) filters.add(Criteria.where("categoryId").is(categoryId.trim()));
+        if (query != null && !query.isBlank()) {
+            if (query.trim().length() > 100) throw new AppException("Search query must be at most 100 characters", HttpStatus.BAD_REQUEST);
+            String escaped = java.util.regex.Pattern.quote(query.trim());
+            filters.add(new Criteria().orOperator(Criteria.where("title").regex("^" + escaped, "i"),
+                    Criteria.where("sku").regex("^" + escaped, "i"), Criteria.where("productCode").regex("^" + escaped, "i")));
+        }
+        Query querySpec = new Query(filters.isEmpty() ? new Criteria() : new Criteria().andOperator(filters.toArray(Criteria[]::new)))
+                .with(pageable);
+        List<Product> content = mongoTemplate.find(querySpec, Product.class);
+        long total = mongoTemplate.count(Query.of(querySpec).limit(-1).skip(-1), Product.class);
+        return new org.springframework.data.domain.PageImpl<>(content, pageable, total);
+    }
+
+    @Override public Product getAdminProductById(String id) { return findProduct(id); }
+
+    @Override public Product createAdminProduct(String adminId, AdminProductWriteRequest request) {
+        User seller = mongoTemplate.findById(request.getSellerId(), User.class);
+        if (seller == null || seller.getRole() != com.ebs.biocrop.entity.enums.UserRole.ROLE_SELLER
+                || Boolean.TRUE.equals(seller.getIsDeleted())) throw new ResourceNotFoundException("Seller", "id", request.getSellerId());
+        if (Boolean.TRUE.equals(seller.getIsBlocked())) throw new AppException("A blocked seller cannot receive new product listings", HttpStatus.CONFLICT);
+        return sellerProducts.create(request.getSellerId(), request);
+    }
+
+    @Override public Product updateAdminProduct(String id, AdminProductWriteRequest request) {
+        Product current = findProduct(id);
+        if (Boolean.TRUE.equals(current.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
+        if (current.getSellerId() != null) {
+            if (!current.getSellerId().equals(request.getSellerId())) throw new AppException("Product ownership cannot be changed", HttpStatus.CONFLICT);
+            Set<String> existingVariantIds = current.getVariants() == null ? Set.of() : current.getVariants().stream()
+                    .map(ProductVariant::getId).filter(java.util.Objects::nonNull).map(v -> v.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+            Product updated = sellerProducts.update(current.getSellerId(), id, request);
+            Set<String> retainedVariantIds = updated.getVariants() == null ? Set.of() : updated.getVariants().stream()
+                    .map(ProductVariant::getId).filter(java.util.Objects::nonNull).map(v -> v.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
+            List<String> removedVariantIds = existingVariantIds.stream().filter(v -> !retainedVariantIds.contains(v)).toList();
+            for (String variantId : removedVariantIds) cartService.removeVariantFromAllCarts(variantId);
+            removeWishlistReferences(removedVariantIds);
+            return updated;
+        }
+        throw new AppException("Platform-owned or legacy products cannot be reassigned through this endpoint", HttpStatus.CONFLICT);
+    }
+
+    @Override public Product patchAdminProduct(String id, AdminProductPatchRequest request) {
+        if (!request.hasChanges()) throw new AppException("At least one product field must be provided", HttpStatus.BAD_REQUEST);
+        Product p = findProduct(id);
+        if (Boolean.TRUE.equals(p.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
+        if (request.getSku()!=null) p.setSku(request.getSku().trim()); if (request.getHsnCode()!=null) p.setHsnCode(request.getHsnCode());
+        if (request.getTitle()!=null) p.setTitle(request.getTitle().trim()); if (request.getTechnicalName()!=null) p.setTechnicalName(request.getTechnicalName());
+        if (request.getVendor()!=null) p.setVendor(request.getVendor()); if (request.getDescription()!=null) p.setDescription(request.getDescription());
+        if (request.getImages()!=null) p.setImages(request.getImages()); if (request.getTechnicalContent()!=null) p.setTechnicalContent(request.getTechnicalContent());
+        if (request.getFeatures()!=null) p.setFeatures(request.getFeatures()); if (request.getBenefits()!=null) p.setBenefits(request.getBenefits());
+        if (request.getModeOfAction()!=null) p.setModeOfAction(request.getModeOfAction()); if (request.getSuitableCrops()!=null) p.setSuitableCrops(request.getSuitableCrops());
+        if (request.getTargetPests()!=null) p.setTargetPests(request.getTargetPests()); if (request.getTargetDiseases()!=null) p.setTargetDiseases(request.getTargetDiseases());
+        if (request.getDosage()!=null) p.setDosage(request.getDosage()); if (request.getApplicationMethod()!=null) p.setApplicationMethod(request.getApplicationMethod());
+        if (request.getCategoryId()!=null) p.setCategoryId(request.getCategoryId()); if (request.getDimensions()!=null) p.setDimensions(request.getDimensions());
+        if (request.getRefundPolicy()!=null) p.setRefundPolicy(request.getRefundPolicy()); if (request.getProductWeight()!=null) p.setProductWeight(request.getProductWeight());
+        if (request.getProductWeightUnit()!=null) p.setProductWeightUnit(request.getProductWeightUnit());
+        sellerProducts.validateProduct(p);
+        p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false);
+        p.setUpdatedAt(LocalDateTime.now());
+        return saveAndInvalidatePublicCatalog(p);
+    }
+
+    @Override public Product addAdminProductVariant(String productId, AdminProductVariantWriteRequest request) {
+        Product product = getEditableProduct(productId);
+        if (product.getVariants() == null) product.setVariants(new ArrayList<>());
+        ProductVariant added = request.toProductVariant();
+        added.setId(new ObjectId().toHexString());
+        product.getVariants().add(added);
+        return validateAndSaveVariantChange(product);
+    }
+
+    @Override public Product updateAdminProductVariant(String productId, String variantId, AdminProductVariantWriteRequest request) {
+        Product product = getEditableProduct(productId);
+        ProductVariant existing = findVariant(product, variantId);
+        ProductVariant replacement = request.toProductVariant();
+        replacement.setId(existing.getId());
+        replacement.setDisplayOrder(existing.getDisplayOrder());
+        replacement.setIsDefault(existing.getIsDefault());
+        replaceVariant(product, existing, replacement);
+        return validateAndSaveVariantChange(product);
+    }
+
+    @Override public Product patchAdminProductVariant(String productId, String variantId, AdminProductVariantPatchRequest patch) {
+        if (!patch.hasChanges()) throw new AppException("At least one variant field must be provided", HttpStatus.BAD_REQUEST);
+        Product product = getEditableProduct(productId);
+        ProductVariant current = findVariant(product, variantId);
+        ProductVariant updated = copyVariant(current);
+        if (patch.getLabel()!=null) updated.setLabel(patch.getLabel());
+        if (patch.getUnit()!=null) updated.setUnit(patch.getUnit());
+        if (patch.getPackSize()!=null) updated.setPackSize(patch.getPackSize());
+        if (patch.getPackSizeUnit()!=null) updated.setPackSizeUnit(patch.getPackSizeUnit());
+        if (patch.getPackQuantity()!=null) updated.setPackQuantity(patch.getPackQuantity());
+        if (patch.getPackUnit()!=null) updated.setPackUnit(patch.getPackUnit());
+        if (patch.getShippedBy()!=null) updated.setShippedBy(patch.getShippedBy());
+        if (patch.getSwg()!=null) updated.setSwg(patch.getSwg());
+        if (patch.getDimensions()!=null) updated.setDimensions(patch.getDimensions());
+        if (patch.getDisplayRate()!=null) updated.setDisplayRate(patch.getDisplayRate());
+        if (patch.getPrintedMrp()!=null) updated.setPrintedMrp(patch.getPrintedMrp());
+        if (patch.getCostPrice()!=null) updated.setCostPrice(patch.getCostPrice());
+        if (patch.getDiscountRs()!=null) updated.setDiscountRs(patch.getDiscountRs());
+        if (patch.getGstPercentage()!=null) updated.setGstPercentage(patch.getGstPercentage());
+        if (patch.getDiscountPercentage()!=null) updated.setDiscountPercentage(patch.getDiscountPercentage());
+        if (patch.getStock()!=null) updated.setStock(patch.getStock());
+        replaceVariant(product, current, updated);
+        return validateAndSaveVariantChange(product);
+    }
+
+    @Override public Product deleteAdminProductVariant(String productId, String variantId) {
+        Product product = getEditableProduct(productId);
+        ProductVariant variant = findVariant(product, variantId);
+        if (product.getVariants().size() <= 1)
+            throw new AppException("A product must retain at least one variant; delete the product instead", HttpStatus.CONFLICT);
+        product.getVariants().remove(variant);
+        Product saved = validateAndSaveVariantChange(product);
+        cartService.removeVariantFromAllCarts(variant.getId());
+        removeWishlistReferences(List.of(variant.getId()));
+        return saved;
+    }
+
+    private Product getEditableProduct(String id) {
+        Product product = findProduct(id);
+        if (Boolean.TRUE.equals(product.getIsDeleted()))
+            throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
+        return product;
+    }
+
+    private ProductVariant findVariant(Product product, String variantId) {
+        if (variantId == null || !ObjectId.isValid(variantId.trim()))
+            throw new AppException("Variant ID must be a valid ID", HttpStatus.BAD_REQUEST);
+        return product.getVariants() == null ? missingVariant(variantId) : product.getVariants().stream()
+                .filter(v -> v.getId() != null && v.getId().equalsIgnoreCase(variantId.trim())).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Product variant", "id", variantId));
+    }
+
+    private ProductVariant missingVariant(String variantId) {
+        throw new ResourceNotFoundException("Product variant", "id", variantId);
+    }
+
+    private void replaceVariant(Product product, ProductVariant oldValue, ProductVariant newValue) {
+        int index = product.getVariants().indexOf(oldValue);
+        product.getVariants().set(index, newValue);
+    }
+
+    private Product validateAndSaveVariantChange(Product product) {
+        sellerProducts.validateProduct(product);
+        product.setStatus("INACTIVE"); product.setIsAvailable(false); product.setIsFeatured(false);
+        product.setUpdatedAt(LocalDateTime.now());
+        return saveAndInvalidatePublicCatalog(product);
+    }
+
+    private ProductVariant copyVariant(ProductVariant source) {
+        ProductVariant copy = new ProductVariant();
+        copy.setId(source.getId()); copy.setDisplayOrder(source.getDisplayOrder()); copy.setIsDefault(source.getIsDefault());
+        copy.setLabel(source.getLabel()); copy.setUnit(source.getUnit()); copy.setPackSize(source.getPackSize());
+        copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity()); copy.setPackUnit(source.getPackUnit());
+        copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(source.getDimensions());
+        copy.setDisplayRate(source.getDisplayRate()); copy.setPrintedMrp(source.getPrintedMrp()); copy.setCostPrice(source.getCostPrice());
+        copy.setDiscountRs(source.getDiscountRs()); copy.setGstPercentage(source.getGstPercentage());
+        copy.setDiscountPercentage(source.getDiscountPercentage()); copy.setStock(source.getStock());
+        return copy;
+    }
+
+    @Override public Product softDeleteAdminProduct(String id) {
+        Product p=findProduct(id);
+        if (Boolean.TRUE.equals(p.getIsDeleted())) { invalidatePublicCatalog(); return p; }
+        p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false); p.setIsDeleted(true);
+        p.setDeletedAt(LocalDateTime.now()); p.setUpdatedAt(LocalDateTime.now()); return saveAndInvalidatePublicCatalog(p);
+    }
+
+    @Override public Product restoreAdminProduct(String id) {
+        Product p=findProduct(id);
+        if (!Boolean.TRUE.equals(p.getIsDeleted())) { invalidatePublicCatalog(); return p; }
+        p.setIsDeleted(false); p.setDeletedAt(null); p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false);
+        p.setUpdatedAt(LocalDateTime.now()); return saveAndInvalidatePublicCatalog(p);
+    }
+
+    @Override public void permanentlyDeleteAdminProduct(String id) {
+        Product product = products.findById(id).orElse(null);
+        if (product == null) {
+            invalidatePublicCatalog();
+            return;
+        }
+        if (!Boolean.TRUE.equals(product.getIsDeleted()))
+            throw new AppException("Soft-delete the product before permanently deleting it", HttpStatus.CONFLICT);
+        if (product.getProductImages() != null && product.getSellerId() != null) {
+            for (ProductImage image : product.getProductImages())
+                imageStorage.deleteImageVariants(product.getSellerId(), product.getId(), image);
+        }
+        List<String> variantIds = product.getVariants() == null ? List.of() : product.getVariants().stream()
+                .map(ProductVariant::getId).filter(java.util.Objects::nonNull).toList();
+        cartService.removeProductFromAllCarts(id);
+        removeWishlistReferences(variantIds);
+        products.delete(product);
+        invalidatePublicCatalog();
+    }
+
+    private void removeWishlistReferences(List<String> variantIds) {
+        if (variantIds.isEmpty()) return;
+        String lastId = null;
+        while (true) {
+            Query pageQuery = Query.query(Criteria.where("variantIds").in(variantIds))
+                    .with(Sort.by(Sort.Direction.ASC, "_id")).limit(500);
+            if (lastId != null) pageQuery.addCriteria(Criteria.where("_id").gt(lastId));
+            List<com.ebs.biocrop.entity.Wishlist> batch = mongoTemplate.find(pageQuery, com.ebs.biocrop.entity.Wishlist.class);
+            if (batch.isEmpty()) break;
+            for (com.ebs.biocrop.entity.Wishlist wishlist : batch) {
+                org.springframework.data.mongodb.core.query.Update update = new org.springframework.data.mongodb.core.query.Update()
+                        .pullAll("variantIds", variantIds.toArray()).set("updatedAt", LocalDateTime.now());
+                for (String variantId : variantIds) update.unset("variantProductIds." + variantId);
+                mongoTemplate.updateFirst(Query.query(Criteria.where("_id").is(wishlist.getId())), update, com.ebs.biocrop.entity.Wishlist.class);
+                lastId = wishlist.getId();
+            }
+        }
     }
 
     @Override
-    public Product review(String id, boolean approved) {
+    public Product reviewAdminProduct(String id, boolean approved) {
         Product product = findProduct(id);
+        ensureNotDeleted(product);
         if (approved) {
             if (product.getProductImages() == null || product.getProductImages().isEmpty()) {
                 throw new AppException(
@@ -99,6 +335,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
         product.setStatus(approved ? "ACTIVE" : "INACTIVE");
         product.setIsAvailable(approved);
+        if (!approved) product.setIsFeatured(false);
         product.setUpdatedAt(LocalDateTime.now());
         return saveAndInvalidatePublicCatalog(product);
     }
@@ -136,8 +373,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product setAvailability(String id, boolean available) {
+    public Product setAdminProductAvailability(String id, boolean available) {
         Product product = findProduct(id);
+        ensureNotDeleted(product);
         if (available && !"ACTIVE".equalsIgnoreCase(product.getStatus())) {
             throw new AppException("Only an approved product can be made available", HttpStatus.CONFLICT);
         }
@@ -147,8 +385,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product setFeatured(String id, boolean featured) {
+    public Product setAdminProductFeatured(String id, boolean featured) {
         Product product = findProduct(id);
+        ensureNotDeleted(product);
         if (featured && (!"ACTIVE".equalsIgnoreCase(product.getStatus())
                 || !Boolean.TRUE.equals(product.getIsAvailable()))) {
             throw new AppException("Only an active, available product can be featured", HttpStatus.CONFLICT);
@@ -159,8 +398,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product assignCollections(String productId, ProductCollectionAssignmentRequest request) {
+    public Product assignAdminProductCollections(String productId, ProductCollectionAssignmentRequest request) {
         Product product = findProduct(productId);
+        ensureNotDeleted(product);
         Set<String> collectionIds = normalizeObjectIds(request.collectionIds(), "collection");
         Set<String> subCollectionIds = normalizeObjectIds(request.subCollectionIds(), "subcollection");
         List<String> assigned = new ArrayList<>();
@@ -206,7 +446,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product addImages(String productId, List<MultipartFile> files) {
+    public Product addAdminProductImages(String productId, List<MultipartFile> files) {
         if (files == null || files.isEmpty() || files.size() > MAX_PRODUCT_IMAGES) {
             throw new AppException(
                     "Upload between 1 and 6 product images per request",
@@ -214,6 +454,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         Product product = findProduct(productId);
+        ensureNotDeleted(product);
 
         int currentImageCount = product.getProductImages() == null
                 ? 0
@@ -300,13 +541,14 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product deleteImage(String productId, String imageId) {
-        return deleteImages(productId, List.of(imageId));
+    public Product deleteAdminProductImage(String productId, String imageId) {
+        return deleteAdminProductImages(productId, List.of(imageId));
     }
 
     @Override
-    public Product deleteImages(String productId, List<String> imageIds) {
+    public Product deleteAdminProductImages(String productId, List<String> imageIds) {
         Product product = findProduct(productId);
+        ensureNotDeleted(product);
 
         if (product.getProductImages() == null || product.getProductImages().isEmpty()) {
             throw new ResourceNotFoundException("Product image", "id", imageIds);
@@ -336,6 +578,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         product.getProductImages().removeAll(imagesToDelete);
+        if (product.getProductImages().isEmpty()) {
+            product.setStatus("INACTIVE");
+            product.setIsAvailable(false);
+            product.setIsFeatured(false);
+        }
         for (int index = 0; index < product.getProductImages().size(); index++) {
             product.getProductImages().get(index).setDisplayOrder(index);
         }
@@ -355,13 +602,25 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     private Product saveAndInvalidatePublicCatalog(Product product) {
-        Product saved = products.save(product);
+        Product saved;
+        try { saved = products.save(product); }
+        catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
+        }
+        invalidatePublicCatalog();
+        return saved;
+    }
+
+    private void invalidatePublicCatalog() {
         redisCache.invalidateRegion("public-products");
         redisCache.invalidateRegion("public-collections");
-        return saved;
     }
 
     private Product findProduct(String id) {
         return products.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
+    }
+
+    private void ensureNotDeleted(Product product) {
+        if (Boolean.TRUE.equals(product.getIsDeleted())) throw new AppException("Deleted products must be restored before modification", HttpStatus.CONFLICT);
     }
 }

@@ -69,7 +69,7 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     @Override
     public Page<Product> list(String sellerId, int page, int size) {
-        return products.findBySellerId(sellerId,
+        return products.findActiveBySellerId(sellerId,
                 PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "updatedAt")));
     }
 
@@ -78,6 +78,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product request = writeRequest.toProduct();
         Product current = products.findByIdAndSellerId(id, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller product", "id", id));
+        if (Boolean.TRUE.equals(current.getIsDeleted())) throw new ResourceNotFoundException("Seller product", "id", id);
         validate(request);
         String requestedSku = request.getSku().trim();
         if (products.existsBySkuIgnoreCase(requestedSku) && !requestedSku.equalsIgnoreCase(current.getSku())) {
@@ -90,7 +91,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setSellerId(current.getSellerId());
         listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
-        listing.setIsFeatured(Boolean.TRUE.equals(current.getIsFeatured()));
+        listing.setIsFeatured(false);
         listing.setRatings(current.getRatings());
         listing.setCreatedAt(current.getCreatedAt());
         listing.setUpdatedAt(LocalDateTime.now());
@@ -144,6 +145,8 @@ public class SellerProductServiceImpl implements SellerProductService {
         if (product.getVariants() == null || product.getVariants().isEmpty()) throw badRequest("At least one product variant is required");
         for (ProductVariant variant : product.getVariants()) validateVariant(product, variant);
     }
+
+    @Override public void validateProduct(Product product) { validate(product); }
 
     private void validateVariant(Product product, ProductVariant variant) {
         ProductDimensions dimensions = variant.getDimensions() == null ? product.getDimensions() : variant.getDimensions();

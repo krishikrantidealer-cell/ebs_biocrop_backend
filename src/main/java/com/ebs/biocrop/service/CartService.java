@@ -7,6 +7,8 @@ import com.ebs.biocrop.dto.response.CartResponse;
 import com.ebs.biocrop.dto.response.CheckoutSummaryResponse;
 
 public interface CartService {
+    void removeProductFromAllCarts(String productId);
+    void removeVariantFromAllCarts(String variantId);
 
     CartResponse getCart(String phoneNumber);
 

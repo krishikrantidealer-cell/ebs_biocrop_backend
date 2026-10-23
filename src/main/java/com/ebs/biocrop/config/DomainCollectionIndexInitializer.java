@@ -40,10 +40,17 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 .unique().partial(PartialIndexFilter.of(Criteria.where("email").type(2))).named("uniq_user_email"));
         ensure("users", "user_password_reset_token_hash_idx", Map.of("passwordResetTokenHash", 1),
                 new Index().on("passwordResetTokenHash", Sort.Direction.ASC).named("user_password_reset_token_hash_idx"));
+        ensure("users", "user_role_created_idx", Map.of("role", 1, "createdAt", -1),
+                new Index().on("role", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC).named("user_role_created_idx"));
+        ensure("users", "user_blocked_created_idx", Map.of("isBlocked", 1, "createdAt", -1),
+                new Index().on("isBlocked", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC).named("user_blocked_created_idx"));
         ensure("carts", "uniq_cart_user", Map.of("user", 1), new Index().on("user", Sort.Direction.ASC)
                 .unique().named("uniq_cart_user"));
+        ensure("carts", "cart_item_product_idx", Map.of("items.productId", 1),
+                new Index().on("items.productId", Sort.Direction.ASC).named("cart_item_product_idx"));
         ensure("wishlists", "uniq_wishlist_user", Map.of("user", 1), new Index().on("user", Sort.Direction.ASC)
                 .unique().named("uniq_wishlist_user"));
+        ensure("wishlists", "wishlist_variant_ids_idx", Map.of("variantIds", 1), new Index().on("variantIds", Sort.Direction.ASC).named("wishlist_variant_ids_idx"));
 
         ensure("categories", "category_parent_sort_idx", Map.of("parentId", 1, "displayOrder", 1), new Index().on("parentId", Sort.Direction.ASC)
                 .on("displayOrder", Sort.Direction.ASC).named("category_parent_sort_idx"));

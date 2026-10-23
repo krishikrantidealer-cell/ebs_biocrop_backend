@@ -99,6 +99,7 @@ public class SellerProductWriteRequest {
     public void setVariants(List<VariantWriteRequest> variants) { this.variants = variants; }
 
     public static class VariantWriteRequest {
+        @Size(max = 24) private String id;
         @Size(max = 160) private String label;
         @NotBlank @Size(max = 20) private String unit;
         @NotNull @Positive private Integer packSize;
@@ -129,6 +130,8 @@ public class SellerProductWriteRequest {
 
         public String getLabel() { return label; }
         public void setLabel(String label) { this.label = label; }
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
         public String getUnit() { return unit; }
         public void setUnit(String unit) { this.unit = unit; }
         public Integer getPackSize() { return packSize; }

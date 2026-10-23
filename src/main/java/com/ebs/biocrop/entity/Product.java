@@ -78,6 +78,8 @@ public class Product {
 
     @Field(write = Field.Write.ALWAYS)
     private String status;
+    private Boolean isDeleted = false;
+    private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -152,6 +154,10 @@ public class Product {
     public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean deleted) { this.isDeleted = deleted; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

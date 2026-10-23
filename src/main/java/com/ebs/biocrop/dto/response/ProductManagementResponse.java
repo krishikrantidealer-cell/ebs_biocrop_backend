@@ -17,7 +17,7 @@ public record ProductManagementResponse(
         List<String> assignedCollections, ProductDimensions dimensions,
         Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
         Double ratings, String refundPolicy, Double productWeight, String productWeightUnit,
-        String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
 
     public static ProductManagementResponse from(Product product) {
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
@@ -29,7 +29,7 @@ public record ProductManagementResponse(
                 product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
                 product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
-                product.getStatus(), product.getCreatedAt(), product.getUpdatedAt());
+                product.getStatus(), product.getIsDeleted(), product.getDeletedAt(), product.getCreatedAt(), product.getUpdatedAt());
     }
 
     public record ManagementVariant(String id, String label, String unit, Integer packSize,

@@ -386,6 +386,26 @@ public class CartServiceImpl implements CartService {
         cart.setUpdatedAt(LocalDateTime.now());
     }
 
+    @Override
+    public void removeProductFromAllCarts(String productId) {
+        List<Cart> affected = cartRepository.findByItemsProductId(productId);
+        for (Cart cart : affected) {
+            cart.getItems().removeIf(item -> productId.equals(item.getProductId()));
+            recalculateTotals(cart);
+            cartRepository.save(cart);
+        }
+    }
+
+    @Override
+    public void removeVariantFromAllCarts(String variantId) {
+        List<Cart> affected = cartRepository.findByItemsVariantId(variantId);
+        for (Cart cart : affected) {
+            if (cart.getItems() != null) cart.getItems().removeIf(item -> variantId.equals(item.getVariantId()));
+            recalculateTotals(cart);
+            cartRepository.save(cart);
+        }
+    }
+
     private BigDecimal amount(Double value) {
         return value != null ? BigDecimal.valueOf(value) : BigDecimal.ZERO;
     }

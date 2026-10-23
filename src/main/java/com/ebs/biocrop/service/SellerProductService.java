@@ -8,4 +8,5 @@ public interface SellerProductService {
     Product create(String sellerId, SellerProductWriteRequest request);
     Page<Product> list(String sellerId, int page, int size);
     Product update(String sellerId, String id, SellerProductWriteRequest request);
+    void validateProduct(Product product);
 }
