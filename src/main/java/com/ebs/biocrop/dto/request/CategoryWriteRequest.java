@@ -20,6 +20,21 @@ public class CategoryWriteRequest {
 
     private Boolean isActive;
 
+    @Size(max = 2048, message = "Banner image URL must be at most 2048 characters")
+    private String bannerImage;
+
+    @Size(max = 2048, message = "Catalogue PDF URL must be at most 2048 characters")
+    private String cataloguePdf;
+
+    @Size(max = 2048, message = "Icon image URL must be at most 2048 characters")
+    private String iconImage;
+
+    @Size(max = 2048, message = "Icon URL must be at most 2048 characters")
+    private String iconUrl;
+
+    @Size(max = 200, message = "Banner title must be at most 200 characters")
+    private String bannerTitle;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getSlug() { return slug; }
@@ -30,4 +45,14 @@ public class CategoryWriteRequest {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
+    public String getBannerImage() { return bannerImage; }
+    public void setBannerImage(String bannerImage) { this.bannerImage = bannerImage; }
+    public String getCataloguePdf() { return cataloguePdf; }
+    public void setCataloguePdf(String cataloguePdf) { this.cataloguePdf = cataloguePdf; }
+    public String getIconImage() { return iconImage; }
+    public void setIconImage(String iconImage) { this.iconImage = iconImage; }
+    public String getIconUrl() { return iconUrl; }
+    public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
+    public String getBannerTitle() { return bannerTitle; }
+    public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 }

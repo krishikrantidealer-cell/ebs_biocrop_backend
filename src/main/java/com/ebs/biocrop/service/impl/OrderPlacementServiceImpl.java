@@ -239,7 +239,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException("Product identifiers must be valid MongoDB ObjectIds", HttpStatus.CONFLICT);
         }
         Query stockQuery = Query.query(Criteria.where("_id").is(new ObjectId(line.productId))
-                .and("variants").elemMatch(Criteria.where("_id").is(new ObjectId(line.variantId))
+                .and("variants").elemMatch(Criteria.where("_id").is(line.variantId)
                         .and("stock").gte(line.quantity)));
         UpdateResult result = mongoTemplate.updateFirst(stockQuery,
                 new Update().inc("variants.$.stock", -line.quantity), Product.class);

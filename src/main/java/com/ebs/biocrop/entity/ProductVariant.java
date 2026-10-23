@@ -1,7 +1,8 @@
 package com.ebs.biocrop.entity;
 
-import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.MongoId;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -9,35 +10,52 @@ import java.util.Locale;
 
 /** One sellable package option and its price, stock, and package dimensions. */
 public class ProductVariant {
-    @Id
-    @Field("_id")
+    @MongoId(FieldType.STRING)
     private String id;
 
     private Integer displayOrder;
     private Boolean isDefault;
 
     // Packaging fields: e.g. 1 litre (250 ml x 4 units).
+    @Field(write = Field.Write.ALWAYS)
     private String label;
     /** Product sale/unit label from the catalog schema (for example ml, litre, gm, or kg). */
+    @Field(write = Field.Write.ALWAYS)
     private String unit;
+    @Field(write = Field.Write.ALWAYS)
     private Integer packSize;
+    @Field(write = Field.Write.ALWAYS)
     private String packSizeUnit;
+    @Field(write = Field.Write.ALWAYS)
     private Integer packQuantity;
+    @Field(write = Field.Write.ALWAYS)
     private String packUnit;
+    @Field(write = Field.Write.ALWAYS)
     private String shippedBy;
     /** SWG is stored as provided; interpreted as shipping weight grams, without rate calculation. */
+    @Field(write = Field.Write.ALWAYS)
     private Double swg;
+    @Field(write = Field.Write.ALWAYS)
     private Long totalBaseQuantity;
+    @Field(write = Field.Write.ALWAYS)
     private String totalBaseUnit;
+    @Field(write = Field.Write.ALWAYS)
     private ProductDimensions dimensions;
 
     // Approved schema commercial fields, in currency units and percentage points.
+    @Field(write = Field.Write.ALWAYS)
     private Double displayRate;
+    @Field(write = Field.Write.ALWAYS)
     private Double printedMrp;
+    @Field(write = Field.Write.ALWAYS)
     private Double costPrice;
+    @Field(write = Field.Write.ALWAYS)
     private Double discountRs;
+    @Field(write = Field.Write.ALWAYS)
     private Double gstPercentage;
+    @Field(write = Field.Write.ALWAYS)
     private Double discountPercentage;
+    @Field(write = Field.Write.ALWAYS)
     private Integer stock;
 
     public ProductVariant() { }

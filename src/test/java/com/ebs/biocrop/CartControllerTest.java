@@ -5,8 +5,6 @@ import com.ebs.biocrop.dto.request.CartItemUpdateRequest;
 import com.ebs.biocrop.dto.request.CartSyncRequest;
 import com.ebs.biocrop.dto.response.CartItemResponse;
 import com.ebs.biocrop.dto.response.CartResponse;
-import com.ebs.biocrop.dto.response.CheckoutSummaryResponse;
-import com.ebs.biocrop.entity.Address;
 import com.ebs.biocrop.repository.CartRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.UserRepository;
@@ -179,20 +177,8 @@ class CartControllerTest {
 
     @Test
     @WithMockUser(username = "9876543210", roles = "CUSTOMER")
-    void checkoutSummaryShouldReturnReadiness() throws Exception {
-        Address addr = new Address("Flat 101", "Indore", "MP", "452001");
-        addr.setAddress2("MG Road");
-        CheckoutSummaryResponse summary = new CheckoutSummaryResponse(
-                createSampleCartResponse(), true, Collections.emptyList(),
-                addr, 900.0, 100.0, 40.0, 940.0
-        );
-        when(cartService.getCheckoutSummary("9876543210")).thenReturn(summary);
-
+    void checkoutSummaryEndpointIsNotExposedYet() throws Exception {
         mockMvc.perform(get("/api/v1/cart/checkout-summary"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.readyForCheckout").value(true))
-                .andExpect(jsonPath("$.data.finalPayableAmount").value(940.0))
-                .andExpect(jsonPath("$.data.deliveryAddress.cityTehsil").value("Indore"));
+                .andExpect(status().isNotFound());
     }
 }

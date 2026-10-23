@@ -99,7 +99,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
             throw new AppException("Order item identifiers or quantities are invalid; reserved stock cannot be released", HttpStatus.CONFLICT);
         }
         ObjectId productId = new ObjectId(item.getProductId());
-        ObjectId variantId = new ObjectId(item.getVariantId());
+        String variantId = new ObjectId(item.getVariantId()).toHexString();
         Query variantQuery = Query.query(Criteria.where("_id").is(productId)
                 .and("variants").elemMatch(Criteria.where("_id").is(variantId)));
         UpdateResult result = mongoTemplate.updateFirst(variantQuery,

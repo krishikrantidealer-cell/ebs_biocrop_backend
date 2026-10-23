@@ -45,8 +45,8 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
         ensure("wishlists", "uniq_wishlist_user", Map.of("user", 1), new Index().on("user", Sort.Direction.ASC)
                 .unique().named("uniq_wishlist_user"));
 
-        ensure("categories", "category_parent_sort_idx", Map.of("parentId", 1, "sortOrder", 1), new Index().on("parentId", Sort.Direction.ASC)
-                .on("sortOrder", Sort.Direction.ASC).named("category_parent_sort_idx"));
+        ensure("categories", "category_parent_sort_idx", Map.of("parentId", 1, "displayOrder", 1), new Index().on("parentId", Sort.Direction.ASC)
+                .on("displayOrder", Sort.Direction.ASC).named("category_parent_sort_idx"));
         ensure("categories", "category_parent_slug_unique_idx", Map.of("parentId", 1, "slug", 1), new Index().on("parentId", Sort.Direction.ASC)
                 .on("slug", Sort.Direction.ASC).unique().named("category_parent_slug_unique_idx"));
         ensure("categories", "category_level_idx", Map.of("level", 1), new Index().on("level", Sort.Direction.ASC).named("category_level_idx"));
@@ -70,8 +70,8 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 .unique().partial(PartialIndexFilter.of(Criteria.where("productCode").type(2))).named("uniq_product_code"));
         ensure("products", "product_category_status_idx", Map.of("categoryId", 1, "status", 1), new Index().on("categoryId", Sort.Direction.ASC)
                 .on("status", Sort.Direction.ASC).named("product_category_status_idx"));
-        ensure("products", "product_seller_updated_idx", Map.of("sellerId", 1, "updatedAt", -1), new Index().on("sellerId", Sort.Direction.ASC)
-                .on("updatedAt", Sort.Direction.DESC).named("product_seller_updated_idx"));
+        ensure("products", "product_seller_updated_idx", Map.of("sellerId", 1, "updatedAt", 1), new Index().on("sellerId", Sort.Direction.ASC)
+                .on("updatedAt", Sort.Direction.ASC).named("product_seller_updated_idx"));
         ensure("products", "idx_products_variant_id", Map.of("variants._id", 1), new Index().on("variants._id", Sort.Direction.ASC)
                 .named("idx_products_variant_id"));
         ensure("products", "product_assigned_collections_status_available_idx",

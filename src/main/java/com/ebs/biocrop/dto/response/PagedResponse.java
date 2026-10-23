@@ -15,10 +15,10 @@ public record PagedResponse<T>(
         boolean first,
         boolean last) {
 
-    /** Total number of matching records across all pages. */
+    /** Number of records included in this response page. */
     @JsonProperty("count")
     public long count() {
-        return totalElements;
+        return content.size();
     }
 
     public static <S, T> PagedResponse<T> from(Page<S> page, Function<S, T> mapper) {

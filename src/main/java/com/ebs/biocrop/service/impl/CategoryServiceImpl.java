@@ -133,6 +133,16 @@ public class CategoryServiceImpl implements CategoryService {
         candidate.setIsActive(request.getIsActive() == null
                 ? current == null || !Boolean.FALSE.equals(current.getIsActive())
                 : request.getIsActive());
+        candidate.setBannerImage(request.getBannerImage() == null
+                ? current == null ? null : current.getBannerImage() : request.getBannerImage());
+        candidate.setCataloguePdf(request.getCataloguePdf() == null
+                ? current == null ? null : current.getCataloguePdf() : request.getCataloguePdf());
+        candidate.setIconImage(request.getIconImage() == null
+                ? current == null ? null : current.getIconImage() : request.getIconImage());
+        candidate.setIconUrl(request.getIconUrl() == null
+                ? current == null ? null : current.getIconUrl() : request.getIconUrl());
+        candidate.setBannerTitle(request.getBannerTitle() == null
+                ? current == null ? null : current.getBannerTitle() : request.getBannerTitle());
     }
 
     private Category findCategory(String id) {

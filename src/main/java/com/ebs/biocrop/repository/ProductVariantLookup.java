@@ -43,14 +43,12 @@ public class ProductVariantLookup {
     }
 
     public List<Product> findProductsContainingVariants(Collection<String> variantIds) {
-        LinkedHashSet<Object> storedIds = new LinkedHashSet<>();
+        LinkedHashSet<String> storedIds = new LinkedHashSet<>();
         for (String id : variantIds) {
             if (id == null || !ObjectId.isValid(id.trim())) {
                 continue;
             }
-            String normalizedId = new ObjectId(id.trim()).toHexString();
-            storedIds.add(new ObjectId(normalizedId));
-            storedIds.add(normalizedId);
+            storedIds.add(new ObjectId(id.trim()).toHexString());
         }
         if (storedIds.isEmpty()) {
             return List.of();

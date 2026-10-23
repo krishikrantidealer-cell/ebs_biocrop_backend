@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -15,7 +16,7 @@ import java.util.List;
 @Document(collection = "products")
 @CompoundIndexes({
         @CompoundIndex(name = "product_category_status_idx", def = "{ 'categoryId': 1, 'status': 1 }"),
-        @CompoundIndex(name = "product_seller_updated_idx", def = "{ 'sellerId': 1, 'updatedAt': -1 }")
+        @CompoundIndex(name = "product_seller_updated_idx", def = "{ 'sellerId': 1, 'updatedAt': 1 }")
 })
 public class Product {
 
@@ -25,44 +26,57 @@ public class Product {
     @Indexed(unique = true, name = "uniq_product_sku")
     private String sku;
     private String productCode;
+    @Field(write = Field.Write.ALWAYS)
     private String hsnCode;
     @Indexed
     private String sellerId;
     private String title;
+    @Field(write = Field.Write.ALWAYS)
     private String technicalName;
+    @Field(write = Field.Write.ALWAYS)
     private String vendor;
+    @Field(write = Field.Write.ALWAYS)
     private String description;
     private List<String> images = new ArrayList<>();
     private List<ProductImage> productImages = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS)
     private String technicalContent;
     private List<String> features = new ArrayList<>();
     private List<String> benefits = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS)
     private String modeOfAction;
     private List<String> suitableCrops = new ArrayList<>();
     private List<String> targetPests = new ArrayList<>();
     private List<String> targetDiseases = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS)
     private String dosage;
+    @Field(write = Field.Write.ALWAYS)
     private String applicationMethod;
 
     /** Leaf category document selected for this product/listing. */
+    @Field(write = Field.Write.ALWAYS)
     private String categoryId;
     /** String-based merchandising membership; values may match a collection or subcollection name, slug, or ID. */
     private List<String> assignedCollections = new ArrayList<>();
-    /** Legacy compatibility field; new merchandising membership uses assignedCollections. */
-    private List<String> collectionIds = new ArrayList<>();
-    /** Legacy compatibility field; new merchandising membership uses assignedCollections. */
-    private List<String> subCollectionIds = new ArrayList<>();
     /** Product-level package dimensions from the approved schema; a variant may override these. */
+    @Field(write = Field.Write.ALWAYS)
     private ProductDimensions dimensions;
 
+    @Field(write = Field.Write.ALWAYS)
     private Boolean isAvailable;
+    @Field(write = Field.Write.ALWAYS)
     private Boolean isFeatured;
     private List<ProductVariant> variants = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS)
     private Double ratings;
+    @Field(write = Field.Write.ALWAYS)
     private String refundPolicy;
+    @Field(write = Field.Write.ALWAYS)
     private Double productWeight;
+    @Field(write = Field.Write.ALWAYS)
     private String productWeightUnit;
 
+    @Field(write = Field.Write.ALWAYS)
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -120,10 +134,6 @@ public class Product {
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
     public List<String> getAssignedCollections() { return assignedCollections; }
     public void setAssignedCollections(List<String> assignedCollections) { this.assignedCollections = assignedCollections != null ? assignedCollections : new ArrayList<>(); }
-    public List<String> getCollectionIds() { return collectionIds; }
-    public void setCollectionIds(List<String> collectionIds) { this.collectionIds = collectionIds != null ? collectionIds : new ArrayList<>(); }
-    public List<String> getSubCollectionIds() { return subCollectionIds; }
-    public void setSubCollectionIds(List<String> subCollectionIds) { this.subCollectionIds = subCollectionIds != null ? subCollectionIds : new ArrayList<>(); }
     public ProductDimensions getDimensions() { return dimensions; }
     public void setDimensions(ProductDimensions dimensions) { this.dimensions = dimensions; }
     public Boolean getIsAvailable() { return isAvailable; }

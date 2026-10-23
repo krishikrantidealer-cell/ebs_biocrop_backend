@@ -30,8 +30,6 @@ public record PublicProductResponse(
         String applicationMethod,
         String categoryId,
         List<String> assignedCollections,
-        List<String> collectionIds,
-        List<String> subCollectionIds,
         ProductDimensions dimensions,
         Boolean isAvailable,
         Boolean isFeatured,
@@ -63,8 +61,8 @@ public record PublicProductResponse(
                 product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
-                product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(), product.getCollectionIds(),
-                product.getSubCollectionIds(), product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
+                product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
+                product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(PublicVariant::from).toList(),
                 product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit());
     }

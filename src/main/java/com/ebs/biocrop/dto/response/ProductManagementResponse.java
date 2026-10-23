@@ -14,8 +14,7 @@ public record ProductManagementResponse(
         List<String> images, String technicalContent, List<String> features, List<String> benefits,
         String modeOfAction, List<String> suitableCrops, List<String> targetPests,
         List<String> targetDiseases, String dosage, String applicationMethod, String categoryId,
-        List<String> assignedCollections,
-        List<String> collectionIds, List<String> subCollectionIds, ProductDimensions dimensions,
+        List<String> assignedCollections, ProductDimensions dimensions,
         Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
         Double ratings, String refundPolicy, Double productWeight, String productWeightUnit,
         String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
@@ -26,8 +25,8 @@ public record ProductManagementResponse(
                 product.getVendor(), product.getDescription(), product.getImages(), product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
-                product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(), product.getCollectionIds(),
-                product.getSubCollectionIds(), product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
+                product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
+                product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
                 product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
                 product.getStatus(), product.getCreatedAt(), product.getUpdatedAt());

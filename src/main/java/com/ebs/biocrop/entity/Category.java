@@ -4,13 +4,14 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 
 /** A category node. Roots and descendants are all stored as documents in `categories`. */
 @Document(collection = "categories")
 @CompoundIndexes({
-        @CompoundIndex(name = "category_parent_sort_idx", def = "{ 'parentId': 1, 'sortOrder': 1 }"),
+        @CompoundIndex(name = "category_parent_sort_idx", def = "{ 'parentId': 1, 'displayOrder': 1 }"),
         @CompoundIndex(name = "category_parent_slug_unique_idx", def = "{ 'parentId': 1, 'slug': 1 }", unique = true)
 })
 public class Category {
@@ -23,6 +24,8 @@ public class Category {
     private String parentId;
     @org.springframework.data.mongodb.core.index.Indexed(name = "category_level_idx")
     private Integer level;
+    /** API keeps its established sortOrder name while MongoDB stores displayOrder. */
+    @Field("displayOrder")
     private Integer sortOrder = 0;
     private Boolean isActive = true;
     private Instant createdAt;
@@ -32,6 +35,7 @@ public class Category {
     private String bannerImage;
     private String cataloguePdf;
     private String iconImage;
+    private String iconUrl;
     private String bannerTitle;
 
     public Category() {
@@ -63,6 +67,8 @@ public class Category {
     public void setCataloguePdf(String cataloguePdf) { this.cataloguePdf = cataloguePdf; }
     public String getIconImage() { return iconImage; }
     public void setIconImage(String iconImage) { this.iconImage = iconImage; }
+    public String getIconUrl() { return iconUrl; }
+    public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
     public String getBannerTitle() { return bannerTitle; }
     public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 }
