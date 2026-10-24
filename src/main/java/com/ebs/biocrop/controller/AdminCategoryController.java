@@ -121,26 +121,26 @@ public class AdminCategoryController {
     }
 
 
-    // Upload or replace a category icon image
-    @PostMapping(value = "/{categoryId}/icon", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload or replace a category icon image")
-    public ResponseEntity<ApiResponse<CategoryResponse>> uploadCategoryIcon(
+    // Upload or replace a category image.
+    @PostMapping(value = "/{categoryId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload or replace a category image")
+    public ResponseEntity<ApiResponse<CategoryResponse>> uploadCategoryImage(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId,
             @RequestPart("file") MultipartFile file) {
-        rateLimitGuard.enforce("admin-category-icon-upload", admin.getId(), 10, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Category icon uploaded",
-                CategoryResponse.from(categoryService.uploadIcon(categoryId, file), imageStorage)));
+        rateLimitGuard.enforce("admin-category-image-upload", admin.getId(), 10, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Category image uploaded",
+                CategoryResponse.from(categoryService.uploadImage(categoryId, file), imageStorage)));
     }
 
-    // Delete a category icon image
-    @DeleteMapping("/{categoryId}/icon")
-    @Operation(summary = "Delete a category icon image")
-    public ResponseEntity<ApiResponse<CategoryResponse>> deleteCategoryIcon(
+    // Delete a category image.
+    @DeleteMapping("/{categoryId}/image")
+    @Operation(summary = "Delete a category image")
+    public ResponseEntity<ApiResponse<CategoryResponse>> deleteCategoryImage(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId) {
-        rateLimitGuard.enforce("admin-category-icon-delete", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Category icon deleted",
-                CategoryResponse.from(categoryService.deleteIcon(categoryId), imageStorage)));
+        rateLimitGuard.enforce("admin-category-image-delete", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Category image deleted",
+                CategoryResponse.from(categoryService.deleteImage(categoryId), imageStorage)));
     }
 }

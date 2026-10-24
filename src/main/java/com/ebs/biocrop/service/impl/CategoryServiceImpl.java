@@ -173,11 +173,11 @@ public class CategoryServiceImpl implements CategoryService {
         }
         selected.forEach(category -> {
             String categoryId = category.getId();
-            String iconObjectName = category.getIconImage();
+            String categoryImageUri = category.getCategoryImageUri();
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    deleteStoredIcon(categoryId, iconObjectName);
+                    deleteStoredImage(categoryId, categoryImageUri);
                 }
             });
         });
@@ -186,9 +186,9 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public Category uploadIcon(String id, MultipartFile file) {
+    public Category uploadImage(String id, MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new AppException("A category icon image is required", HttpStatus.BAD_REQUEST);
+            throw new AppException("A category image is required", HttpStatus.BAD_REQUEST);
         }
         Category category = findCategory(id);
         byte[] bytes;
@@ -197,43 +197,43 @@ public class CategoryServiceImpl implements CategoryService {
             bytes = file.getBytes();
             validated = imageValidator.createVariants(bytes);
         } catch (IOException exception) {
-            throw new AppException("Could not read category icon image", HttpStatus.BAD_REQUEST);
+            throw new AppException("Could not read category image", HttpStatus.BAD_REQUEST);
         }
 
-        String newObjectName = imageStorage.uploadCategoryIcon(
+        String newCategoryImageUri = imageStorage.uploadCategoryImage(
                 category.getId(), bytes, validated.extension(), validated.contentType());
-        String oldObjectName = category.getIconImage();
+        String oldCategoryImageUri = category.getCategoryImageUri();
         try {
-            category.setIconImage(newObjectName);
+            category.setCategoryImageUri(newCategoryImageUri);
             category.setUpdatedAt(Instant.now());
             Category saved = categories.save(category);
             invalidatePublicCatalogCaches();
-            deleteStoredIcon(category.getId(), oldObjectName);
+            deleteStoredImage(category.getId(), oldCategoryImageUri);
             return saved;
         } catch (RuntimeException exception) {
-            deleteStoredIcon(category.getId(), newObjectName);
+            deleteStoredImage(category.getId(), newCategoryImageUri);
             throw exception;
         }
     }
 
     @Override
-    public Category deleteIcon(String id) {
+    public Category deleteImage(String id) {
         Category category = findCategory(id);
-        String oldObjectName = category.getIconImage();
-        category.setIconImage(null);
+        String oldCategoryImageUri = category.getCategoryImageUri();
+        category.setCategoryImageUri(null);
         category.setUpdatedAt(Instant.now());
         Category saved = categories.save(category);
         invalidatePublicCatalogCaches();
-        deleteStoredIcon(category.getId(), oldObjectName);
+        deleteStoredImage(category.getId(), oldCategoryImageUri);
         return saved;
     }
 
-    private void deleteStoredIcon(String categoryId, String objectName) {
-        if (objectName == null || !objectName.startsWith("Categories/" + categoryId + "/icons/")) return;
+    private void deleteStoredImage(String categoryId, String categoryImageUri) {
+        if (categoryImageUri == null) return;
         try {
-            imageStorage.deleteCategoryIcon(categoryId, objectName);
+            imageStorage.deleteCategoryImage(categoryId, categoryImageUri);
         } catch (RuntimeException exception) {
-            log.warn("Could not delete replaced category icon from GCS for category {}", categoryId, exception);
+            log.warn("Could not delete replaced category image from GCS for category {}", categoryId, exception);
         }
     }
 
@@ -283,10 +283,7 @@ public class CategoryServiceImpl implements CategoryService {
                 ? current == null ? null : current.getBannerImage() : request.getBannerImage());
         candidate.setCataloguePdf(request.getCataloguePdf() == null
                 ? current == null ? null : current.getCataloguePdf() : request.getCataloguePdf());
-        candidate.setIconImage(request.getIconImage() == null
-                ? current == null ? null : current.getIconImage() : request.getIconImage());
-        candidate.setIconUrl(request.getIconUrl() == null
-                ? current == null ? null : current.getIconUrl() : request.getIconUrl());
+        candidate.setCategoryImageUri(current == null ? null : current.getCategoryImageUri());
         candidate.setBannerTitle(request.getBannerTitle() == null
                 ? current == null ? null : current.getBannerTitle() : request.getBannerTitle());
     }
@@ -347,4 +344,5 @@ public class CategoryServiceImpl implements CategoryService {
     private String slugify(String value) {
         return normalize(value).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
     }
+
 }

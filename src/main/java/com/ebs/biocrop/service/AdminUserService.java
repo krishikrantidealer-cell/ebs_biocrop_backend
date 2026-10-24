@@ -10,4 +10,5 @@ public interface AdminUserService {
     AdminUserResponse setBlockedStatus(String id, boolean blocked);
     AdminUserResponse setDeletedStatus(String id, boolean deleted);
     UserRole assignRole(String id, String requestedRole);
+    void permanentlyDelete(String adminId, String id);
 }

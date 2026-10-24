@@ -7,22 +7,19 @@ import java.time.Instant;
 
 public record CategoryResponse(String id, String name, String slug, String parentId, Integer level,
                               Integer sortOrder, Boolean isActive, String bannerImage, String cataloguePdf,
-                              String iconImage, String iconUrl, String bannerTitle,
+                              String categoryImageUrl, String bannerTitle,
                               Instant createdAt, Instant updatedAt) {
     public static CategoryResponse from(Category category) {
         return from(category, null);
     }
 
     public static CategoryResponse from(Category category, GcsImageStorageService imageStorage) {
-        String iconImage = category.getIconImage();
-        String objectPrefix = "Categories/" + category.getId() + "/icons/";
-        if (imageStorage != null && iconImage != null && iconImage.startsWith(objectPrefix)) {
-            iconImage = imageStorage.createCategoryIconReadUrl(category.getId(), iconImage);
-        }
+        String categoryImageUrl = category.getCategoryImageUri() == null || imageStorage == null ? null
+                : imageStorage.createCategoryImageReadUrl(category.getId(), category.getCategoryImageUri());
         return new CategoryResponse(category.getId(), category.getName(), category.getSlug(),
                 category.getParentId(), category.getLevel(), category.getSortOrder(),
                 category.getIsActive(), category.getBannerImage(), category.getCataloguePdf(),
-                iconImage, category.getIconUrl(), category.getBannerTitle(),
+                categoryImageUrl, category.getBannerTitle(),
                 category.getCreatedAt(), category.getUpdatedAt());
     }
 }

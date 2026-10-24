@@ -3,6 +3,7 @@ package com.ebs.biocrop.controller;
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.dto.request.UpdateOrderStatusRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
+import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
@@ -52,13 +53,14 @@ public class AdminOrderController {
         this.rateLimitGuard = rateLimitGuard;
     }
 
-    // List all orders for admin with pagination
+    // List all orders by sellerID or without sellerID for admin with pagination
     @GetMapping
-    @Operation(summary = "List all orders for admin with pagination")
+    @Operation(summary = "List all orders for admin with pagination, optionally filtered by seller ID")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getOrders(
+            @RequestParam(required = false) String sellerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<Order> result = orderQueries.listForAdmin(page, size);
+        Page<Order> result = orderQueries.listForAdmin(sellerId, page, size);
         return ResponseEntity.ok(ApiResponse.ok("Admin orders retrieved",
                 PagedResponse.from(result, OrderResponse::forAdmin)));
     }
@@ -69,6 +71,16 @@ public class AdminOrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(@PathVariable String orderId) {
         return ResponseEntity.ok(ApiResponse.ok("Order retrieved",
                 OrderResponse.forAdmin(orderQueries.getForAdmin(orderId))));
+    }
+
+    // List all seller orders in a checkout group for admin review
+    @GetMapping("/group/{checkoutGroupId}")
+    @Operation(summary = "List all seller orders from one checkout group for admin review")
+    public ResponseEntity<ApiResponse<CountedListResponse<OrderResponse>>> getOrdersByCheckoutGroup(
+            @PathVariable String checkoutGroupId) {
+        return ResponseEntity.ok(ApiResponse.ok("Checkout orders retrieved",
+                CountedListResponse.from(orderQueries.getCheckoutGroupForAdmin(checkoutGroupId).stream()
+                        .map(OrderResponse::forAdmin).toList())));
     }
 
     // Update the status of an order

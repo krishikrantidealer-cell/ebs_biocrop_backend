@@ -34,8 +34,7 @@ public class Category {
     // Optional merchandising assets retained from the existing category API.
     private String bannerImage;
     private String cataloguePdf;
-    private String iconImage;
-    private String iconUrl;
+    private String categoryImageUri;
     private String bannerTitle;
 
     public Category() {
@@ -65,10 +64,8 @@ public class Category {
     public void setBannerImage(String bannerImage) { this.bannerImage = bannerImage; }
     public String getCataloguePdf() { return cataloguePdf; }
     public void setCataloguePdf(String cataloguePdf) { this.cataloguePdf = cataloguePdf; }
-    public String getIconImage() { return iconImage; }
-    public void setIconImage(String iconImage) { this.iconImage = iconImage; }
-    public String getIconUrl() { return iconUrl; }
-    public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
+    public String getCategoryImageUri() { return categoryImageUri; }
+    public void setCategoryImageUri(String categoryImageUri) { this.categoryImageUri = categoryImageUri; }
     public String getBannerTitle() { return bannerTitle; }
     public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 }

@@ -2,7 +2,11 @@ package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
+import com.ebs.biocrop.entity.Cart;
+import com.ebs.biocrop.entity.Order;
+import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.User;
+import com.ebs.biocrop.entity.Wishlist;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
@@ -19,6 +23,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -133,6 +138,44 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setUpdatedAt(LocalDateTime.now());
         users.save(user);
         return role;
+    }
+
+    @Override
+    @Transactional
+    public void permanentlyDelete(String adminId, String id) {
+        User user = findUser(id);
+
+        if (adminId != null && adminId.equals(id)) {
+            throw new AppException("You cannot delete your own admin account", HttpStatus.CONFLICT);
+        }
+        if (user.getRole() == UserRole.ROLE_ADMIN
+                && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
+            throw new AppException("The last active admin account cannot be permanently deleted", HttpStatus.CONFLICT);
+        }
+        if (!Boolean.TRUE.equals(user.getIsDeleted())) {
+            throw new AppException("Deactivate the user account before permanently deleting it", HttpStatus.CONFLICT);
+        }
+
+        boolean hasOrders = mongoTemplate.exists(
+                Query.query(new Criteria().orOperator(
+                        Criteria.where("customerId").is(id),
+                        Criteria.where("sellerId").is(id))),
+                Order.class);
+        if (hasOrders) {
+            throw new AppException("Users with associated order records cannot be permanently deleted", HttpStatus.CONFLICT);
+        }
+
+        boolean hasProducts = mongoTemplate.exists(
+                Query.query(Criteria.where("sellerId").is(id)),
+                Product.class);
+        if (hasProducts) {
+            throw new AppException("Sellers with existing product listings cannot be permanently deleted", HttpStatus.CONFLICT);
+        }
+
+        mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Cart.class);
+        mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
+
+        users.delete(user);
     }
 
     private void addRoleFilter(List<Criteria> filters, String role) {

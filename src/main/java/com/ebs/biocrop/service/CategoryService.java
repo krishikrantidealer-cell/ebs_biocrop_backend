@@ -16,6 +16,6 @@ public interface CategoryService {
     Category deactivate(String id);
     List<String> permanentlyDelete(String id);
     List<String> permanentlyDeleteMany(List<String> ids);
-    Category uploadIcon(String id, MultipartFile file);
-    Category deleteIcon(String id);
+    Category uploadImage(String id, MultipartFile file);
+    Category deleteImage(String id);
 }

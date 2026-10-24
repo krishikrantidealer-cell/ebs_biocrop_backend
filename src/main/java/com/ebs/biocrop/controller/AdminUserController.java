@@ -92,4 +92,15 @@ public class AdminUserController {
         UserRole role = adminUsers.assignRole(userId, request.getRole());
         return ResponseEntity.ok(ApiResponse.ok("User role updated", new UserRoleAssignmentResponse(userId, role)));
     }
+
+    // Permanently delete a previously deactivated user
+    @DeleteMapping({"/{userId}/permanent", "/{userId}"})
+    @Operation(summary = "Permanently delete a user", description = "Permanently deletes a previously deactivated user account. Accounts with associated orders or product listings cannot be permanently deleted.")
+    public ResponseEntity<ApiResponse<String>> permanentlyDeleteUser(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String userId) {
+        rateLimitGuard.enforce("admin-user-write", admin.getId(), 10, Duration.ofMinutes(1));
+        adminUsers.permanentlyDelete(admin.getId(), userId);
+        return ResponseEntity.ok(ApiResponse.ok("User permanently deleted", userId));
+    }
 }

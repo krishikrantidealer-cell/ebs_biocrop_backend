@@ -76,7 +76,7 @@ public class GcsImageStorageService {
         return objectName;
     }
 
-    public String uploadCategoryIcon(String categoryId, byte[] imageBytes, String extension, String contentType) {
+    public String uploadCategoryImage(String categoryId, byte[] imageBytes, String extension, String contentType) {
         requireSafeSegment(categoryId, "Category ID");
         if (imageBytes == null || imageBytes.length == 0) {
             throw badRequest("Image data is empty");
@@ -85,30 +85,46 @@ public class GcsImageStorageService {
         boolean validFormat = ("jpg".equals(normalizedExtension) && "image/jpeg".equals(contentType))
                 || ("png".equals(normalizedExtension) && "image/png".equals(contentType));
         if (!validFormat) {
-            throw badRequest("Only JPEG and PNG category icons are supported");
+            throw badRequest("Only JPEG and PNG category images are supported");
         }
-        String objectName = "Categories/" + categoryId + "/icons/" + UUID.randomUUID() + "." + normalizedExtension;
+        String objectName = "Categories/" + categoryId + "/images/" + UUID.randomUUID() + "." + normalizedExtension;
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
         storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
-        return objectName;
+        return "gs://" + bucketName + "/" + objectName;
     }
 
-    public String createCategoryIconReadUrl(String categoryId, String objectName) {
+    public String createCategoryImageReadUrl(String categoryId, String storageUri) {
         requireSafeSegment(categoryId, "Category ID");
-        String expectedPrefix = "Categories/" + categoryId + "/icons/";
-        if (objectName == null || !objectName.startsWith(expectedPrefix)) {
-            throw badRequest("Icon object does not belong to this category");
-        }
+        String objectName = categoryImageObjectName(categoryId, storageUri);
         return storage.signUrl(BlobInfo.newBuilder(bucketName, objectName).build(), 15, TimeUnit.MINUTES,
                 Storage.SignUrlOption.withV4Signature()).toString();
     }
 
-    public void deleteCategoryIcon(String categoryId, String objectName) {
+    public void deleteCategoryImage(String categoryId, String storageUri) {
         requireSafeSegment(categoryId, "Category ID");
-        String expectedPrefix = "Categories/" + categoryId + "/icons/";
-        if (objectName != null && objectName.startsWith(expectedPrefix)) {
-            storage.delete(bucketName, objectName);
+        if (storageUri == null) return;
+        storage.delete(bucketName, categoryImageObjectName(categoryId, storageUri));
+    }
+
+    private String categoryImageObjectName(String categoryId, String storageUri) {
+        if (storageUri == null) {
+            throw badRequest("Category image storage URI is required");
         }
+        String objectName = storageUri;
+        String expectedGsPrefix = "gs://" + bucketName + "/";
+        if (storageUri.startsWith("gs://")) {
+            if (!storageUri.startsWith(expectedGsPrefix)) {
+                throw badRequest("Category image belongs to a different storage bucket");
+            }
+            objectName = storageUri.substring(expectedGsPrefix.length());
+        }
+        String categoryPrefix = "Categories/" + categoryId + "/";
+        boolean validCategoryImagePath = objectName.startsWith(categoryPrefix + "images/")
+                || objectName.startsWith(categoryPrefix + "icons/");
+        if (!validCategoryImagePath) {
+            throw badRequest("Image object does not belong to this category");
+        }
+        return objectName;
     }
 
     public ProductImage uploadImage(
