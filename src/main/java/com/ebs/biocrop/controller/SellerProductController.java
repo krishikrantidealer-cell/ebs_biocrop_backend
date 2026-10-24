@@ -31,6 +31,7 @@ public class SellerProductController {
         this.sellerProducts = sellerProducts;
     }
 
+    // List the authenticated seller's product listings.
     @GetMapping
     @Operation(summary = "List the authenticated seller's product listings")
     public ResponseEntity<ApiResponse<PagedResponse<ProductManagementResponse>>> list(

@@ -37,6 +37,7 @@ public class AdminUserController {
         this.rateLimitGuard = rateLimitGuard;
     }
 
+    // List admin users with optional role and status filters.
     @GetMapping
     @Operation(summary = "List admin users with optional role and status filters")
     public ResponseEntity<ApiResponse<PagedResponse<AdminUserResponse>>> getUsers(
@@ -47,12 +48,14 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.ok("Admin users retrieved", PagedResponse.from(result, user -> user)));
     }
 
+    // Get an admin-managed user by ID.
     @GetMapping("/{userId}")
     @Operation(summary = "Get an admin-managed user by ID")
     public ResponseEntity<ApiResponse<AdminUserResponse>> getUserById(@PathVariable String userId) {
         return ResponseEntity.ok(ApiResponse.ok("User retrieved", adminUsers.getById(userId)));
     }
 
+    // Block or unblock a user.
     @PatchMapping("/{userId}/block")
     @Operation(summary = "Block or unblock a user", description = "Send {\"blocked\": true} to block or false to unblock.")
     public ResponseEntity<ApiResponse<AdminUserResponse>> updateUserBlockedStatus(
@@ -65,6 +68,7 @@ public class AdminUserController {
                 adminUsers.setBlockedStatus(userId, blocked)));
     }
 
+    // Soft-delete or restore a user.
     @PatchMapping("/{userId}/deletion")
     @Operation(summary = "Soft-delete or restore a user", description = "Send {\"deleted\": true} to soft-delete or false to restore.")
     public ResponseEntity<ApiResponse<AdminUserResponse>> updateUserDeletedStatus(
@@ -77,6 +81,7 @@ public class AdminUserController {
                 adminUsers.setDeletedStatus(userId, deleted)));
     }
 
+    // Assign a role to an admin-managed user.
     @PatchMapping("/{userId}/role")
     @Operation(summary = "Assign a role to an admin-managed user", description = "Roles are ROLE_CUSTOMER, ROLE_SELLER, and ROLE_ADMIN. The last active admin cannot be demoted.")
     public ResponseEntity<ApiResponse<UserRoleAssignmentResponse>> updateUserRole(

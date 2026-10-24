@@ -32,6 +32,7 @@ public class SellerOrderController {
         this.orderQueries = orderQueries;
     }
 
+    // List the authenticated seller's orders.
     @GetMapping
     @Operation(summary = "List the authenticated seller's orders")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getSellerOrders(
@@ -43,6 +44,7 @@ public class SellerOrderController {
                 PagedResponse.from(result, OrderResponse::forSeller)));
     }
 
+    // Get one order belonging to the authenticated seller.
     @GetMapping("/{orderId}")
     @Operation(summary = "Get one order belonging to the authenticated seller")
     public ResponseEntity<ApiResponse<OrderResponse>> getSellerOrderById(

@@ -39,6 +39,7 @@ public class ProductController {
         this.typeFactory = objectMapper.getTypeFactory();
     }
 
+    // List available products.
     @GetMapping
     @Operation(summary = "List available products")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProducts(
@@ -48,6 +49,7 @@ public class ProductController {
                 () -> productCatalog.listPublic(page, size), "Products retrieved successfully");
     }
 
+    // Get available product details.
     @GetMapping("/{id}")
     @Operation(summary = "Get available product details")
     public ResponseEntity<ApiResponse<PublicProductResponse>> getProductById(@PathVariable String id) {
@@ -57,6 +59,7 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully", response));
     }
 
+    // List available products in a category subtree.
     @GetMapping("/category/{categoryId}")
     @Operation(summary = "List available products in a category subtree")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProductsByCategory(
@@ -67,6 +70,7 @@ public class ProductController {
                 () -> productCatalog.listByCategory(categoryId, page, size), "Products retrieved successfully");
     }
 
+    // Search available products.
     @GetMapping("/search")
     @Operation(summary = "Search available products")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> searchProducts(

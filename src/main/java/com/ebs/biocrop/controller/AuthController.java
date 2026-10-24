@@ -55,6 +55,7 @@ public class AuthController {
         }
     }
 
+    // OTP send endpoint with rate limiting
     @PostMapping("/otp/send")
     public ResponseEntity<ApiResponse<OtpResponse>> sendOtp(
             @Valid @RequestBody OtpSendRequest request,
@@ -68,6 +69,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("OTP dispatched successfully", otpResponse));
     }
 
+    // OTP verify endpoint with rate limiting
     @PostMapping("/otp/verify")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(
             @Valid @RequestBody OtpVerifyRequest request,
@@ -80,6 +82,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Authentication successful", authResponse));
     }
 
+    // Refresh access token endpoint with rate limiting
     @PostMapping("/token/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshAccessToken(
             @RequestBody Map<String, String> request,
@@ -89,6 +92,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Access token refreshed successfully", authResponse));
     }
 
+    // Email OTP send endpoint for privileged accounts with rate limiting
     @PostMapping("/email/otp/send")
     @Operation(summary = "Send privileged account email OTP", description = "Sends an OTP only to a provisioned seller or admin account. Customer email login is not supported.")
     public ResponseEntity<ApiResponse<Map<String, String>>> sendEmailOtp(@Valid @RequestBody EmailOtpRequest request, HttpServletRequest httpRequest) {
@@ -98,6 +102,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("If this email belongs to an eligible account, an OTP has been sent.", Map.of("status", "OTP_REQUESTED")));
     }
 
+    // Email OTP verify endpoint for privileged accounts with rate limiting
     @PostMapping("/email/otp/verify")
     @Operation(summary = "Verify seller or admin email OTP")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyEmailOtp(@Valid @RequestBody EmailOtpVerifyRequest request, HttpServletRequest httpRequest) {
@@ -106,6 +111,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Authentication successful", authService.verifyEmailOtpAndLogin(request.getEmail(), request.getOtp())));
     }
 
+    // Password login endpoint for privileged accounts with rate limiting
     @PostMapping("/password/login")
     @Operation(summary = "Login seller or admin with email and password")
     public ResponseEntity<ApiResponse<AuthResponse>> passwordLogin(@Valid @RequestBody EmailPasswordRequest request, HttpServletRequest httpRequest) {
@@ -113,7 +119,7 @@ public class AuthController {
         checkLimit("password-login-ip", httpRequest.getRemoteAddr(), 30, 300);
         return ResponseEntity.ok(ApiResponse.ok("Authentication successful", authService.loginWithPassword(request.getEmail(), request.getPassword())));
     }
-
+    // Password setup endpoint after OTP login for privileged accounts
     @PostMapping("/password/setup")
     @Operation(summary = "Set password after OTP login")
     public ResponseEntity<ApiResponse<Void>> setupPassword(@Valid @RequestBody PasswordSetupRequest request, Authentication authentication) {
@@ -121,6 +127,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Password set successfully", null));
     }
 
+    // Request a password reset for a privileged account.
     @PostMapping("/password/forgot")
     @Operation(summary = "Request a password reset email")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
@@ -130,6 +137,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("If this email belongs to an eligible account, a reset link has been sent.", null));
     }
 
+    // Password reset endpoint with rate limiting
     @PostMapping("/password/reset")
     @Operation(summary = "Reset password using one-time email link")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest httpRequest) {

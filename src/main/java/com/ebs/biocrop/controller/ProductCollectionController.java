@@ -34,6 +34,7 @@ public class ProductCollectionController {
         this.typeFactory = objectMapper.getTypeFactory();
     }
 
+    // List active collections.
     @GetMapping
     @Operation(summary = "List active collections")
     public ResponseEntity<ApiResponse<CountedListResponse<CollectionResponse>>> getCollections() {
@@ -43,6 +44,7 @@ public class ProductCollectionController {
         return ResponseEntity.ok(ApiResponse.ok("Collections retrieved", result));
     }
 
+    // Get an active collection by slug.
     @GetMapping("/{slug}")
     @Operation(summary = "Get an active collection by slug")
     public ResponseEntity<ApiResponse<CollectionResponse>> getCollectionBySlug(@PathVariable String slug) {

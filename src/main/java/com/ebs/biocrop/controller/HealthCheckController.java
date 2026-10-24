@@ -15,6 +15,7 @@ import java.util.Map;
 @Tag(name = "Health")
 public class HealthCheckController {
 
+    // Health check.
     @GetMapping("/health")
     @Operation(summary = "Health check")
     public ResponseEntity<ApiResponse<Map<String, Object>>> healthCheck() {

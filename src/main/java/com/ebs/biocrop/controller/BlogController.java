@@ -39,6 +39,7 @@ public class BlogController {
         this.typeFactory = objectMapper.getTypeFactory();
     }
 
+    // List published blogs with optional filters and pagination
     @GetMapping
     @Operation(summary = "List published blogs")
     public ResponseEntity<ApiResponse<PagedResponse<BlogPublicResponse>>> listBlogs(
@@ -56,6 +57,7 @@ public class BlogController {
         return ResponseEntity.ok(ApiResponse.ok("Published blogs retrieved successfully", response));
     }
 
+    // List all blog categories
     @GetMapping("/categories")
     @Operation(summary = "List blog categories")
     public ResponseEntity<ApiResponse<CountedListResponse<BlogFacetResponse>>> categories() {
@@ -65,6 +67,7 @@ public class BlogController {
         return ResponseEntity.ok(ApiResponse.ok("Published blog categories retrieved successfully", response));
     }
 
+    // List all blog tags
     @GetMapping("/tags")
     @Operation(summary = "List blog tags")
     public ResponseEntity<ApiResponse<CountedListResponse<BlogFacetResponse>>> tags() {
@@ -74,6 +77,7 @@ public class BlogController {
         return ResponseEntity.ok(ApiResponse.ok("Published blog tags retrieved successfully", response));
     }
 
+    // Get a specific blog by its slug
     @GetMapping("/{slug}")
     @Operation(summary = "Get a published blog by slug")
     public ResponseEntity<ApiResponse<BlogPublicResponse>> getBlog(@PathVariable String slug) {

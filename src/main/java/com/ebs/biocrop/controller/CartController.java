@@ -32,6 +32,7 @@ public class CartController {
         this.rateLimitGuard = rateLimitGuard;
     }
 
+    // Retrieve the current user's cart
     @GetMapping
     public ResponseEntity<ApiResponse<CartResponse>> getCart(Authentication authentication) {
         String phoneNumber = authentication.getName();
@@ -39,6 +40,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Cart retrieved successfully", cart));
     }
 
+    // Retrieve the count of items in the current user's cart
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<CartCountResponse>> getCartCount(Authentication authentication) {
         String phoneNumber = authentication.getName();
@@ -46,6 +48,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Cart count retrieved successfully", count));
     }
 
+    // Add an item to the current user's cart
     @PostMapping("/items")
     public ResponseEntity<ApiResponse<CartResponse>> addToCart(
             Authentication authentication,
@@ -56,6 +59,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Item added to cart successfully", cart));
     }
 
+    // Update the quantity of an item in the current user's cart
     @PutMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(
             Authentication authentication,
@@ -67,6 +71,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Cart item quantity updated successfully", cart));
     }
 
+    // Remove an item from the current user's cart
     @DeleteMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<CartResponse>> removeItem(
             Authentication authentication,
@@ -77,6 +82,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Item removed from cart successfully", cart));
     }
 
+    // Clear the current user's cart
     @DeleteMapping
     public ResponseEntity<ApiResponse<CartResponse>> clearCart(Authentication authentication) {
         String phoneNumber = authentication.getName();
@@ -85,6 +91,7 @@ public class CartController {
         return ResponseEntity.ok(ApiResponse.ok("Cart cleared successfully", cart));
     }
 
+    // Synchronize the current user's cart with the server
     @PostMapping("/sync")
     public ResponseEntity<ApiResponse<CartResponse>> syncCart(
             Authentication authentication,

@@ -25,6 +25,7 @@ public class UserController {
         this.userService = userService;
     }
 
+    // Get the current user's profile.
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getCurrentUserProfile(Authentication authentication) {
         String phoneNumber = authentication.getName();
@@ -32,6 +33,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("User profile retrieved successfully", profile));
     }
 
+    // Update the current user's profile.
     @PutMapping("/profile")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateUserProfile(
@@ -42,6 +44,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("User profile completed and updated successfully", updatedProfile));
     }
 
+    // Delete the current user's profile.
     @DeleteMapping("/profile")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> deleteUserProfile(Authentication authentication) {

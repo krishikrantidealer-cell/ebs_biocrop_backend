@@ -30,6 +30,7 @@ public class WishlistController {
         this.wishlistService = wishlistService;
     }
 
+    // Get the current user's wishlist.
     @GetMapping
     public ResponseEntity<ApiResponse<WishlistResponse>> getWishlist(
             @AuthenticationPrincipal CustomUserDetails user) {
@@ -38,6 +39,7 @@ public class WishlistController {
                 wishlistService.getWishlist(user.getId())));
     }
 
+    // Add a product variant to the wishlist.
     @PutMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<WishlistResponse>> addVariant(
             @AuthenticationPrincipal CustomUserDetails user,
@@ -47,6 +49,7 @@ public class WishlistController {
                 wishlistService.addVariant(user.getId(), variantId)));
     }
 
+    // Remove a product variant from the wishlist.
     @DeleteMapping("/items/{variantId}")
     public ResponseEntity<ApiResponse<WishlistResponse>> removeVariant(
             @AuthenticationPrincipal CustomUserDetails user,
@@ -56,6 +59,7 @@ public class WishlistController {
                 wishlistService.removeVariant(user.getId(), variantId)));
     }
 
+    // Clear the current user's wishlist.
     @DeleteMapping
     public ResponseEntity<ApiResponse<WishlistResponse>> clearWishlist(
             @AuthenticationPrincipal CustomUserDetails user) {

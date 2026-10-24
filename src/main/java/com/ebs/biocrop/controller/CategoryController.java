@@ -39,6 +39,7 @@ public class CategoryController {
         this.imageStorage = imageStorage;
     }
 
+    // List active categories.
     @GetMapping
     @Operation(summary = "List active categories", description = "Returns a bounded page. Use parentId to list direct children or level to filter category depth.")
     public ResponseEntity<ApiResponse<PagedResponse<CategoryResponse>>> getCategories(
@@ -55,6 +56,7 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.ok("Categories retrieved successfully", response));
     }
 
+    // Get active category by ID.
     @GetMapping("/{id}")
     @Operation(summary = "Get active category by ID")
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable String id) {

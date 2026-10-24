@@ -51,6 +51,7 @@ public class CustomerOrderController {
         this.rateLimitGuard = rateLimitGuard;
     }
 
+    // Create seller-specific orders from the authenticated customer's cart
     @PostMapping("/create")
     @Operation(summary = "Create seller-specific orders from the authenticated customer's cart")
     public ResponseEntity<ApiResponse<PlacedOrdersResponse>> createOrders(
@@ -61,6 +62,7 @@ public class CustomerOrderController {
                 orderPlacement.createOrders(customer.getId(), request)));
     }
 
+    // List the authenticated customer's orders
     @GetMapping("/customer")
     @Operation(summary = "List the authenticated customer's orders")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getCustomerOrders(
@@ -72,6 +74,7 @@ public class CustomerOrderController {
                 PagedResponse.from(result, OrderResponse::forCustomer)));
     }
 
+    // Get one of the authenticated customer's orders
     @GetMapping("/{orderId}")
     @Operation(summary = "Get one of the authenticated customer's orders")
     public ResponseEntity<ApiResponse<OrderResponse>> getCustomerOrderById(
@@ -81,6 +84,7 @@ public class CustomerOrderController {
                 OrderResponse.forCustomer(orderQueries.getForCustomer(customer.getId(), orderId))));
     }
 
+    // List the authenticated customer's seller orders from one checkout
     @GetMapping("/group/{checkoutGroupId}")
     @Operation(summary = "List the authenticated customer's seller orders from one checkout")
     public ResponseEntity<ApiResponse<CountedListResponse<OrderResponse>>> getOrdersByCheckoutGroup(
@@ -91,6 +95,7 @@ public class CustomerOrderController {
                         .map(OrderResponse::forCustomer).toList())));
     }
 
+    // Cancel a pending order owned by the authenticated customer
     @PostMapping("/{orderId}/cancel")
     @Operation(summary = "Cancel a pending order owned by the authenticated customer")
     public ResponseEntity<ApiResponse<OrderResponse>> cancelCustomerOrder(
