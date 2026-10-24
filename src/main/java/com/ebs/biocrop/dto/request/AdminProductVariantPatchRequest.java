@@ -1,17 +1,17 @@
 package com.ebs.biocrop.dto.request;
 
 import com.ebs.biocrop.entity.ProductDimensions;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /** Partial update payload for one product variant; omitted values remain unchanged. */
 public class AdminProductVariantPatchRequest {
     @Size(max = 160) private String label;
-    @NotBlank @Size(max = 20) private String unit;
+    @Pattern(regexp = ".*\\S.*", message = "Unit cannot be blank") @Size(max = 20) private String unit;
     @Positive private Integer packSize;
-    @NotBlank @Size(max = 20) private String packSizeUnit;
+    @Pattern(regexp = ".*\\S.*", message = "Pack size unit cannot be blank") @Size(max = 20) private String packSizeUnit;
     @Positive private Integer packQuantity;
     @Size(max = 20) private String packUnit;
     @Size(max = 120) private String shippedBy;

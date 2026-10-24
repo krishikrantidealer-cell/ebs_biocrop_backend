@@ -12,6 +12,7 @@ import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.BlogService;
+import com.ebs.biocrop.service.RateLimitGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+
 @RestController
 @RequestMapping("/api/v1/admin/blogs")
 @PreAuthorize("hasRole('ADMIN')")
@@ -32,31 +35,29 @@ import org.springframework.web.bind.annotation.*;
 public class AdminBlogController {
 
     private final BlogService blogService;
+    private final RateLimitGuard rateLimitGuard;
 
-    public AdminBlogController(BlogService blogService) {
+    public AdminBlogController(BlogService blogService, RateLimitGuard rateLimitGuard) {
         this.blogService = blogService;
+        this.rateLimitGuard = rateLimitGuard;
     }
 
+    // Create a new blog draft
     @PostMapping
-    public ResponseEntity<ApiResponse<BlogDraftResponse>> createDraft(
+    @Operation(summary = "Create a blog draft")
+    public ResponseEntity<ApiResponse<BlogDraftResponse>> createBlogDraft(
             Authentication authentication,
             @Valid @RequestBody CreateBlogDraftRequest request) {
-        if (authentication == null
-                || !(authentication.getPrincipal() instanceof CustomUserDetails user)
-                || user.getRole() != UserRole.ROLE_ADMIN) {
-            throw new AppException("Admin access is required", HttpStatus.FORBIDDEN);
-        }
-        if (!ObjectId.isValid(user.getId())) {
-            throw new AppException("Authenticated admin identity is invalid", HttpStatus.FORBIDDEN);
-        }
-
-        BlogDraftResponse draft = blogService.createDraft(request, new ObjectId(user.getId()));
+        ObjectId adminId = rateLimitedAdminId(authentication);
+        BlogDraftResponse draft = blogService.createDraft(request, adminId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Blog draft created successfully", draft));
     }
 
+    // List admin-managed blogs with optional status filter
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<BlogAdminResponse>>> listBlogs(
+    @Operation(summary = "List admin-managed blogs")
+    public ResponseEntity<ApiResponse<PagedResponse<BlogAdminResponse>>> getBlogs(
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -65,79 +66,108 @@ public class AdminBlogController {
                 PagedResponse.from(blogs, BlogAdminResponse::from)));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> getBlog(@PathVariable String id) {
+    // Get an admin-managed blog by ID
+    @GetMapping("/{blogId}")
+    @Operation(summary = "Get an admin-managed blog by ID")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> getBlogById(@PathVariable String blogId) {
         return ResponseEntity.ok(ApiResponse.ok("Blog retrieved successfully",
-                BlogAdminResponse.from(blogService.getAdminBlog(id))));
+                BlogAdminResponse.from(blogService.getAdminBlog(blogId))));
     }
 
-    @PutMapping("/{id}")
+    // Update an admin-managed blog
+    @PutMapping("/{blogId}")
+    @Operation(summary = "Replace an admin-managed blog")
     public ResponseEntity<ApiResponse<BlogAdminResponse>> updateBlog(
             Authentication authentication,
-            @PathVariable String id,
+            @PathVariable String blogId,
             @Valid @RequestBody UpdateBlogRequest request) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog updated successfully",
-                BlogAdminResponse.from(blogService.updateBlog(id, request, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.updateBlog(blogId, request, adminId))));
     }
 
-    @PostMapping("/{id}/publish")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> publish(
-            Authentication authentication, @PathVariable String id) {
+    // Publish a blog immediately
+    @PostMapping("/{blogId}/publish")
+    @Operation(summary = "Publish a blog immediately")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> publishBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog published successfully",
-                BlogAdminResponse.from(blogService.publishNow(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.publishNow(blogId, adminId))));
     }
 
-    @PostMapping("/{id}/schedule")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> schedule(
+    // Schedule a blog for future publication
+    @PostMapping("/{blogId}/schedule")
+    @Operation(summary = "Schedule a blog for publication")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> scheduleBlog(
             Authentication authentication,
-            @PathVariable String id,
+            @PathVariable String blogId,
             @Valid @RequestBody ScheduleBlogRequest request) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog scheduled successfully",
-                BlogAdminResponse.from(blogService.schedule(id, request.getScheduledAt(), adminId(authentication)))));
+                BlogAdminResponse.from(blogService.schedule(blogId, request.getScheduledAt(), adminId))));
     }
 
-    @PostMapping("/{id}/unpublish")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> unpublish(
-            Authentication authentication, @PathVariable String id) {
+    // Unpublish a blog
+    @PostMapping("/{blogId}/unpublish")
+    @Operation(summary = "Unpublish a blog")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> unpublishBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog unpublished successfully",
-                BlogAdminResponse.from(blogService.unpublish(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.unpublish(blogId, adminId))));
     }
 
-    @PostMapping("/{id}/archive")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> archive(
-            Authentication authentication, @PathVariable String id) {
+    // Archive a blog
+    @PostMapping("/{blogId}/archive")
+    @Operation(summary = "Archive a blog")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> archiveBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog archived successfully",
-                BlogAdminResponse.from(blogService.archive(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.archive(blogId, adminId))));
     }
 
-    @PostMapping("/{id}/restore")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> restore(
-            Authentication authentication, @PathVariable String id) {
+
+    // Restore an archived blog as a draft
+    @PostMapping("/{blogId}/restore")
+    @Operation(summary = "Restore an archived blog as a draft")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> restoreBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Archived blog restored as a draft",
-                BlogAdminResponse.from(blogService.restore(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.restore(blogId, adminId))));
     }
 
-    @PostMapping("/{id}/restore-deleted")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> restoreSoftDeleted(
-            Authentication authentication, @PathVariable String id) {
+    // Restore a soft-deleted blog as a draft
+    @PostMapping("/{blogId}/restore-deleted")
+    @Operation(summary = "Restore a soft-deleted blog as a draft")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> restoreDeletedBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Soft-deleted blog restored as a draft",
-                BlogAdminResponse.from(blogService.restoreSoftDeleted(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.restoreSoftDeleted(blogId, adminId))));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<BlogAdminResponse>> delete(
-            Authentication authentication, @PathVariable String id) {
+    // Soft-delete a blog
+    @DeleteMapping("/{blogId}")
+    @Operation(summary = "Soft-delete a blog")
+    public ResponseEntity<ApiResponse<BlogAdminResponse>> softDeleteBlog(
+            Authentication authentication, @PathVariable String blogId) {
+        ObjectId adminId = rateLimitedAdminId(authentication);
         return ResponseEntity.ok(ApiResponse.ok("Blog soft-deleted successfully",
-                BlogAdminResponse.from(blogService.softDelete(id, adminId(authentication)))));
+                BlogAdminResponse.from(blogService.softDelete(blogId, adminId))));
     }
 
-    private ObjectId adminId(Authentication authentication) {
+    // Permanently delete a blog
+    private ObjectId rateLimitedAdminId(Authentication authentication) {
         if (authentication == null
                 || !(authentication.getPrincipal() instanceof CustomUserDetails user)
                 || user.getRole() != UserRole.ROLE_ADMIN
                 || !ObjectId.isValid(user.getId())) {
             throw new AppException("Admin access is required", HttpStatus.FORBIDDEN);
         }
+        rateLimitGuard.enforce("admin-blog-write", user.getId(), 60, Duration.ofMinutes(1));
         return new ObjectId(user.getId());
     }
 }

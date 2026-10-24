@@ -14,11 +14,13 @@ This review compares the supplied Postman collection with the current backend co
 
 ## New/current operational APIs to include
 
-- Admin category maintenance: `GET`, `POST`, `PUT /{id}`, and `DELETE /{id}` under `/api/v1/admin/categories`.
+- Admin category maintenance: paged `GET` (with `active` filter), `GET /{categoryId}`, `POST`, and `PUT /{categoryId}` under `/api/v1/admin/categories`. `DELETE /{categoryId}` continues to deactivate; permanent single/batch deletion uses `/permanent` routes and rejects categories with product or child references.
+- Admin collection maintenance: paged `GET` (with `active` filter), `GET /{collectionId}`, `POST`, full-replacement `PUT`, partial-update `PATCH`, and deactivation `DELETE`. Single/batch subcollection deletion removes product assignments transactionally.
+- Admin order operations: `PATCH /{orderId}/status` validates fulfillment transitions and records an audit event; `POST /{orderId}/cancel` applies the existing pending/unpaid stock-release rules.
 - Admin role assignment: `PATCH /api/v1/admin/users/{userId}/role`. This is the controlled path for promoting an OTP-authenticated phone account to `ROLE_SELLER` or `ROLE_ADMIN`.
-- Seller listing workflow: `POST`, `GET`, and `PUT /api/v1/seller/products`; submitted listings are pending review and scoped to the authenticated seller.
-- Admin listing review: `GET /api/v1/admin/products?status=PENDING_REVIEW` and `PATCH /api/v1/admin/products/{id}/review?approved=true`.
-- Admin availability toggle: `PATCH /api/v1/admin/products/{id}/availability?available=true|false`, available only for already-approved products.
+- Seller access is read-only for monitoring: `GET /api/v1/seller/products` and `GET /api/v1/seller/orders` plus `GET /api/v1/seller/orders/{orderId}` are scoped to the authenticated seller. Product submission, product editing, and seller order cancellation are not exposed; admins manage listings and order status.
+- Admin listing management: `GET /api/v1/admin/products?status=INACTIVE` and `PATCH /api/v1/admin/products/{productId}/review` with `{"approved": true}`. Product status is limited to `ACTIVE` and `INACTIVE`; seller-created or updated listings remain inactive until approved.
+- Admin availability toggle: `PATCH /api/v1/admin/products/{productId}/availability` with `{"available": true|false}`, available only for already-approved products.
 
 Category depth is capped at levels 0–2 in one `categories` collection, using `parentId` and `level`. Category migration preflights embedded data and stops before changing documents if it finds deeper nesting. Public product endpoints show only available, approved seller-owned listings. The 83 obsolete workbook product documents were removed from the existing `products` collection.
 

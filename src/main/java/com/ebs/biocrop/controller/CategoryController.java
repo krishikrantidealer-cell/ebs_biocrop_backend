@@ -6,6 +6,7 @@ import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.service.CategoryService;
 import com.ebs.biocrop.service.RedisJsonCache;
+import com.ebs.biocrop.service.GcsImageStorageService;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,12 +28,15 @@ public class CategoryController {
     private final CategoryService categoryService;
     private final RedisJsonCache redisCache;
     private final TypeFactory typeFactory;
+    private final GcsImageStorageService imageStorage;
 
     public CategoryController(CategoryService categoryService, RedisJsonCache redisCache,
-                              com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+                              com.fasterxml.jackson.databind.ObjectMapper objectMapper,
+                              GcsImageStorageService imageStorage) {
         this.categoryService = categoryService;
         this.redisCache = redisCache;
         this.typeFactory = objectMapper.getTypeFactory();
+        this.imageStorage = imageStorage;
     }
 
     @GetMapping
@@ -46,7 +50,8 @@ public class CategoryController {
         JavaType responseType = typeFactory.constructParametricType(PagedResponse.class, CategoryResponse.class);
         PagedResponse<CategoryResponse> response = redisCache.getOrLoad(
                 "public-categories", key, responseType, Duration.ofMinutes(10),
-                () -> PagedResponse.from(categoryService.listPublic(parentId, level, page, size), CategoryResponse::from));
+                () -> PagedResponse.from(categoryService.listPublic(parentId, level, page, size),
+                        category -> CategoryResponse.from(category, imageStorage)));
         return ResponseEntity.ok(ApiResponse.ok("Categories retrieved successfully", response));
     }
 
@@ -55,7 +60,7 @@ public class CategoryController {
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable String id) {
         CategoryResponse response = redisCache.getOrLoad(
                 "public-categories", "id=" + id, typeFactory.constructType(CategoryResponse.class),
-                Duration.ofMinutes(10), () -> CategoryResponse.from(categoryService.getPublic(id)));
+                Duration.ofMinutes(10), () -> CategoryResponse.from(categoryService.getPublic(id), imageStorage));
         return ResponseEntity.ok(ApiResponse.ok("Category retrieved successfully", response));
     }
 }

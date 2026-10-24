@@ -76,6 +76,41 @@ public class GcsImageStorageService {
         return objectName;
     }
 
+    public String uploadCategoryIcon(String categoryId, byte[] imageBytes, String extension, String contentType) {
+        requireSafeSegment(categoryId, "Category ID");
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Image data is empty");
+        }
+        String normalizedExtension = extension == null ? "" : extension.toLowerCase(Locale.ROOT);
+        boolean validFormat = ("jpg".equals(normalizedExtension) && "image/jpeg".equals(contentType))
+                || ("png".equals(normalizedExtension) && "image/png".equals(contentType));
+        if (!validFormat) {
+            throw badRequest("Only JPEG and PNG category icons are supported");
+        }
+        String objectName = "Categories/" + categoryId + "/icons/" + UUID.randomUUID() + "." + normalizedExtension;
+        BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
+        storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
+        return objectName;
+    }
+
+    public String createCategoryIconReadUrl(String categoryId, String objectName) {
+        requireSafeSegment(categoryId, "Category ID");
+        String expectedPrefix = "Categories/" + categoryId + "/icons/";
+        if (objectName == null || !objectName.startsWith(expectedPrefix)) {
+            throw badRequest("Icon object does not belong to this category");
+        }
+        return storage.signUrl(BlobInfo.newBuilder(bucketName, objectName).build(), 15, TimeUnit.MINUTES,
+                Storage.SignUrlOption.withV4Signature()).toString();
+    }
+
+    public void deleteCategoryIcon(String categoryId, String objectName) {
+        requireSafeSegment(categoryId, "Category ID");
+        String expectedPrefix = "Categories/" + categoryId + "/icons/";
+        if (objectName != null && objectName.startsWith(expectedPrefix)) {
+            storage.delete(bucketName, objectName);
+        }
+    }
+
     public ProductImage uploadImage(
             String sellerId,
             String productId,

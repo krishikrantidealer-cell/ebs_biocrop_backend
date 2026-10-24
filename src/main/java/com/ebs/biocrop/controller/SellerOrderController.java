@@ -6,8 +6,6 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.OrderQueryService;
-import com.ebs.biocrop.service.OrderLifecycleService;
-import com.ebs.biocrop.service.RateLimitGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,12 +15,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/seller/orders")
@@ -31,14 +27,9 @@ import java.time.Duration;
 @SecurityRequirement(name = "bearerAuth")
 public class SellerOrderController {
     private final OrderQueryService orderQueries;
-    private final OrderLifecycleService orderLifecycle;
-    private final RateLimitGuard rateLimitGuard;
 
-    public SellerOrderController(OrderQueryService orderQueries, OrderLifecycleService orderLifecycle,
-                                 RateLimitGuard rateLimitGuard) {
+    public SellerOrderController(OrderQueryService orderQueries) {
         this.orderQueries = orderQueries;
-        this.orderLifecycle = orderLifecycle;
-        this.rateLimitGuard = rateLimitGuard;
     }
 
     @GetMapping
@@ -61,13 +52,4 @@ public class SellerOrderController {
                 OrderResponse.forSeller(orderQueries.getForSeller(seller.getId(), orderId))));
     }
 
-    @PostMapping("/{orderId}/cancel")
-    @Operation(summary = "Cancel a pending order belonging to the authenticated seller")
-    public ResponseEntity<ApiResponse<OrderResponse>> cancelSellerOrder(
-            @AuthenticationPrincipal CustomUserDetails seller,
-            @PathVariable String orderId) {
-        rateLimitGuard.enforce("order-cancel", seller.getId(), 10, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Order cancelled",
-                OrderResponse.forSeller(orderLifecycle.cancelForSeller(seller.getId(), orderId))));
-    }
 }

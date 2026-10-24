@@ -48,10 +48,82 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
 
     @Override
     @Transactional
-    public Order cancelForSeller(String sellerId, String orderId) {
-        Order order = orders.findByIdAndSellerId(orderId, sellerId)
+    public Order cancelForAdmin(String adminId, String orderId) {
+        Order order = orders.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
-        return cancel(order, sellerId);
+        return cancel(order, adminId);
+    }
+
+    @Override
+    @Transactional
+    public Order updateStatusForAdmin(String adminId, String orderId, OrderStatus requestedStatus, String note) {
+        if (requestedStatus == null) {
+            throw new AppException("Order status is required", HttpStatus.BAD_REQUEST);
+        }
+        Order order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        OrderStatus current = canonicalStatus(order.getOrderStatus());
+        if (current == null) {
+            throw new AppException("The current order status is not supported for transition", HttpStatus.CONFLICT);
+        }
+        if (requestedStatus == OrderStatus.CANCELED) {
+            throw new AppException("Use the admin cancel endpoint so reserved stock and payment rules are enforced", HttpStatus.BAD_REQUEST);
+        }
+        OrderStatus transitionBase = current == OrderStatus.HOLD ? previousNonHoldStatus(order) : current;
+        boolean resumingHeldStatus = current == OrderStatus.HOLD && transitionBase == requestedStatus;
+        if (transitionBase == null || (!resumingHeldStatus && !isAllowedTransition(transitionBase, requestedStatus))) {
+            throw new AppException("Order status transition is not allowed", HttpStatus.CONFLICT);
+        }
+
+        var now = LocalDateTime.now();
+        order.setOrderStatus(requestedStatus.name());
+        order.setUpdatedAt(now);
+        List<OrderStatusEvent> history = order.getStatusHistory() == null
+                ? new ArrayList<>() : new ArrayList<>(order.getStatusHistory());
+        OrderStatusEvent event = new OrderStatusEvent();
+        event.setStatus(requestedStatus.name());
+        event.setChangedAt(now);
+        event.setChangedBy(adminId);
+        event.setNote(note == null || note.isBlank() ? null : note.trim());
+        history.add(event);
+        order.setStatusHistory(history);
+        return orders.save(order);
+    }
+
+    private boolean isAllowedTransition(OrderStatus current, OrderStatus next) {
+        return switch (current) {
+            case ORDERED -> next == OrderStatus.CONFIRMED || next == OrderStatus.HOLD;
+            case CONFIRMED -> next == OrderStatus.PACKED || next == OrderStatus.HOLD;
+            case PACKED -> next == OrderStatus.SHIPPED || next == OrderStatus.HOLD;
+            case SHIPPED -> next == OrderStatus.DELIVERED || next == OrderStatus.RTO_SHIPPED || next == OrderStatus.HOLD;
+            case RTO_SHIPPED -> next == OrderStatus.RTO_DELIVERED;
+            case HOLD -> false;
+            case DELIVERED, CANCELED, RTO_DELIVERED -> false;
+        };
+    }
+
+    private OrderStatus previousNonHoldStatus(Order order) {
+        List<OrderStatusEvent> history = order.getStatusHistory();
+        if (history == null) return null;
+        for (int i = history.size() - 1; i >= 0; i--) {
+            OrderStatus status = canonicalStatus(history.get(i).getStatus());
+            if (status != null && status != OrderStatus.HOLD && status != OrderStatus.CANCELED) return status;
+        }
+        return null;
+    }
+
+    private OrderStatus canonicalStatus(String value) {
+        if (value == null || value.isBlank()) return null;
+        String normalized = value.trim().toUpperCase(java.util.Locale.ROOT);
+        if ("PENDING".equals(normalized)) return OrderStatus.ORDERED;
+        if ("CANCELLED".equals(normalized)) return OrderStatus.CANCELED;
+        if ("RTO SHIPED".equals(normalized) || "RTO_SHIPED".equals(normalized)) return OrderStatus.RTO_SHIPPED;
+        if ("RTO DELIVERED".equals(normalized)) return OrderStatus.RTO_DELIVERED;
+        try {
+            return OrderStatus.valueOf(normalized.replace(' ', '_'));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private Order cancel(Order order, String actorId) {

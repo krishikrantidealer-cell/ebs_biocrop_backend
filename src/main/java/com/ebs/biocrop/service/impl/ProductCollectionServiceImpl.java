@@ -1,7 +1,9 @@
 package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.dto.request.CollectionWriteRequest;
+import com.ebs.biocrop.dto.request.CollectionPatchRequest;
 import com.ebs.biocrop.dto.response.CollectionResponse;
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.exception.AppException;
@@ -14,8 +16,13 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -52,6 +59,25 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     }
 
     @Override
+    public Page<CollectionResponse> listAdmin(Boolean active, int page, int size) {
+        Criteria criteria = active == null ? new Criteria()
+                : active
+                    ? new Criteria().orOperator(Criteria.where("isActive").is(true), Criteria.where("isActive").is(null))
+                    : Criteria.where("isActive").is(false);
+        var pageable = PageRequestSupport.create(page, size,
+                Sort.by(Sort.Direction.ASC, "priority").and(Sort.by(Sort.Direction.ASC, "name")));
+        Query query = Query.query(criteria).with(pageable);
+        List<ProductCollection> content = mongoTemplate.find(query, ProductCollection.class);
+        long total = mongoTemplate.count(Query.query(criteria), ProductCollection.class);
+        return new PageImpl<>(content.stream().map(item -> response(item, false)).toList(), pageable, total);
+    }
+
+    @Override
+    public CollectionResponse getAdminById(String id) {
+        return response(find(id), false);
+    }
+
+    @Override
     public CollectionResponse create(CollectionWriteRequest request) {
         ProductCollection collection = new ProductCollection();
         apply(request, collection, null);
@@ -62,15 +88,63 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     }
 
     @Override
-    public CollectionResponse update(String id, CollectionWriteRequest request) {
+    @Transactional
+    public CollectionResponse update(String id, CollectionPatchRequest request) {
+        if (!request.hasChanges()) throw badRequest("At least one collection field must be provided");
         ProductCollection current = find(id);
-        ProductCollection updated = new ProductCollection();
-        apply(request, updated, current);
-        updated.setId(current.getId());
-        updated.setCreatedAt(current.getCreatedAt());
-        updated.setUpdatedAt(Instant.now());
-        updated.setVersion(current.getVersion());
-        return save(updated);
+        ProductCollection previous = new ProductCollection();
+        previous.setSubCollections(current.getSubCollections() == null
+                ? new ArrayList<>() : new ArrayList<>(current.getSubCollections()));
+
+        if (request.getName() != null) current.setName(request.getName().trim());
+        if (request.getSlug() != null) {
+            String slug = slugify(request.getSlug());
+            if (slug.isBlank()) throw badRequest("Collection slug cannot be blank");
+            if (collections.existsBySlugIgnoreCaseAndIdNot(slug, current.getId())) {
+                throw new AppException("A collection with this slug already exists", HttpStatus.CONFLICT);
+            }
+            current.setSlug(slug);
+        }
+        if (request.getDescription() != null) current.setDescription(trimToNull(request.getDescription()));
+        if (request.getIsActive() != null) current.setIsActive(request.getIsActive());
+        if (request.getPriority() != null) current.setPriority(request.getPriority());
+        if (request.getBannerTitle() != null) current.setBannerTitle(trimToNull(request.getBannerTitle()));
+        if (request.getSubCollections() != null) {
+            current.setSubCollections(mapSubCollections(request.getSubCollections(), current));
+        }
+        current.setUpdatedAt(Instant.now());
+        CollectionResponse response = save(current);
+        removeAssignmentsForRemovedSubCollections(previous, current);
+        return response;
+    }
+
+    /** PUT replacement: omitted optional values reset to their documented defaults. */
+    @Override
+    @Transactional
+    public CollectionResponse replace(String id, CollectionWriteRequest request) {
+        ProductCollection current = find(id);
+        ProductCollection replacement = new ProductCollection();
+        replacement.setId(current.getId());
+        replacement.setCreatedAt(current.getCreatedAt());
+        replacement.setUpdatedAt(Instant.now());
+        replacement.setVersion(current.getVersion());
+        replacement.setName(request.getName().trim());
+        String slug = slugify(request.getSlug() == null || request.getSlug().isBlank()
+                ? request.getName() : request.getSlug());
+        if (slug.isBlank()) throw badRequest("Collection slug cannot be blank");
+        if (collections.existsBySlugIgnoreCaseAndIdNot(slug, current.getId())) {
+            throw new AppException("A collection with this slug already exists", HttpStatus.CONFLICT);
+        }
+        replacement.setSlug(slug);
+        replacement.setDescription(trimToNull(request.getDescription()));
+        replacement.setIsActive(request.getIsActive() == null || request.getIsActive());
+        replacement.setPriority(request.getPriority() == null ? 0 : request.getPriority());
+        replacement.setBannerTitle(trimToNull(request.getBannerTitle()));
+        replacement.setSubCollections(request.getSubCollections() == null
+                ? new ArrayList<>() : mapSubCollections(request.getSubCollections(), current));
+        CollectionResponse response = save(replacement);
+        removeAssignmentsForRemovedSubCollections(current, replacement);
+        return response;
     }
 
     @Override
@@ -79,6 +153,61 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         collection.setIsActive(false);
         collection.setUpdatedAt(Instant.now());
         return save(collection);
+    }
+
+    @Override
+    @Transactional
+    public List<String> deleteSubCollections(String collectionId, List<String> subCollectionIds) {
+        if (subCollectionIds == null || subCollectionIds.isEmpty()) {
+            throw badRequest("At least one subcollection ID is required");
+        }
+        if (subCollectionIds.size() > 100) {
+            throw badRequest("At most 100 subcollections can be deleted at once");
+        }
+        ProductCollection collection = find(collectionId);
+        Set<String> requested = new LinkedHashSet<>();
+        for (String id : subCollectionIds) {
+            if (!ObjectId.isValid(id)) throw badRequest("Subcollection IDs must be valid MongoDB ObjectIds");
+            String normalized = new ObjectId(id).toHexString();
+            if (!requested.add(normalized)) throw badRequest("Duplicate subcollection IDs are not allowed");
+        }
+
+        List<ProductCollection.SubCollection> existing = collection.getSubCollections() == null
+                ? List.of() : collection.getSubCollections();
+        Set<String> found = existing.stream().filter(sub -> sub.getId() != null)
+                .map(sub -> sub.getId().toHexString()).collect(java.util.stream.Collectors.toSet());
+        for (String id : requested) {
+            if (!found.contains(id)) throw new ResourceNotFoundException("Subcollection", "id", id);
+        }
+
+        collection.setSubCollections(existing.stream()
+                .filter(sub -> sub.getId() == null || !requested.contains(sub.getId().toHexString()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
+        collection.setUpdatedAt(Instant.now());
+        collections.save(collection);
+        removeProductAssignments(requested);
+        redisCache.invalidateRegion("public-collections");
+        redisCache.invalidateRegion("public-products");
+        return List.copyOf(requested);
+    }
+
+    private void removeAssignmentsForRemovedSubCollections(ProductCollection previous, ProductCollection updated) {
+        Set<String> previousIds = previous.getSubCollections() == null ? new LinkedHashSet<>()
+                : previous.getSubCollections().stream().filter(sub -> sub.getId() != null)
+                    .map(sub -> sub.getId().toHexString()).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<String> updatedIds = updated.getSubCollections() == null ? Set.of()
+                : updated.getSubCollections().stream().filter(sub -> sub.getId() != null)
+                    .map(sub -> sub.getId().toHexString()).collect(java.util.stream.Collectors.toSet());
+        previousIds.removeAll(updatedIds);
+        if (!previousIds.isEmpty()) {
+            removeProductAssignments(previousIds);
+            redisCache.invalidateRegion("public-products");
+        }
+    }
+
+    private void removeProductAssignments(Set<String> subCollectionIds) {
+        mongoTemplate.updateMulti(Query.query(Criteria.where("assignedCollections").in(subCollectionIds)),
+                new Update().pullAll("assignedCollections", subCollectionIds.toArray()), Product.class);
     }
 
     private void apply(CollectionWriteRequest request, ProductCollection target, ProductCollection current) {

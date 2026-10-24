@@ -31,9 +31,13 @@ public class CategoryQueryRepositoryImpl implements CategoryQueryRepository {
     }
 
     @Override
-    public Page<Category> findAdminPage(String parentId, Integer level, Pageable pageable) {
+    public Page<Category> findAdminPage(String parentId, Integer level, Boolean active, Pageable pageable) {
         List<Criteria> filters = new ArrayList<>();
         filters.add(Criteria.where("level").gte(0).lte(2));
+        if (active != null) {
+            if (active) filters.add(new Criteria().orOperator(Criteria.where("isActive").is(true), Criteria.where("isActive").is(null)));
+            else filters.add(Criteria.where("isActive").is(false));
+        }
         addOptionalFilters(filters, parentId, level);
         return findPage(filters, pageable);
     }

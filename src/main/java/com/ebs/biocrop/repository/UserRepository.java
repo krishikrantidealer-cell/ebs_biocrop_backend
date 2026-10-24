@@ -21,6 +21,6 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     boolean existsByPhoneNumber(String phoneNumber);
 
-    @Query(value = "{ 'role': ?0, '$or': [ { 'isDeleted': false }, { 'isDeleted': null } ] }", count = true)
+    @Query(value = "{ 'role': ?0, '$and': [ { '$or': [ { 'isDeleted': false }, { 'isDeleted': null }, { 'isDeleted': { '$exists': false } } ] }, { '$or': [ { 'isBlocked': false }, { 'isBlocked': null }, { 'isBlocked': { '$exists': false } } ] } ] }", count = true)
     long countActiveByRole(UserRole role);
 }

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,6 +33,7 @@ public class UserController {
     }
 
     @PutMapping("/profile")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateUserProfile(
             Authentication authentication,
             @Valid @RequestBody UserProfileUpdateRequest request) {
@@ -41,6 +43,7 @@ public class UserController {
     }
 
     @DeleteMapping("/profile")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> deleteUserProfile(Authentication authentication) {
         String phoneNumber = authentication.getName();
         UserProfileResponse deletedProfile = userService.softDeleteUserProfile(phoneNumber);

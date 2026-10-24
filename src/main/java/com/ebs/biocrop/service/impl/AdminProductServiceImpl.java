@@ -80,7 +80,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Page<Product> listAdminProducts(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size) {
+    public Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size) {
         String normalized = status == null || status.isBlank() || "ALL".equalsIgnoreCase(status) ? null : status.trim().toUpperCase(Locale.ROOT);
         if (normalized != null && !ALLOWED_STATUSES.contains(normalized)) {
             throw new AppException("Unsupported product status filter", HttpStatus.BAD_REQUEST);
@@ -105,9 +105,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         return new org.springframework.data.domain.PageImpl<>(content, pageable, total);
     }
 
-    @Override public Product getAdminProductById(String id) { return findProduct(id); }
+    @Override public Product getById(String id) { return findProduct(id); }
 
-    @Override public Product createAdminProduct(String adminId, AdminProductWriteRequest request) {
+    @Override public Product create(String adminId, AdminProductWriteRequest request) {
         User seller = mongoTemplate.findById(request.getSellerId(), User.class);
         if (seller == null || seller.getRole() != com.ebs.biocrop.entity.enums.UserRole.ROLE_SELLER
                 || Boolean.TRUE.equals(seller.getIsDeleted())) throw new ResourceNotFoundException("Seller", "id", request.getSellerId());
@@ -115,7 +115,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         return sellerProducts.create(request.getSellerId(), request);
     }
 
-    @Override public Product updateAdminProduct(String id, AdminProductWriteRequest request) {
+    @Override public Product update(String id, AdminProductWriteRequest request) {
         Product current = findProduct(id);
         if (Boolean.TRUE.equals(current.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
         if (current.getSellerId() != null) {
@@ -133,7 +133,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         throw new AppException("Platform-owned or legacy products cannot be reassigned through this endpoint", HttpStatus.CONFLICT);
     }
 
-    @Override public Product patchAdminProduct(String id, AdminProductPatchRequest request) {
+    @Override public Product patch(String id, AdminProductPatchRequest request) {
         if (!request.hasChanges()) throw new AppException("At least one product field must be provided", HttpStatus.BAD_REQUEST);
         Product p = findProduct(id);
         if (Boolean.TRUE.equals(p.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
@@ -154,7 +154,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         return saveAndInvalidatePublicCatalog(p);
     }
 
-    @Override public Product addAdminProductVariant(String productId, AdminProductVariantWriteRequest request) {
+    @Override public Product addVariant(String productId, AdminProductVariantWriteRequest request) {
         Product product = getEditableProduct(productId);
         if (product.getVariants() == null) product.setVariants(new ArrayList<>());
         ProductVariant added = request.toProductVariant();
@@ -163,7 +163,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         return validateAndSaveVariantChange(product);
     }
 
-    @Override public Product updateAdminProductVariant(String productId, String variantId, AdminProductVariantWriteRequest request) {
+    @Override public Product updateVariant(String productId, String variantId, AdminProductVariantWriteRequest request) {
         Product product = getEditableProduct(productId);
         ProductVariant existing = findVariant(product, variantId);
         ProductVariant replacement = request.toProductVariant();
@@ -174,7 +174,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         return validateAndSaveVariantChange(product);
     }
 
-    @Override public Product patchAdminProductVariant(String productId, String variantId, AdminProductVariantPatchRequest patch) {
+    @Override public Product patchVariant(String productId, String variantId, AdminProductVariantPatchRequest patch) {
         if (!patch.hasChanges()) throw new AppException("At least one variant field must be provided", HttpStatus.BAD_REQUEST);
         Product product = getEditableProduct(productId);
         ProductVariant current = findVariant(product, variantId);
@@ -199,7 +199,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         return validateAndSaveVariantChange(product);
     }
 
-    @Override public Product deleteAdminProductVariant(String productId, String variantId) {
+    @Override public Product deleteVariant(String productId, String variantId) {
         Product product = getEditableProduct(productId);
         ProductVariant variant = findVariant(product, variantId);
         if (product.getVariants().size() <= 1)
@@ -254,21 +254,21 @@ public class AdminProductServiceImpl implements AdminProductService {
         return copy;
     }
 
-    @Override public Product softDeleteAdminProduct(String id) {
+    @Override public Product softDelete(String id) {
         Product p=findProduct(id);
         if (Boolean.TRUE.equals(p.getIsDeleted())) { invalidatePublicCatalog(); return p; }
         p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false); p.setIsDeleted(true);
         p.setDeletedAt(LocalDateTime.now()); p.setUpdatedAt(LocalDateTime.now()); return saveAndInvalidatePublicCatalog(p);
     }
 
-    @Override public Product restoreAdminProduct(String id) {
+    @Override public Product restore(String id) {
         Product p=findProduct(id);
         if (!Boolean.TRUE.equals(p.getIsDeleted())) { invalidatePublicCatalog(); return p; }
         p.setIsDeleted(false); p.setDeletedAt(null); p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false);
         p.setUpdatedAt(LocalDateTime.now()); return saveAndInvalidatePublicCatalog(p);
     }
 
-    @Override public void permanentlyDeleteAdminProduct(String id) {
+    @Override public void permanentlyDelete(String id) {
         Product product = products.findById(id).orElse(null);
         if (product == null) {
             invalidatePublicCatalog();
@@ -308,7 +308,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product reviewAdminProduct(String id, boolean approved) {
+    public Product review(String id, boolean approved) {
         Product product = findProduct(id);
         ensureNotDeleted(product);
         if (approved) {
@@ -373,7 +373,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product setAdminProductAvailability(String id, boolean available) {
+    public Product setAvailability(String id, boolean available) {
         Product product = findProduct(id);
         ensureNotDeleted(product);
         if (available && !"ACTIVE".equalsIgnoreCase(product.getStatus())) {
@@ -385,7 +385,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product setAdminProductFeatured(String id, boolean featured) {
+    public Product setFeatured(String id, boolean featured) {
         Product product = findProduct(id);
         ensureNotDeleted(product);
         if (featured && (!"ACTIVE".equalsIgnoreCase(product.getStatus())
@@ -398,7 +398,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product assignAdminProductCollections(String productId, ProductCollectionAssignmentRequest request) {
+    public Product assignCollections(String productId, ProductCollectionAssignmentRequest request) {
         Product product = findProduct(productId);
         ensureNotDeleted(product);
         Set<String> collectionIds = normalizeObjectIds(request.collectionIds(), "collection");
@@ -446,7 +446,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product addAdminProductImages(String productId, List<MultipartFile> files) {
+    public Product addImages(String productId, List<MultipartFile> files) {
         if (files == null || files.isEmpty() || files.size() > MAX_PRODUCT_IMAGES) {
             throw new AppException(
                     "Upload between 1 and 6 product images per request",
@@ -541,12 +541,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override
-    public Product deleteAdminProductImage(String productId, String imageId) {
-        return deleteAdminProductImages(productId, List.of(imageId));
-    }
-
-    @Override
-    public Product deleteAdminProductImages(String productId, List<String> imageIds) {
+    public Product deleteImages(String productId, List<String> imageIds) {
         Product product = findProduct(productId);
         ensureNotDeleted(product);
 

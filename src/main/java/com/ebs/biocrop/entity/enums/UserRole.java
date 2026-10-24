@@ -1,5 +1,7 @@
 package com.ebs.biocrop.entity.enums;
 
+import java.util.Locale;
+
 public enum UserRole {
     ROLE_CUSTOMER("customer"),
     ROLE_SELLER("seller"),
@@ -19,7 +21,7 @@ public enum UserRole {
         if (role == null || role.isBlank()) {
             return ROLE_CUSTOMER;
         }
-        String normalized = role.trim().toUpperCase();
+        String normalized = role.trim().toUpperCase(Locale.ROOT);
         if (!normalized.startsWith("ROLE_")) {
             normalized = "ROLE_" + normalized;
         }

@@ -3,54 +3,32 @@ package com.ebs.biocrop.controller;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.ProductManagementResponse;
-import com.ebs.biocrop.dto.request.SellerProductWriteRequest;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.SellerProductService;
-import com.ebs.biocrop.service.RateLimitGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/seller/products")
 @PreAuthorize("hasRole('SELLER')")
-@Tag(name = "Seller products", description = "Seller product submissions and updates; every listing is scoped to the authenticated seller.")
+@Tag(name = "Seller products", description = "Read-only monitoring of the authenticated seller's product listings.")
 @SecurityRequirement(name = "bearerAuth")
 public class SellerProductController {
     private final SellerProductService sellerProducts;
-    private final RateLimitGuard rateLimitGuard;
 
-    public SellerProductController(SellerProductService sellerProducts, RateLimitGuard rateLimitGuard) {
+    public SellerProductController(SellerProductService sellerProducts) {
         this.sellerProducts = sellerProducts;
-        this.rateLimitGuard = rateLimitGuard;
-    }
-
-    @PostMapping
-    @Operation(summary = "Submit a product listing for review")
-    public ResponseEntity<ApiResponse<ProductManagementResponse>> create(
-            @AuthenticationPrincipal CustomUserDetails seller,
-            @Valid @RequestBody SellerProductWriteRequest request) {
-        rateLimitGuard.enforce("seller-product-write", seller.getId(), 20, Duration.ofMinutes(1));
-        Product created = sellerProducts.create(seller.getId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Product submitted for review", ProductManagementResponse.from(created)));
     }
 
     @GetMapping
@@ -64,14 +42,4 @@ public class SellerProductController {
                 PagedResponse.from(result, ProductManagementResponse::from)));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Update the authenticated seller's listing and resubmit it for review")
-    public ResponseEntity<ApiResponse<ProductManagementResponse>> update(
-            @AuthenticationPrincipal CustomUserDetails seller,
-            @PathVariable String id,
-            @Valid @RequestBody SellerProductWriteRequest request) {
-        rateLimitGuard.enforce("seller-product-write", seller.getId(), 20, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product changes submitted for review",
-                ProductManagementResponse.from(sellerProducts.update(seller.getId(), id, request))));
-    }
 }

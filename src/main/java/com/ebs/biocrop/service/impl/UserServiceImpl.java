@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
-import java.util.Locale;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -79,29 +78,6 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
         return mapToResponse(savedUser);
-    }
-
-    @Override
-    public UserRole assignRole(String userId, String requestedRole) {
-        UserRole role;
-        try {
-            role = UserRole.valueOf(requestedRole.trim().toUpperCase(Locale.ROOT));
-        } catch (RuntimeException exception) {
-            throw new AppException("Role must be ROLE_CUSTOMER, ROLE_SELLER, or ROLE_ADMIN", HttpStatus.BAD_REQUEST);
-        }
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        if (Boolean.TRUE.equals(user.getIsDeleted())) {
-            throw new AppException("A deleted account cannot be assigned a role", HttpStatus.CONFLICT);
-        }
-        if (user.getRole() == UserRole.ROLE_ADMIN && role != UserRole.ROLE_ADMIN
-                && userRepository.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
-            throw new AppException("The last admin account cannot be demoted", HttpStatus.CONFLICT);
-        }
-        user.setRole(role);
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-        return role;
     }
 
     private UserProfileResponse mapToResponse(User user) {
