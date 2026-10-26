@@ -1,5 +1,7 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.CategoryWriteRequest;
 import com.ebs.biocrop.entity.Category;
@@ -31,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
@@ -45,15 +48,17 @@ public class CategoryServiceImpl implements CategoryService {
     private final GcsImageStorageService imageStorage;
     private final ProductImageVariantService imageValidator;
     private final MongoTemplate mongoTemplate;
+    private final WebSocketService webSocketService;
 
     public CategoryServiceImpl(CategoryRepository categories, RedisJsonCache redisCache,
                                GcsImageStorageService imageStorage, ProductImageVariantService imageValidator,
-                               MongoTemplate mongoTemplate) {
+                               MongoTemplate mongoTemplate, WebSocketService webSocketService) {
         this.categories = categories;
         this.redisCache = redisCache;
         this.imageStorage = imageStorage;
         this.imageValidator = imageValidator;
         this.mongoTemplate = mongoTemplate;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -90,6 +95,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setUpdatedAt(now);
         Category saved = categories.save(category);
         invalidatePublicCatalogCaches();
+        broadcastCategoryUpdate(saved);
         return saved;
     }
 
@@ -106,6 +112,7 @@ public class CategoryServiceImpl implements CategoryService {
             relevelChildren(saved.getId(), saved.getLevel() + 1);
         }
         invalidatePublicCatalogCaches();
+        broadcastCategoryUpdate(saved);
         return saved;
     }
 
@@ -119,6 +126,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setUpdatedAt(Instant.now());
         Category saved = categories.save(category);
         invalidatePublicCatalogCaches();
+        broadcastCategoryUpdate(saved);
         return saved;
     }
 
@@ -182,6 +190,7 @@ public class CategoryServiceImpl implements CategoryService {
             });
         });
         invalidatePublicCatalogCaches();
+        for (String deletedId : requestedIds) { broadcastCategoryDelete(deletedId); }
         return List.copyOf(requestedIds);
     }
 
@@ -209,6 +218,7 @@ public class CategoryServiceImpl implements CategoryService {
             Category saved = categories.save(category);
             invalidatePublicCatalogCaches();
             deleteStoredImage(category.getId(), oldCategoryImageUri);
+            broadcastCategoryUpdate(saved);
             return saved;
         } catch (RuntimeException exception) {
             deleteStoredImage(category.getId(), newCategoryImageUri);
@@ -225,6 +235,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category saved = categories.save(category);
         invalidatePublicCatalogCaches();
         deleteStoredImage(category.getId(), oldCategoryImageUri);
+        broadcastCategoryUpdate(saved);
         return saved;
     }
 
@@ -345,4 +356,19 @@ public class CategoryServiceImpl implements CategoryService {
         return normalize(value).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
     }
 
+
+    private void broadcastCategoryUpdate(Category category) {
+        if (category == null || category.getId() == null) return;
+        Map<String, Object> payload = Map.of(
+                "categoryId", category.getId(),
+                "name", category.getName() != null ? category.getName() : "",
+                "level", category.getLevel() != null ? category.getLevel() : 0
+        );
+        webSocketService.broadcast("categories:update", payload);
+    }
+
+    private void broadcastCategoryDelete(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) return;
+        webSocketService.broadcast("categories:delete", Map.of("categoryId", categoryId));
+    }
 }

@@ -1,5 +1,8 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+import java.util.Map;
+
 import com.ebs.biocrop.dto.request.CollectionWriteRequest;
 import com.ebs.biocrop.dto.request.CollectionPatchRequest;
 import com.ebs.biocrop.dto.response.CollectionResponse;
@@ -37,12 +40,14 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     private final ProductCollectionRepository collections;
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
+    private final WebSocketService webSocketService;
 
     public ProductCollectionServiceImpl(ProductCollectionRepository collections, MongoTemplate mongoTemplate,
-                                        RedisJsonCache redisCache) {
+                                        RedisJsonCache redisCache, WebSocketService webSocketService) {
         this.collections = collections;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -188,6 +193,7 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         removeProductAssignments(requested);
         redisCache.invalidateRegion("public-collections");
         redisCache.invalidateRegion("public-products");
+        broadcastCollectionUpdate(collection, response(collection, false));
         return List.copyOf(requested);
     }
 
@@ -273,7 +279,9 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         try {
             ProductCollection saved = collections.save(collection);
             redisCache.invalidateRegion("public-collections");
-            return response(saved, false);
+            CollectionResponse res = response(saved, false);
+            broadcastCollectionUpdate(saved, res);
+            return res;
         } catch (DuplicateKeyException duplicate) {
             throw new AppException("A collection with this slug already exists", HttpStatus.CONFLICT);
         }
@@ -328,4 +336,19 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     }
 
     private AppException badRequest(String message) { return new AppException(message, HttpStatus.BAD_REQUEST); }
+
+    private void broadcastCollectionUpdate(ProductCollection collection, CollectionResponse res) {
+        if (collection == null || collection.getId() == null) return;
+        Map<String, Object> payload = Map.of(
+                "collectionId", collection.getId(),
+                "title", collection.getName() != null ? collection.getName() : "",
+                "productCount", res != null && res.productCount() != null ? res.productCount() : 0
+        );
+        webSocketService.broadcast("collections:update", payload);
+    }
+
+    private void broadcastCollectionDelete(String collectionId) {
+        if (collectionId == null || collectionId.isBlank()) return;
+        webSocketService.broadcast("collections:delete", Map.of("collectionId", collectionId));
+    }
 }

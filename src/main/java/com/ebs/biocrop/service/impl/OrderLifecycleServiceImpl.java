@@ -1,5 +1,8 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+import java.util.Map;
+
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.OrderStatusEvent;
@@ -12,6 +15,7 @@ import com.ebs.biocrop.service.RedisJsonCache;
 import com.mongodb.client.result.UpdateResult;
 import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
@@ -31,11 +35,14 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
     private final OrderRepository orders;
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
+    private final WebSocketService webSocketService;
 
-    public OrderLifecycleServiceImpl(OrderRepository orders, MongoTemplate mongoTemplate, RedisJsonCache redisCache) {
+    public OrderLifecycleServiceImpl(OrderRepository orders, MongoTemplate mongoTemplate, RedisJsonCache redisCache,
+                                    WebSocketService webSocketService) {
         this.orders = orders;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -87,7 +94,9 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         event.setNote(note == null || note.isBlank() ? null : note.trim());
         history.add(event);
         order.setStatusHistory(history);
-        return orders.save(order);
+        Order saved = orders.save(order);
+        broadcastStatusChange(saved.getId(), current.name(), requestedStatus.name());
+        return saved;
     }
 
     private boolean isAllowedTransition(OrderStatus current, OrderStatus next) {
@@ -146,6 +155,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 .thenComparing(item -> item.getVariantId() == null ? "" : item.getVariantId()));
         for (OrderItem item : orderedItems) releaseStock(item);
 
+        String previousStatus = order.getOrderStatus();
         LocalDateTime cancelledAt = LocalDateTime.now();
         order.setOrderStatus(OrderStatus.CANCELED.name());
         order.setCancelledAt(cancelledAt);
@@ -162,6 +172,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.setStatusHistory(history);
         Order saved = orders.save(order);
         redisCache.invalidateRegionAfterCommit("public-products");
+        broadcastStatusChange(saved.getId(), previousStatus, OrderStatus.CANCELED.name());
         return saved;
     }
 
@@ -174,9 +185,23 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         String variantId = new ObjectId(item.getVariantId()).toHexString();
         Query variantQuery = Query.query(Criteria.where("_id").is(productId)
                 .and("variants").elemMatch(Criteria.where("_id").is(variantId)));
-        UpdateResult result = mongoTemplate.updateFirst(variantQuery,
-                new Update().inc("variants.$.stock", item.getQuantity()), com.ebs.biocrop.entity.Product.class);
-        if (result.getModifiedCount() != 1) {
+        com.ebs.biocrop.entity.Product restoredProduct = mongoTemplate.findAndModify(
+                variantQuery,
+                new Update().inc("variants.$.stock", item.getQuantity()),
+                FindAndModifyOptions.options().returnNew(true),
+                com.ebs.biocrop.entity.Product.class);
+        if (restoredProduct != null && restoredProduct.getVariants() != null) {
+            for (com.ebs.biocrop.entity.ProductVariant v : restoredProduct.getVariants()) {
+                if (variantId.equals(v.getId())) {
+                    webSocketService.broadcast("inventory:stock_update", Map.of(
+                            "productId", item.getProductId(),
+                            "variantId", variantId,
+                            "stock", v.getStock() != null ? v.getStock() : 0
+                    ));
+                    break;
+                }
+            }
+        } else {
             boolean productStillExists = mongoTemplate.exists(
                     Query.query(Criteria.where("_id").is(productId)), com.ebs.biocrop.entity.Product.class);
             boolean variantStillExists = productStillExists && mongoTemplate.exists(
@@ -190,5 +215,15 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                         item.getId(), item.getVariantId(), item.getProductId());
             }
         }
+    }
+
+    private void broadcastStatusChange(String orderId, String oldStatus, String newStatus) {
+        if (orderId == null) return;
+        Map<String, Object> payload = Map.of(
+                "orderId", orderId,
+                "oldStatus", oldStatus != null ? oldStatus : "",
+                "newStatus", newStatus != null ? newStatus : ""
+        );
+        webSocketService.broadcast("orders:status_change", payload);
     }
 }

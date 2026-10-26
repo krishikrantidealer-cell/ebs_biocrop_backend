@@ -1,5 +1,7 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
 import com.ebs.biocrop.dto.response.OrderResponse;
@@ -17,6 +19,7 @@ import com.ebs.biocrop.service.RedisJsonCache;
 import com.mongodb.client.result.UpdateResult;
 import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
@@ -47,11 +50,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final OrderNumberGenerator orderNumbers;
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
+    private final WebSocketService webSocketService;
 
     public OrderPlacementServiceImpl(CartRepository carts, ProductVariantLookup variantLookup,
                                      UserRepository users, OrderRepository orders,
                                      OrderNumberGenerator orderNumbers, MongoTemplate mongoTemplate,
-                                     RedisJsonCache redisCache) {
+                                     RedisJsonCache redisCache, WebSocketService webSocketService) {
         this.carts = carts;
         this.variantLookup = variantLookup;
         this.users = users;
@@ -59,6 +63,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         this.orderNumbers = orderNumbers;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -208,6 +213,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         List<Order> saved = orders.saveAll(created);
         carts.delete(cart);
         redisCache.invalidateRegionAfterCommit("public-products");
+        for (Order orderItem : saved) {
+            webSocketService.broadcast("orders:new", orderItem);
+        }
         return new PlacedOrdersResponse(checkoutGroupId, saved.stream()
                 .map(order -> adminOverride ? OrderResponse.forAdmin(order) : OrderResponse.forCustomer(order))
                 .toList());
@@ -241,10 +249,25 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         Query stockQuery = Query.query(Criteria.where("_id").is(new ObjectId(line.productId))
                 .and("variants").elemMatch(Criteria.where("_id").is(line.variantId)
                         .and("stock").gte(line.quantity)));
-        UpdateResult result = mongoTemplate.updateFirst(stockQuery,
-                new Update().inc("variants.$.stock", -line.quantity), Product.class);
-        if (result.getModifiedCount() != 1) {
+        Product updatedProduct = mongoTemplate.findAndModify(
+                stockQuery,
+                new Update().inc("variants.$.stock", -line.quantity),
+                FindAndModifyOptions.options().returnNew(true),
+                Product.class);
+        if (updatedProduct == null) {
             throw new AppException("Insufficient stock for product '" + line.title + "'", HttpStatus.CONFLICT);
+        }
+        if (updatedProduct.getVariants() != null) {
+            for (ProductVariant v : updatedProduct.getVariants()) {
+                if (line.variantId.equals(v.getId())) {
+                    webSocketService.broadcast("inventory:stock_update", Map.of(
+                            "productId", line.productId,
+                            "variantId", line.variantId,
+                            "stock", v.getStock() != null ? v.getStock() : 0
+                    ));
+                    break;
+                }
+            }
         }
     }
 

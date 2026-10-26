@@ -1,5 +1,7 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
@@ -60,6 +62,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final SellerProductService sellerProducts;
     private final MongoTemplate mongoTemplate;
     private final CartService cartService;
+    private final WebSocketService webSocketService;
 
     public AdminProductServiceImpl(
             ProductRepository products,
@@ -67,7 +70,8 @@ public class AdminProductServiceImpl implements AdminProductService {
             CategoryRepository categories,
             GcsImageStorageService imageStorage,
             ProductImageVariantService imageVariants,
-            RedisJsonCache redisCache, SellerProductService sellerProducts, MongoTemplate mongoTemplate, CartService cartService) {
+            RedisJsonCache redisCache, SellerProductService sellerProducts, MongoTemplate mongoTemplate, CartService cartService,
+            WebSocketService webSocketService) {
         this.products = products;
         this.collections = collections;
         this.categories = categories;
@@ -77,6 +81,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         this.sellerProducts = sellerProducts;
         this.mongoTemplate = mongoTemplate;
         this.cartService = cartService;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -171,7 +176,15 @@ public class AdminProductServiceImpl implements AdminProductService {
         replacement.setDisplayOrder(existing.getDisplayOrder());
         replacement.setIsDefault(existing.getIsDefault());
         replaceVariant(product, existing, replacement);
-        return validateAndSaveVariantChange(product);
+        Product saved = validateAndSaveVariantChange(product);
+        if (replacement.getStock() != null) {
+            webSocketService.broadcast("inventory:stock_update", Map.of(
+                    "productId", productId,
+                    "variantId", variantId,
+                    "stock", replacement.getStock()
+            ));
+        }
+        return saved;
     }
 
     @Override public Product patchVariant(String productId, String variantId, AdminProductVariantPatchRequest patch) {
@@ -196,7 +209,15 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (patch.getDiscountPercentage()!=null) updated.setDiscountPercentage(patch.getDiscountPercentage());
         if (patch.getStock()!=null) updated.setStock(patch.getStock());
         replaceVariant(product, current, updated);
-        return validateAndSaveVariantChange(product);
+        Product saved = validateAndSaveVariantChange(product);
+        if (patch.getStock() != null) {
+            webSocketService.broadcast("inventory:stock_update", Map.of(
+                    "productId", productId,
+                    "variantId", variantId,
+                    "stock", updated.getStock() != null ? updated.getStock() : 0
+            ));
+        }
+        return saved;
     }
 
     @Override public Product deleteVariant(String productId, String variantId) {
@@ -286,6 +307,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         removeWishlistReferences(variantIds);
         products.delete(product);
         invalidatePublicCatalog();
+        webSocketService.broadcast("products:refresh", Map.of("message", "Catalog invalidated", "timestamp", java.time.Instant.now().toString()));
     }
 
     private void removeWishlistReferences(List<String> variantIds) {
@@ -603,6 +625,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
         }
         invalidatePublicCatalog();
+        webSocketService.broadcast("products:update", saved);
         return saved;
     }
 

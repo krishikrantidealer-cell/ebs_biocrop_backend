@@ -1,5 +1,7 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.SellerProductWriteRequest;
 import com.ebs.biocrop.entity.Category;
@@ -37,14 +39,17 @@ public class SellerProductServiceImpl implements SellerProductService {
     private final CategoryRepository categories;
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
+    private final WebSocketService webSocketService;
 
     public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories,
                                     MongoTemplate mongoTemplate,
-                                    RedisJsonCache redisCache) {
+                                    RedisJsonCache redisCache,
+                                    WebSocketService webSocketService) {
         this.products = products;
         this.categories = categories;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -104,6 +109,7 @@ public class SellerProductServiceImpl implements SellerProductService {
             Product saved = products.save(product);
             redisCache.invalidateRegion("public-products");
             redisCache.invalidateRegion("public-collections");
+            webSocketService.broadcast("products:update", saved);
             return saved;
         } catch (DuplicateKeyException exception) {
             throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
