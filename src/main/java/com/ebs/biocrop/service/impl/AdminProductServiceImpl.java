@@ -279,7 +279,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product p=findProduct(id);
         if (Boolean.TRUE.equals(p.getIsDeleted())) { invalidatePublicCatalog(); return p; }
         p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false); p.setIsDeleted(true);
-        p.setDeletedAt(LocalDateTime.now()); p.setUpdatedAt(LocalDateTime.now()); return saveAndInvalidatePublicCatalog(p);
+        p.setDeletedAt(LocalDateTime.now()); p.setUpdatedAt(LocalDateTime.now());
+        Product saved = saveAndInvalidatePublicCatalog(p);
+        webSocketService.broadcast("products:delete", Map.of(
+                "productId", id,
+                "isPermanent", false
+        ));
+        return saved;
     }
 
     @Override public Product restore(String id) {
@@ -307,6 +313,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         removeWishlistReferences(variantIds);
         products.delete(product);
         invalidatePublicCatalog();
+        webSocketService.broadcast("products:delete", Map.of(
+                "productId", id,
+                "isPermanent", true
+        ));
         webSocketService.broadcast("products:refresh", Map.of("message", "Catalog invalidated", "timestamp", java.time.Instant.now().toString()));
     }
 
@@ -359,7 +369,15 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setIsAvailable(approved);
         if (!approved) product.setIsFeatured(false);
         product.setUpdatedAt(LocalDateTime.now());
-        return saveAndInvalidatePublicCatalog(product);
+        Product saved = saveAndInvalidatePublicCatalog(product);
+        if (saved.getSellerId() != null && !saved.getSellerId().isBlank()) {
+            webSocketService.sendToUser(saved.getSellerId(), "products:review_status", Map.of(
+                    "productId", saved.getId(),
+                    "title", saved.getTitle() != null ? saved.getTitle() : "",
+                    "status", approved ? "APPROVED" : "REJECTED"
+            ));
+        }
+        return saved;
     }
 
     private void validatePublishReady(Product product) {

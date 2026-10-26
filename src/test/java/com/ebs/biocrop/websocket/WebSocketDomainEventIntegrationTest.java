@@ -19,6 +19,14 @@ import com.ebs.biocrop.service.SellerProductService;
 import com.ebs.biocrop.service.impl.AdminProductServiceImpl;
 import com.ebs.biocrop.service.impl.CategoryServiceImpl;
 import com.ebs.biocrop.service.impl.OrderLifecycleServiceImpl;
+import com.ebs.biocrop.entity.Cart;
+import com.ebs.biocrop.entity.User;
+import com.ebs.biocrop.entity.enums.UserRole;
+import com.ebs.biocrop.repository.CartRepository;
+import com.ebs.biocrop.repository.ProductVariantLookup;
+import com.ebs.biocrop.repository.UserRepository;
+import com.ebs.biocrop.service.impl.AdminUserServiceImpl;
+import com.ebs.biocrop.service.impl.CartServiceImpl;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,6 +79,15 @@ class WebSocketDomainEventIntegrationTest {
 
     @Mock
     private CartService cartService;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private CartRepository cartRepository;
+
+    @Mock
+    private ProductVariantLookup productVariantLookup;
 
     @Test
     void categoryCreate_shouldBroadcastCategoriesUpdateEvent() {
@@ -175,5 +192,146 @@ class WebSocketDomainEventIntegrationTest {
         assertEquals(productId, data.get("productId"));
         assertEquals(variantId, data.get("variantId"));
         assertEquals(45, data.get("stock"));
+    }
+
+    @Test
+    void productSoftDelete_shouldBroadcastProductsDeleteEvent() {
+        AdminProductServiceImpl adminProductService = new AdminProductServiceImpl(
+                productRepository, collectionRepository, categoryRepository,
+                imageStorage, imageValidator, redisCache, sellerProductService,
+                mongoTemplate, cartService, webSocketService
+        );
+
+        String productId = new ObjectId().toHexString();
+        Product product = new Product();
+        product.setId(productId);
+        product.setIsDeleted(false);
+
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminProductService.softDelete(productId);
+
+        ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(webSocketService, atLeastOnce()).broadcast(eventCaptor.capture(), payloadCaptor.capture());
+
+        List<String> events = eventCaptor.getAllValues();
+        assertEquals(true, events.contains("products:delete"));
+
+        int deleteIndex = events.indexOf("products:delete");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) payloadCaptor.getAllValues().get(deleteIndex);
+        assertEquals(productId, data.get("productId"));
+        assertEquals(false, data.get("isPermanent"));
+    }
+
+    @Test
+    void productReviewStatus_shouldNotifySeller() {
+        AdminProductServiceImpl adminProductService = new AdminProductServiceImpl(
+                productRepository, collectionRepository, categoryRepository,
+                imageStorage, imageValidator, redisCache, sellerProductService,
+                mongoTemplate, cartService, webSocketService
+        );
+
+        String productId = new ObjectId().toHexString();
+        String sellerId = "seller-987";
+        Product product = new Product();
+        product.setId(productId);
+        product.setSellerId(sellerId);
+        product.setTitle("Bio Fertilizer");
+        product.setIsDeleted(false);
+
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminProductService.review(productId, false);
+
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(webSocketService).sendToUser(userCaptor.capture(), eventCaptor.capture(), payloadCaptor.capture());
+
+        assertEquals(sellerId, userCaptor.getValue());
+        assertEquals("products:review_status", eventCaptor.getValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals(productId, data.get("productId"));
+        assertEquals("REJECTED", data.get("status"));
+        assertEquals("Bio Fertilizer", data.get("title"));
+    }
+
+    @Test
+    void adminUserBlock_shouldSendAuthSessionRevokedEvent() {
+        AdminUserServiceImpl adminUserService = new AdminUserServiceImpl(
+                mongoTemplate, userRepository, redisCache, webSocketService
+        );
+
+        String userId = "user-abc-123";
+        User user = new User();
+        user.setId(userId);
+        user.setIsBlocked(false);
+        user.setRole(UserRole.ROLE_CUSTOMER);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        adminUserService.setBlockedStatus(userId, true);
+
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(webSocketService).sendToUser(userCaptor.capture(), eventCaptor.capture(), payloadCaptor.capture());
+
+        assertEquals(userId, userCaptor.getValue());
+        assertEquals("auth:session_revoked", eventCaptor.getValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals(userId, data.get("userId"));
+        assertEquals("Account has been blocked by administrator", data.get("reason"));
+    }
+
+    @Test
+    void cartClear_shouldSendCartUpdateToUser() {
+        CartServiceImpl cartService = new CartServiceImpl(
+                cartRepository, productVariantLookup, userRepository, webSocketService
+        );
+
+        String phoneNumber = "9876543210";
+        String userId = "user-cart-777";
+        User user = new User();
+        user.setId(userId);
+        user.setPhoneNumber(phoneNumber);
+        user.setIsDeleted(false);
+
+        Cart cart = new Cart();
+        cart.setId("cart-111");
+        cart.setUser(userId);
+        cart.setItems(new ArrayList<>());
+        cart.setTotalAmount(0.0);
+        cart.setFinalAmount(0.0);
+
+        when(userRepository.findByPhoneNumber(phoneNumber)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUser(userId)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        cartService.clearCart(phoneNumber);
+
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(webSocketService).sendToUser(userCaptor.capture(), eventCaptor.capture(), payloadCaptor.capture());
+
+        assertEquals(userId, userCaptor.getValue());
+        assertEquals("cart:update", eventCaptor.getValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
+        assertEquals("cart-111", data.get("cartId"));
+        assertEquals(0, data.get("totalItems"));
+        assertEquals(0, data.get("totalQuantity"));
     }
 }

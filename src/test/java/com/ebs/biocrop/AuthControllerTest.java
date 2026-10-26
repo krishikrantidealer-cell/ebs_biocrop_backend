@@ -88,7 +88,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210")
+    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void updateProfileWithStructuredAddressShouldSucceed() throws Exception {
         com.ebs.biocrop.entity.Address address = new com.ebs.biocrop.entity.Address("Flat 101", "Indore", "Madhya Pradesh", "452001");
         address.setAddress2("MG Road");
@@ -124,7 +124,7 @@ class AuthControllerTest {
     }
 
     @Test
-    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210")
+    @org.springframework.security.test.context.support.WithMockUser(username = "9876543210", roles = "CUSTOMER")
     void deleteProfileShouldSoftDeleteAndReturnIsDeleteTrue() throws Exception {
         com.ebs.biocrop.entity.Address address = new com.ebs.biocrop.entity.Address("Flat 101", "Indore", "Madhya Pradesh", "452001");
         address.setAddress2("MG Road");

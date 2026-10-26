@@ -16,6 +16,7 @@ import com.ebs.biocrop.repository.CartRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.service.CartService;
+import com.ebs.biocrop.websocket.WebSocketService;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -37,13 +39,16 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final ProductVariantLookup productVariantLookup;
     private final UserRepository userRepository;
+    private final WebSocketService webSocketService;
 
     public CartServiceImpl(CartRepository cartRepository,
                            ProductVariantLookup productVariantLookup,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           WebSocketService webSocketService) {
         this.cartRepository = cartRepository;
         this.productVariantLookup = productVariantLookup;
         this.userRepository = userRepository;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -124,6 +129,7 @@ public class CartServiceImpl implements CartService {
 
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
+        broadcastCartUpdate(cart);
         return CartResponse.fromEntity(cart);
     }
 
@@ -168,6 +174,7 @@ public class CartServiceImpl implements CartService {
 
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
+        broadcastCartUpdate(cart);
         return CartResponse.fromEntity(cart);
     }
 
@@ -184,6 +191,7 @@ public class CartServiceImpl implements CartService {
         log.info("Removed item [{}] from cart for user [{}]", normalizedVariantId, cart.getUser());
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
+        broadcastCartUpdate(cart);
         return CartResponse.fromEntity(cart);
     }
 
@@ -193,6 +201,7 @@ public class CartServiceImpl implements CartService {
         cart.getItems().clear();
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
+        broadcastCartUpdate(cart);
         log.info("Cleared all items from cart for user [{}]", cart.getUser());
         return CartResponse.fromEntity(cart);
     }
@@ -243,7 +252,28 @@ public class CartServiceImpl implements CartService {
 
         recalculateTotals(cart);
         cart = cartRepository.save(cart);
+        broadcastCartUpdate(cart);
         return CartResponse.fromEntity(cart);
+    }
+
+    private void broadcastCartUpdate(Cart cart) {
+        if (cart == null || cart.getUser() == null || cart.getUser().isBlank()) {
+            return;
+        }
+        int totalItems = cart.getItems() != null ? cart.getItems().size() : 0;
+        int totalQty = cart.getItems() != null ? cart.getItems().stream().mapToInt(CartItem::getQuantity).sum() : 0;
+        double totalAmount = cart.getTotalAmount() != null ? cart.getTotalAmount() : 0.0;
+        double discountAmount = cart.getDiscountAmount() != null ? cart.getDiscountAmount() : 0.0;
+        double finalAmount = cart.getFinalAmount() != null ? cart.getFinalAmount() : 0.0;
+
+        webSocketService.sendToUser(cart.getUser(), "cart:update", Map.of(
+                "cartId", cart.getId() != null ? cart.getId() : "",
+                "totalItems", totalItems,
+                "totalQuantity", totalQty,
+                "totalAmount", totalAmount,
+                "discountAmount", discountAmount,
+                "finalAmount", finalAmount
+        ));
     }
 
     private Cart getOrCreateCart(String phoneNumber) {
@@ -393,6 +423,7 @@ public class CartServiceImpl implements CartService {
             cart.getItems().removeIf(item -> productId.equals(item.getProductId()));
             recalculateTotals(cart);
             cartRepository.save(cart);
+            broadcastCartUpdate(cart);
         }
     }
 
@@ -403,6 +434,7 @@ public class CartServiceImpl implements CartService {
             if (cart.getItems() != null) cart.getItems().removeIf(item -> variantId.equals(item.getVariantId()));
             recalculateTotals(cart);
             cartRepository.save(cart);
+            broadcastCartUpdate(cart);
         }
     }
 

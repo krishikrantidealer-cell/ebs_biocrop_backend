@@ -1,5 +1,8 @@
 package com.ebs.biocrop.service.impl;
 
+import com.ebs.biocrop.websocket.WebSocketService;
+import java.util.Map;
+
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
 import com.ebs.biocrop.entity.Cart;
@@ -37,14 +40,17 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final MongoTemplate mongoTemplate;
     private final UserRepository users;
     private final RedisJsonCache redisCache;
+    private final WebSocketService webSocketService;
 
     public AdminUserServiceImpl(
             MongoTemplate mongoTemplate,
             UserRepository users,
-            RedisJsonCache redisCache) {
+            RedisJsonCache redisCache,
+            WebSocketService webSocketService) {
         this.mongoTemplate = mongoTemplate;
         this.users = users;
         this.redisCache = redisCache;
+        this.webSocketService = webSocketService;
     }
 
     @Override
@@ -96,7 +102,14 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         user.setIsBlocked(blocked);
         user.setUpdatedAt(LocalDateTime.now());
-        return AdminUserResponse.from(users.save(user));
+        User saved = users.save(user);
+        if (blocked) {
+            webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
+                    "userId", id,
+                    "reason", "Account has been blocked by administrator"
+            ));
+        }
+        return AdminUserResponse.from(saved);
     }
 
     @Override
@@ -114,7 +127,14 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         user.setIsDeleted(deleted);
         user.setUpdatedAt(LocalDateTime.now());
-        return AdminUserResponse.from(users.save(user));
+        User saved = users.save(user);
+        if (deleted) {
+            webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
+                    "userId", id,
+                    "reason", "Account has been deactivated"
+            ));
+        }
+        return AdminUserResponse.from(saved);
     }
 
     @Override
@@ -137,6 +157,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setRole(role);
         user.setUpdatedAt(LocalDateTime.now());
         users.save(user);
+        webSocketService.sendToUser(id, "users:role_updated", Map.of(
+                "userId", id,
+                "newRole", role.name()
+        ));
         return role;
     }
 
@@ -176,6 +200,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
 
         users.delete(user);
+        webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
+                "userId", id,
+                "reason", "Account has been permanently deleted"
+        ));
     }
 
     private void addRoleFilter(List<Criteria> filters, String role) {
