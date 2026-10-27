@@ -68,7 +68,9 @@ public class Product {
     private Boolean isFeatured;
     private List<ProductVariant> variants = new ArrayList<>();
     @Field(write = Field.Write.ALWAYS)
-    private Double ratings;
+    private Double averageRating;
+    @Field(write = Field.Write.ALWAYS)
+    private Long totalReviews = 0L;
     @Field(write = Field.Write.ALWAYS)
     private String refundPolicy;
     @Field(write = Field.Write.ALWAYS)
@@ -144,8 +146,10 @@ public class Product {
     public void setIsFeatured(Boolean featured) { isFeatured = featured; }
     public List<ProductVariant> getVariants() { return variants; }
     public void setVariants(List<ProductVariant> variants) { this.variants = variants != null ? variants : new ArrayList<>(); }
-    public Double getRatings() { return ratings; }
-    public void setRatings(Double ratings) { this.ratings = ratings; }
+    public Double getAverageRating() { return averageRating; }
+    public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
+    public Long getTotalReviews() { return totalReviews; }
+    public void setTotalReviews(Long totalReviews) { this.totalReviews = totalReviews != null ? totalReviews : 0L; }
     public String getRefundPolicy() { return refundPolicy; }
     public void setRefundPolicy(String refundPolicy) { this.refundPolicy = refundPolicy; }
     public Double getProductWeight() { return productWeight; }

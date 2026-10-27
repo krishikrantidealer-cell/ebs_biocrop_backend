@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.mongodb.repository.Query;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface ProductRepository extends MongoRepository<Product, String>, ProductCatalogQueryRepository {
@@ -15,6 +16,7 @@ public interface ProductRepository extends MongoRepository<Product, String>, Pro
     Page<Product> findActiveBySellerId(String sellerId, Pageable pageable);
     boolean existsBySkuIgnoreCase(String sku);
     Optional<Product> findByIdAndSellerId(String id, String sellerId);
+    List<Product> findBySellerId(String sellerId);
 
     Page<Product> findByStatusIgnoreCase(String status, Pageable pageable);
 }

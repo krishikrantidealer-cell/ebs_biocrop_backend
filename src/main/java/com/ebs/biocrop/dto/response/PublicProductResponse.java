@@ -34,7 +34,8 @@ public record PublicProductResponse(
         Boolean isAvailable,
         Boolean isFeatured,
         List<PublicVariant> variants,
-        Double ratings,
+        Double averageRating,
+        Long totalReviews,
         String refundPolicy,
         Double productWeight,
         String productWeightUnit) {
@@ -64,7 +65,8 @@ public record PublicProductResponse(
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
                 product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(PublicVariant::from).toList(),
-                product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit());
+                product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,
+                product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit());
     }
 
     public record ProductImageUrls(

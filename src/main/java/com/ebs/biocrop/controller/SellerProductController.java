@@ -14,10 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 
 @RestController
 @RequestMapping("/api/v1/seller/products")
@@ -31,7 +31,7 @@ public class SellerProductController {
         this.sellerProducts = sellerProducts;
     }
 
-    // List the authenticated seller's product listings.
+    // List the authenticated seller's product listings (Read-Only)
     @GetMapping
     @Operation(summary = "List the authenticated seller's product listings")
     public ResponseEntity<ApiResponse<PagedResponse<ProductManagementResponse>>> list(
@@ -43,4 +43,13 @@ public class SellerProductController {
                 PagedResponse.from(result, ProductManagementResponse::from)));
     }
 
+    // Get a specific product listing by ID for the authenticated seller (Read-Only)
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a product listing by ID for the authenticated seller")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> get(
+            @AuthenticationPrincipal CustomUserDetails seller,
+            @PathVariable String id) {
+        Product product = sellerProducts.get(seller.getId(), id);
+        return ResponseEntity.ok(ApiResponse.ok("Seller listing retrieved", ProductManagementResponse.from(product)));
+    }
 }

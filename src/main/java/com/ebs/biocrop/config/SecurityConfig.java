@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/admin/reviews/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/blogs/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/orders/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
@@ -76,6 +77,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                         .requestMatchers("/api/v1/cart/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/wishlist/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/v1/products/*/reviews/eligibility", "/api/v1/products/*/reviews/my-review").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/products/*/reviews").hasRole("CUSTOMER")
+
+
                         .requestMatchers("/api/v1/auth/password/setup").hasAnyRole("ADMIN", "SELLER")
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/products/**",

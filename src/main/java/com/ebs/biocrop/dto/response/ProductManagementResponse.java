@@ -16,7 +16,7 @@ public record ProductManagementResponse(
         List<String> targetDiseases, String dosage, String applicationMethod, String categoryId,
         List<String> assignedCollections, ProductDimensions dimensions,
         Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
-        Double ratings, String refundPolicy, Double productWeight, String productWeightUnit,
+        Double averageRating, Long totalReviews, String refundPolicy, Double productWeight, String productWeightUnit,
         String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
 
     public static ProductManagementResponse from(Product product) {
@@ -28,7 +28,8 @@ public record ProductManagementResponse(
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
                 product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
-                product.getRatings(), product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
+                product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,
+                product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
                 product.getStatus(), product.getIsDeleted(), product.getDeletedAt(), product.getCreatedAt(), product.getUpdatedAt());
     }
 

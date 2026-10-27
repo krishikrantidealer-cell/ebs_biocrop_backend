@@ -7,6 +7,7 @@ import com.ebs.biocrop.dto.request.SellerProductWriteRequest;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductDimensions;
+import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
@@ -66,7 +67,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
         listing.setIsFeatured(false);
-        listing.setRatings(null);
+        listing.setAverageRating(null);
         listing.setCreatedAt(LocalDateTime.now());
         listing.setUpdatedAt(listing.getCreatedAt());
         return save(listing);
@@ -76,6 +77,16 @@ public class SellerProductServiceImpl implements SellerProductService {
     public Page<Product> list(String sellerId, int page, int size) {
         return products.findActiveBySellerId(sellerId,
                 PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "updatedAt")));
+    }
+
+    @Override
+    public Product get(String sellerId, String id) {
+        Product product = products.findByIdAndSellerId(id, sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seller product", "id", id));
+        if (Boolean.TRUE.equals(product.getIsDeleted())) {
+            throw new ResourceNotFoundException("Seller product", "id", id);
+        }
+        return product;
     }
 
     @Override
@@ -97,7 +108,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
         listing.setIsFeatured(false);
-        listing.setRatings(current.getRatings());
+        listing.setAverageRating(current.getAverageRating());
         listing.setCreatedAt(current.getCreatedAt());
         listing.setUpdatedAt(LocalDateTime.now());
         listing.setVersion(current.getVersion());
