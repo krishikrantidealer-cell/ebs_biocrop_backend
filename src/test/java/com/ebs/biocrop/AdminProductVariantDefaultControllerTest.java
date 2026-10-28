@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -75,6 +76,9 @@ class AdminProductVariantDefaultControllerTest {
         Product product = new Product();
         product.setId(productId);
         product.setSku("PROD-101");
+        String sellerId = new ObjectId().toHexString();
+        product.setSellerId(sellerId);
+        product.setSellerName("Outdated Snapshot");
         ProductVariant variant = new ProductVariant();
         variant.setId(variantId);
         variant.setLabel("1 Ltr");
@@ -83,6 +87,11 @@ class AdminProductVariantDefaultControllerTest {
 
         when(adminProductService.setDefaultVariant(eq(productId), eq(variantId), eq(true)))
                 .thenReturn(product);
+        User seller = new User();
+        seller.setId(sellerId);
+        seller.setRole(UserRole.ROLE_SELLER);
+        seller.setShopName("Current Live Seller Shop");
+        when(userRepository.findAllById(any())).thenReturn(List.of(seller));
 
         ProductVariantDefaultRequest req = new ProductVariantDefaultRequest(true);
 
@@ -94,6 +103,7 @@ class AdminProductVariantDefaultControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Variant marked as default"))
                 .andExpect(jsonPath("$.data.id").value(productId))
+                .andExpect(jsonPath("$.data.sellerName").value("Current Live Seller Shop"))
                 .andExpect(jsonPath("$.data.variants[0].isDefault").value(true));
     }
 

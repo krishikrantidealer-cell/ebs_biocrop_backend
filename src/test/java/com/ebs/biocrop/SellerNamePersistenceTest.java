@@ -24,11 +24,11 @@ class SellerNamePersistenceTest {
     }
 
     @Test
-    void productReadsLegacyVendorButWritesSellerName() throws Exception {
+    void productDoesNotMapVendorAndWritesOnlySellerName() throws Exception {
         MappingMongoConverter converter = converter();
-        Product legacy = converter.read(Product.class,
-                new Document("_id", "product-id").append("vendor", "Legacy Shop"));
-        assertEquals("Legacy Shop", legacy.getSellerName());
+        Product productWithObsoleteField = converter.read(Product.class,
+                new Document("_id", "product-id").append("vendor", "Obsolete Shop"));
+        assertNull(productWithObsoleteField.getSellerName());
 
         Product current = new Product();
         current.setSellerName("Current Shop");
@@ -39,11 +39,11 @@ class SellerNamePersistenceTest {
     }
 
     @Test
-    void historicalOrderItemReadsLegacyVendorButWritesSellerName() throws Exception {
+    void orderItemDoesNotMapVendorAndWritesOnlySellerName() throws Exception {
         MappingMongoConverter converter = converter();
-        OrderItem legacy = converter.read(OrderItem.class,
-                new Document("_id", "item-id").append("vendor", "Historic Shop"));
-        assertEquals("Historic Shop", legacy.getSellerName());
+        OrderItem itemWithObsoleteField = converter.read(OrderItem.class,
+                new Document("_id", "item-id").append("vendor", "Obsolete Shop"));
+        assertNull(itemWithObsoleteField.getSellerName());
 
         OrderItem current = new OrderItem();
         current.setSellerName("Historic Shop");

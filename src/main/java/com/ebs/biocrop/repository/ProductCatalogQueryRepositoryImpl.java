@@ -42,7 +42,6 @@ public class ProductCatalogQueryRepositoryImpl implements ProductCatalogQueryRep
                 Criteria.where("description").regex(safePattern, "i"),
                 Criteria.where("technicalName").regex(safePattern, "i"),
                 Criteria.where("sellerName").regex(safePattern, "i"),
-                Criteria.where("vendor").regex(safePattern, "i"),
                 Criteria.where("technicalContent").regex(safePattern, "i"));
         return findPage(new Criteria().andOperator(publicCriteria(), text), pageable);
     }

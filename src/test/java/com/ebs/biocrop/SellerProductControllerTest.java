@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -107,6 +108,24 @@ class SellerProductControllerTest {
                 .andExpect(jsonPath("$.message").value("Seller listing retrieved"))
                 .andExpect(jsonPath("$.data.id").value("prod123"))
                 .andExpect(jsonPath("$.data.title").value("Bio Crop Fertilizer"));
+    }
+
+    @Test
+    void productResponsesUseCurrentSellerShopNameInsteadOfStoredSnapshot() throws Exception {
+        String sellerId = "seller123";
+        User profile = new User();
+        profile.setId(sellerId);
+        profile.setRole(UserRole.ROLE_SELLER);
+        profile.setShopName("Current Live Shop");
+        Product product = createSampleProduct(sellerId, "prod-live-name");
+        product.setSellerName("Outdated Product Snapshot");
+        when(sellerProductService.get(sellerId, product.getId())).thenReturn(product);
+        when(userRepository.findAllById(any())).thenReturn(List.of(profile));
+
+        mockMvc.perform(get("/api/v1/seller/products/{id}", product.getId())
+                        .with(user(createMockSellerDetails(sellerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sellerName").value("Current Live Shop"));
     }
 
     @Test

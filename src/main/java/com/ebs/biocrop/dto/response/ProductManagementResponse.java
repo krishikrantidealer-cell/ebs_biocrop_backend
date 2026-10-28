@@ -19,10 +19,10 @@ public record ProductManagementResponse(
         Double averageRating, Long totalReviews, String refundPolicy, Double productWeight, String productWeightUnit,
         String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
 
-    public static ProductManagementResponse from(Product product) {
+    public static ProductManagementResponse from(Product product, String currentSellerName) {
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
                 product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getTechnicalName(),
-                product.getSellerName(), product.getDescription(), product.getImages(), product.getTechnicalContent(),
+                currentSellerName, product.getDescription(), product.getImages(), product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),

@@ -84,8 +84,23 @@ public class User {
         this();
         this.phoneNumber = phoneNumber;
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
+        if (this.role == UserRole.ROLE_ADMIN) {
+            this.isVerified = null;
+            this.isProfileComplete = true;
+            this.isBlocked = null;
+            this.isDeleted = null;
+            this.whatsappSequence = null;
+            this.productCodeSequence = null;
+            this.orderNumberSequence = null;
+        }
     }
 
+
+    public static User newAdmin(String phoneNumber, String email) {
+        User admin = new User(phoneNumber, UserRole.ROLE_ADMIN);
+        admin.setEmail(email);
+        return admin;
+    }
     // Getters and Setters
 
     public String getId() { return id; }
@@ -148,7 +163,18 @@ public class User {
     public void setAddressType(String addressType) { this.addressType = addressType; }
 
     public UserRole getRole() { return role; }
-    public void setRole(UserRole role) { this.role = role != null ? role : UserRole.ROLE_CUSTOMER; }
+    public void setRole(UserRole role) {
+        this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
+        if (this.role == UserRole.ROLE_ADMIN) {
+            isVerified = null;
+            isProfileComplete = hasCompleteProfile();
+            isBlocked = null;
+            isDeleted = null;
+            whatsappSequence = null;
+            productCodeSequence = null;
+            orderNumberSequence = null;
+        }
+    }
 
     public String getKycStatus() { return kycStatus; }
     public void setKycStatus(String kycStatus) { this.kycStatus = kycStatus; }

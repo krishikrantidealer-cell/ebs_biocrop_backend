@@ -41,10 +41,11 @@ public record PublicProductResponse(
         Double productWeight,
         String productWeightUnit) {
 
-    public static PublicProductResponse from(Product product, GcsImageStorageService imageStorage) {
+    public static PublicProductResponse from(Product product, String currentSellerName,
+                                             GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
                 product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
-                product.getSellerName(), product.getDescription(), product.getImages(),
+                currentSellerName, product.getDescription(), product.getImages(),
                 product.getProductImages() == null
                         ? List.of()
                         : product.getProductImages().stream()

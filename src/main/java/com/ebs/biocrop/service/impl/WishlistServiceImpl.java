@@ -10,6 +10,7 @@ import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.WishlistRepository;
 import com.ebs.biocrop.service.WishlistService;
+import com.ebs.biocrop.service.SellerShopNameLookup;
 import jakarta.annotation.PostConstruct;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ public class WishlistServiceImpl implements WishlistService {
     private final ProductRepository productRepository;
     private final ProductVariantLookup productVariantLookup;
     private final MongoTemplate mongoTemplate;
+    private final SellerShopNameLookup sellerNames;
     @Value("${app.database.maintenance-mode.enabled:false}")
     private boolean maintenanceMode;
 
@@ -49,11 +51,13 @@ public class WishlistServiceImpl implements WishlistService {
             WishlistRepository wishlistRepository,
             ProductRepository productRepository,
             ProductVariantLookup productVariantLookup,
-            MongoTemplate mongoTemplate) {
+            MongoTemplate mongoTemplate,
+            SellerShopNameLookup sellerNames) {
         this.wishlistRepository = wishlistRepository;
         this.productRepository = productRepository;
         this.productVariantLookup = productVariantLookup;
         this.mongoTemplate = mongoTemplate;
+        this.sellerNames = sellerNames;
     }
 
     @PostConstruct
@@ -203,6 +207,8 @@ public class WishlistServiceImpl implements WishlistService {
                 throw new AppException("A variant ID is assigned to more than one product.", HttpStatus.CONFLICT);
             }
         }
+        Map<String, String> currentSellerNames = sellerNames.findCurrentShopNames(selectionsById.values().stream()
+                .map(selection -> selection.product().getSellerId()).distinct().toList());
 
         List<WishlistResponse.Item> items = variantIds.stream()
                 .filter(id -> id != null && ObjectId.isValid(id))
@@ -212,7 +218,7 @@ public class WishlistServiceImpl implements WishlistService {
                         selection.product().getId(),
                         selection.variant().getId(),
                         selection.product().getTitle(),
-                        selection.product().getSellerName(),
+                        currentSellerNames.get(selection.product().getSellerId()),
                         selection.product().getImages() == null || selection.product().getImages().isEmpty()
                                 ? null : selection.product().getImages().getFirst(),
                         com.ebs.biocrop.dto.response.PublicProductResponse.PublicVariant.from(selection.variant())))

@@ -17,6 +17,7 @@ import com.ebs.biocrop.dto.request.ProductVariantDefaultRequest;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.AdminProductService;
 import com.ebs.biocrop.service.RateLimitGuard;
+import com.ebs.biocrop.service.SellerShopNameLookup;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
+import java.util.Map;
 import jakarta.validation.Valid;
 import java.time.Duration;
 
@@ -40,10 +42,13 @@ import java.time.Duration;
 public class AdminProductController {
     private final AdminProductService products;
     private final RateLimitGuard rateLimitGuard;
+    private final SellerShopNameLookup sellerNames;
 
-    public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard) {
+    public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
+                                  SellerShopNameLookup sellerNames) {
         this.products = products;
         this.rateLimitGuard = rateLimitGuard;
+        this.sellerNames = sellerNames;
     }
 
     // List admin-managed products
@@ -58,8 +63,11 @@ public class AdminProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, page, size);
+        Map<String, String> currentNames = sellerNames.findCurrentShopNames(result.getContent().stream()
+                .map(Product::getSellerId).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",
-                PagedResponse.from(result, ProductManagementResponse::from)));
+                PagedResponse.from(result, product -> ProductManagementResponse.from(
+                        product, currentNames.get(product.getSellerId())))));
     }
 
     // Create a new product listing for an existing seller
@@ -68,27 +76,27 @@ public class AdminProductController {
     public ResponseEntity<ApiResponse<ProductManagementResponse>> createProduct(@AuthenticationPrincipal CustomUserDetails admin,
             @Valid @RequestBody AdminProductWriteRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
-        return ResponseEntity.status(201).body(ApiResponse.ok("Product created", ProductManagementResponse.from(products.create(admin.getId(), request))));
+        return ResponseEntity.status(201).body(ApiResponse.ok("Product created", managementResponse(products.create(admin.getId(), request))));
     }
 
     // Get a product by ID, including inactive or soft-deleted products
     @GetMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> getProductById(@PathVariable String productId) {
-        return ResponseEntity.ok(ApiResponse.ok("Product retrieved", ProductManagementResponse.from(products.getById(productId))));
+        return ResponseEntity.ok(ApiResponse.ok("Product retrieved", managementResponse(products.getById(productId))));
     }
 
     // Update an existing product listing
     @PutMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> updateProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId, @Valid @RequestBody AdminProductWriteRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product updated", ProductManagementResponse.from(products.update(productId, request))));
+        return ResponseEntity.ok(ApiResponse.ok("Product updated", managementResponse(products.update(productId, request))));
     }
 
     // Partially update an existing product listing
     @PatchMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> patchProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId, @Valid @RequestBody AdminProductPatchRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product updated", ProductManagementResponse.from(products.patch(productId, request))));
+        return ResponseEntity.ok(ApiResponse.ok("Product updated", managementResponse(products.patch(productId, request))));
     }
 
     // Add a new variant to an existing product
@@ -99,7 +107,7 @@ public class AdminProductController {
             @Valid @RequestBody AdminProductVariantWriteRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.status(201).body(ApiResponse.ok("Product variant added",
-                ProductManagementResponse.from(products.addVariant(productId, request))));
+                managementResponse(products.addVariant(productId, request))));
     }
 
     // Update an existing variant of a product
@@ -110,7 +118,7 @@ public class AdminProductController {
             @Valid @RequestBody AdminProductVariantWriteRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product variant updated",
-                ProductManagementResponse.from(products.updateVariant(productId, variantId, request))));
+                managementResponse(products.updateVariant(productId, variantId, request))));
     }
 
     // Partially update an existing variant of a product
@@ -121,7 +129,7 @@ public class AdminProductController {
             @Valid @RequestBody AdminProductVariantPatchRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product variant updated",
-                ProductManagementResponse.from(products.patchVariant(productId, variantId, request))));
+                managementResponse(products.patchVariant(productId, variantId, request))));
     }
 
     // Set or unset a variant as the default for a product
@@ -136,7 +144,7 @@ public class AdminProductController {
         boolean isDefault = Boolean.TRUE.equals(request.isDefault());
         return ResponseEntity.ok(ApiResponse.ok(
                 isDefault ? "Variant marked as default" : "Variant unmarked as default",
-                ProductManagementResponse.from(products.setDefaultVariant(productId, variantId, isDefault))));
+                managementResponse(products.setDefaultVariant(productId, variantId, isDefault))));
     }
 
     // Delete an existing variant of a product
@@ -146,21 +154,21 @@ public class AdminProductController {
             @AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId, @PathVariable String variantId) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product variant removed",
-                ProductManagementResponse.from(products.deleteVariant(productId, variantId))));
+                managementResponse(products.deleteVariant(productId, variantId))));
     }
 
     // Soft-delete a product listing
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> softDeleteProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product deactivated", ProductManagementResponse.from(products.softDelete(productId))));
+        return ResponseEntity.ok(ApiResponse.ok("Product deactivated", managementResponse(products.softDelete(productId))));
     }
 
     // Restore a soft-deleted product listing for review
     @PatchMapping("/{productId}/restore")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> restoreProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product restored for review", ProductManagementResponse.from(products.restore(productId))));
+        return ResponseEntity.ok(ApiResponse.ok("Product restored for review", managementResponse(products.restore(productId))));
     }
 
     // Permanently delete a previously soft-deleted product listing
@@ -182,7 +190,7 @@ public class AdminProductController {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         boolean approved = request.approved();
         return ResponseEntity.ok(ApiResponse.ok(approved ? "Product approved" : "Product rejected",
-                ProductManagementResponse.from(products.review(productId, approved))));
+                managementResponse(products.review(productId, approved))));
     }
 
     // Set product availability (in stock or out of stock)
@@ -195,7 +203,7 @@ public class AdminProductController {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         boolean available = request.available();
         return ResponseEntity.ok(ApiResponse.ok("Product availability updated",
-                ProductManagementResponse.from(products.setAvailability(productId, available))));
+                managementResponse(products.setAvailability(productId, available))));
     }
 
 
@@ -209,7 +217,7 @@ public class AdminProductController {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         boolean featured = request.featured();
         return ResponseEntity.ok(ApiResponse.ok("Product featured status updated",
-                ProductManagementResponse.from(products.setFeatured(productId, featured))));
+                managementResponse(products.setFeatured(productId, featured))));
     }
 
     // Assign or reassign a product to one or more collections and subcollections
@@ -221,7 +229,7 @@ public class AdminProductController {
             @Valid @RequestBody ProductCollectionAssignmentRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product collections updated",
-                ProductManagementResponse.from(products.assignCollections(productId, request))));
+                managementResponse(products.assignCollections(productId, request))));
     }
 
     // Upload 1 to 6 product images in one batch
@@ -260,5 +268,11 @@ public class AdminProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.ok("Product images deleted", CountedListResponse.from(request.imageIds())));
+    }
+
+    private ProductManagementResponse managementResponse(Product product) {
+        String currentName = sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId()))
+                .get(product.getSellerId());
+        return ProductManagementResponse.from(product, currentName);
     }
 }

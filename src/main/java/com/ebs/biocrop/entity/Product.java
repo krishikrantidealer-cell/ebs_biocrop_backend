@@ -34,9 +34,6 @@ public class Product {
     @Field(write = Field.Write.ALWAYS)
     private String technicalName;
     private String sellerName;
-    /** Read compatibility for product records written before the sellerName migration. */
-    @Field("vendor")
-    private String legacyVendor;
     @Field(write = Field.Write.ALWAYS)
     private String description;
     private List<String> images = new ArrayList<>();
@@ -106,7 +103,7 @@ public class Product {
     public void setTitle(String title) { this.title = title; }
     public String getTechnicalName() { return technicalName; }
     public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
-    public String getSellerName() { return sellerName != null ? sellerName : legacyVendor; }
+    public String getSellerName() { return sellerName; }
     public void setSellerName(String sellerName) { this.sellerName = sellerName; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

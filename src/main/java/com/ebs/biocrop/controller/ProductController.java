@@ -7,6 +7,7 @@ import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.ProductCatalogService;
 import com.ebs.biocrop.service.RedisJsonCache;
+import com.ebs.biocrop.service.SellerShopNameLookup;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -29,13 +32,16 @@ public class ProductController {
     private final ProductCatalogService productCatalog;
     private final GcsImageStorageService imageStorage;
     private final RedisJsonCache redisCache;
+    private final SellerShopNameLookup sellerNames;
     private final TypeFactory typeFactory;
 
     public ProductController(ProductCatalogService productCatalog, GcsImageStorageService imageStorage,
-                             RedisJsonCache redisCache, ObjectMapper objectMapper) {
+                             RedisJsonCache redisCache, SellerShopNameLookup sellerNames,
+                             ObjectMapper objectMapper) {
         this.productCatalog = productCatalog;
         this.imageStorage = imageStorage;
         this.redisCache = redisCache;
+        this.sellerNames = sellerNames;
         this.typeFactory = objectMapper.getTypeFactory();
     }
 
@@ -55,7 +61,12 @@ public class ProductController {
     public ResponseEntity<ApiResponse<PublicProductResponse>> getProductById(@PathVariable String id) {
         PublicProductResponse response = redisCache.getOrLoad("public-products", "id=" + id,
                 typeFactory.constructType(PublicProductResponse.class), Duration.ofSeconds(30),
-                () -> PublicProductResponse.from(productCatalog.getPublic(id), imageStorage));
+                () -> {
+                    Product product = productCatalog.getPublic(id);
+                    String shopName = sellerNames.findCurrentShopNames(List.of(product.getSellerId()))
+                            .get(product.getSellerId());
+                    return PublicProductResponse.from(product, shopName, imageStorage);
+                });
         return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully", response));
     }
 
@@ -86,7 +97,14 @@ public class ProductController {
         JavaType responseType = typeFactory.constructParametricType(PagedResponse.class, PublicProductResponse.class);
         PagedResponse<PublicProductResponse> response = redisCache.getOrLoad(
                 "public-products", queryKey, responseType, Duration.ofSeconds(30),
-                () -> PagedResponse.from(loader.get(), product -> PublicProductResponse.from(product, imageStorage)));
+                () -> mapPage(loader.get()));
         return ResponseEntity.ok(ApiResponse.ok(message, response));
+    }
+
+    private PagedResponse<PublicProductResponse> mapPage(Page<Product> products) {
+        Map<String, String> currentSellerNames = sellerNames.findCurrentShopNames(products.getContent().stream()
+                .map(Product::getSellerId).distinct().toList());
+        return PagedResponse.from(products, product -> PublicProductResponse.from(
+                product, currentSellerNames.get(product.getSellerId()), imageStorage));
     }
 }

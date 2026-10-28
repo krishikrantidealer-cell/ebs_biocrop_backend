@@ -14,9 +14,6 @@ public class OrderItem {
     private String sku;
     private String title;
     private String sellerName;
-    /** Read compatibility for order snapshots created before the sellerName migration. */
-    @Field("vendor")
-    private String legacyVendor;
     private String image;
     private String variant;
     private Integer quantity;
@@ -37,7 +34,7 @@ public class OrderItem {
     public void setSku(String sku) { this.sku = sku; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public String getSellerName() { return sellerName != null ? sellerName : legacyVendor; }
+    public String getSellerName() { return sellerName; }
     public void setSellerName(String sellerName) { this.sellerName = sellerName; }
     public String getImage() { return image; }
     public void setImage(String image) { this.image = image; }

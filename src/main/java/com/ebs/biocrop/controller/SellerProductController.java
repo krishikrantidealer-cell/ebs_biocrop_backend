@@ -6,6 +6,7 @@ import com.ebs.biocrop.dto.response.ProductManagementResponse;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.SellerProductService;
+import com.ebs.biocrop.service.SellerShopNameLookup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/seller/products")
 @PreAuthorize("hasRole('SELLER')")
@@ -26,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class SellerProductController {
     private final SellerProductService sellerProducts;
+    private final SellerShopNameLookup sellerNames;
 
-    public SellerProductController(SellerProductService sellerProducts) {
+    public SellerProductController(SellerProductService sellerProducts, SellerShopNameLookup sellerNames) {
         this.sellerProducts = sellerProducts;
+        this.sellerNames = sellerNames;
     }
 
     // List the authenticated seller's product listings (Read-Only)
@@ -39,8 +44,11 @@ public class SellerProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<Product> result = sellerProducts.list(seller.getId(), page, size);
+        Map<String, String> currentNames = sellerNames.findCurrentShopNames(result.getContent().stream()
+                .map(Product::getSellerId).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Seller listings retrieved",
-                PagedResponse.from(result, ProductManagementResponse::from)));
+                PagedResponse.from(result, product -> ProductManagementResponse.from(
+                        product, currentNames.get(product.getSellerId())))));
     }
 
     // Get a specific product listing by ID for the authenticated seller (Read-Only)
@@ -50,6 +58,9 @@ public class SellerProductController {
             @AuthenticationPrincipal CustomUserDetails seller,
             @PathVariable String id) {
         Product product = sellerProducts.get(seller.getId(), id);
-        return ResponseEntity.ok(ApiResponse.ok("Seller listing retrieved", ProductManagementResponse.from(product)));
+        String currentName = sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId()))
+                .get(product.getSellerId());
+        return ResponseEntity.ok(ApiResponse.ok("Seller listing retrieved",
+                ProductManagementResponse.from(product, currentName)));
     }
 }
