@@ -96,10 +96,10 @@ public record OrderResponse(
         }
     }
 
-    public record Item(String productId, String variantId, String title, String vendor, String image,
+    public record Item(String productId, String variantId, String title, String sellerName, String image,
                        String variant, Integer quantity, Double listPrice, Double unitPrice, Double lineTotal) {
         private static Item from(OrderItem item) {
-            return new Item(item.getProductId(), item.getVariantId(), item.getTitle(), item.getVendor(),
+            return new Item(item.getProductId(), item.getVariantId(), item.getTitle(), item.getSellerName(),
                     item.getImage(), item.getVariant(), item.getQuantity(), item.getListPrice(),
                     item.getUnitPrice(), item.getLineTotal());
         }

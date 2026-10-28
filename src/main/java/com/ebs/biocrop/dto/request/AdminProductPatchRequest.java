@@ -12,7 +12,6 @@ public class AdminProductPatchRequest {
     @Size(max = 32) private String hsnCode;
     @Size(max = 200) private String title;
     @Size(max = 300) private String technicalName;
-    @Size(max = 160) private String vendor;
     @Size(max = 10000) private String description;
     @Size(max = 20) private List<@NotBlank @Size(max = 2048) String> images;
     @Size(max = 10000) private String technicalContent;
@@ -34,7 +33,6 @@ public class AdminProductPatchRequest {
     public String getHsnCode() { return hsnCode; } public void setHsnCode(String v) { hsnCode=v; }
     public String getTitle() { return title; } public void setTitle(String v) { title=v; }
     public String getTechnicalName() { return technicalName; } public void setTechnicalName(String v) { technicalName=v; }
-    public String getVendor() { return vendor; } public void setVendor(String v) { vendor=v; }
     public String getDescription() { return description; } public void setDescription(String v) { description=v; }
     public List<String> getImages() { return images; } public void setImages(List<String> v) { images=v; }
     public String getTechnicalContent() { return technicalContent; } public void setTechnicalContent(String v) { technicalContent=v; }
@@ -53,7 +51,7 @@ public class AdminProductPatchRequest {
     public String getProductWeightUnit() { return productWeightUnit; } public void setProductWeightUnit(String v) { productWeightUnit=v; }
 
     public boolean hasChanges() {
-        return sku != null || hsnCode != null || title != null || technicalName != null || vendor != null
+        return sku != null || hsnCode != null || title != null || technicalName != null
                 || description != null || images != null || technicalContent != null || features != null
                 || benefits != null || modeOfAction != null || suitableCrops != null || targetPests != null
                 || targetDiseases != null || dosage != null || applicationMethod != null || categoryId != null

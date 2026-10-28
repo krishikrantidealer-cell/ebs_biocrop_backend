@@ -279,7 +279,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         item.setProductCode(product.getProductCode());
         item.setSku(product.getSku());
         item.setTitle(product.getTitle());
-        item.setVendor(product.getVendor());
+        item.setSellerName(product.getSellerName());
         item.setImage(product.getImages() == null || product.getImages().isEmpty() ? null : product.getImages().getFirst());
         item.setVariant(variantLabel(variant));
         item.setQuantity(quantity);

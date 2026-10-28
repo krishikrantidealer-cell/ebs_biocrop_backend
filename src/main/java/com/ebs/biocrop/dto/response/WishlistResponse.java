@@ -36,18 +36,18 @@ public class WishlistResponse {
         private String productId;
         private String variantId;
         private String productTitle;
-        private String brandName;
+        private String sellerName;
         private String thumbnail;
         private PublicProductResponse.PublicVariant variant;
 
         public Item() {}
 
         public Item(String productId, String variantId, String productTitle,
-                    String brandName, String thumbnail, PublicProductResponse.PublicVariant variant) {
+                    String sellerName, String thumbnail, PublicProductResponse.PublicVariant variant) {
             this.productId = productId;
             this.variantId = variantId;
             this.productTitle = productTitle;
-            this.brandName = brandName;
+            this.sellerName = sellerName;
             this.thumbnail = thumbnail;
             this.variant = variant;
         }
@@ -55,14 +55,14 @@ public class WishlistResponse {
         public String getProductId() { return productId; }
         public String getVariantId() { return variantId; }
         public String getProductTitle() { return productTitle; }
-        public String getBrandName() { return brandName; }
+        public String getSellerName() { return sellerName; }
         public String getThumbnail() { return thumbnail; }
         public PublicProductResponse.PublicVariant getVariant() { return variant; }
 
         public void setProductId(String productId) { this.productId = productId; }
         public void setVariantId(String variantId) { this.variantId = variantId; }
         public void setProductTitle(String productTitle) { this.productTitle = productTitle; }
-        public void setBrandName(String brandName) { this.brandName = brandName; }
+        public void setSellerName(String sellerName) { this.sellerName = sellerName; }
         public void setThumbnail(String thumbnail) { this.thumbnail = thumbnail; }
         public void setVariant(PublicProductResponse.PublicVariant variant) { this.variant = variant; }
     }

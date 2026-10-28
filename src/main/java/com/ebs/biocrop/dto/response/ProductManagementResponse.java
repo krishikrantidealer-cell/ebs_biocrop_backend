@@ -10,7 +10,7 @@ import java.util.List;
 /** Management projection for admin and seller clients; omits persistence version metadata. */
 public record ProductManagementResponse(
         String id, String sku, String productCode, String hsnCode, String sellerId,
-        String title, String technicalName, String vendor, String description,
+        String title, String technicalName, String sellerName, String description,
         List<String> images, String technicalContent, List<String> features, List<String> benefits,
         String modeOfAction, List<String> suitableCrops, List<String> targetPests,
         List<String> targetDiseases, String dosage, String applicationMethod, String categoryId,
@@ -22,7 +22,7 @@ public record ProductManagementResponse(
     public static ProductManagementResponse from(Product product) {
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
                 product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getTechnicalName(),
-                product.getVendor(), product.getDescription(), product.getImages(), product.getTechnicalContent(),
+                product.getSellerName(), product.getDescription(), product.getImages(), product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),

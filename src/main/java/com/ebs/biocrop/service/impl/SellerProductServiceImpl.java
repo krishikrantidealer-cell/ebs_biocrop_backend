@@ -9,6 +9,8 @@ import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.entity.User;
+import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CategoryRepository;
@@ -63,6 +65,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product listing = new Product();
         copySellerFields(request, listing, null);
         listing.setSellerId(sellerId);
+        listing.setSellerName(findSellerShopName(sellerId));
         listing.setProductCode(nextProductCode(sellerId));
         listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
@@ -105,6 +108,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setId(current.getId());
         listing.setProductCode(current.getProductCode());
         listing.setSellerId(current.getSellerId());
+        listing.setSellerName(findSellerShopName(current.getSellerId()));
         listing.setStatus("INACTIVE");
         listing.setIsAvailable(false);
         listing.setIsFeatured(false);
@@ -201,7 +205,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setSku(source.getSku().trim());
         target.setHsnCode(source.getHsnCode());
         target.setTitle(source.getTitle().trim()); target.setTechnicalName(source.getTechnicalName());
-        target.setVendor(source.getVendor()); target.setDescription(source.getDescription());
+        target.setDescription(source.getDescription());
         target.setImages(source.getImages()); target.setTechnicalContent(source.getTechnicalContent());
         target.setProductImages(
                 existing == null ? List.of() : existing.getProductImages());
@@ -217,6 +221,15 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
         target.setVariants(sanitizeVariants(source.getVariants(), oldVariants));
+    }
+
+    private String findSellerShopName(String sellerId) {
+        User seller = mongoTemplate.findById(sellerId, User.class);
+        if (seller == null || seller.getRole() != UserRole.ROLE_SELLER
+                || Boolean.TRUE.equals(seller.getIsBlocked()) || Boolean.TRUE.equals(seller.getIsDeleted())) {
+            throw new ResourceNotFoundException("Seller", "id", sellerId);
+        }
+        return seller.getShopName();
     }
 
     private List<String> normalizeAssignedCollections(List<String> assignedCollections) {

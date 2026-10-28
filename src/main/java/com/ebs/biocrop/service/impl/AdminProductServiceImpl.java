@@ -144,7 +144,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (Boolean.TRUE.equals(p.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
         if (request.getSku()!=null) p.setSku(request.getSku().trim()); if (request.getHsnCode()!=null) p.setHsnCode(request.getHsnCode());
         if (request.getTitle()!=null) p.setTitle(request.getTitle().trim()); if (request.getTechnicalName()!=null) p.setTechnicalName(request.getTechnicalName());
-        if (request.getVendor()!=null) p.setVendor(request.getVendor()); if (request.getDescription()!=null) p.setDescription(request.getDescription());
+        if (request.getDescription()!=null) p.setDescription(request.getDescription());
         if (request.getImages()!=null) p.setImages(request.getImages()); if (request.getTechnicalContent()!=null) p.setTechnicalContent(request.getTechnicalContent());
         if (request.getFeatures()!=null) p.setFeatures(request.getFeatures()); if (request.getBenefits()!=null) p.setBenefits(request.getBenefits());
         if (request.getModeOfAction()!=null) p.setModeOfAction(request.getModeOfAction()); if (request.getSuitableCrops()!=null) p.setSuitableCrops(request.getSuitableCrops());

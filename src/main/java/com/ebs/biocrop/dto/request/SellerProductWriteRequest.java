@@ -20,7 +20,6 @@ public class SellerProductWriteRequest {
     @Size(max = 32) private String hsnCode;
     @NotBlank @Size(max = 200) private String title;
     @Size(max = 300) private String technicalName;
-    @Size(max = 160) private String vendor;
     @Size(max = 10000) private String description;
     @Size(max = 20) private List<@NotBlank @Size(max = 2048) String> images = new ArrayList<>();
     @Size(max = 10000) private String technicalContent;
@@ -42,7 +41,7 @@ public class SellerProductWriteRequest {
     public Product toProduct() {
         Product product = new Product();
         product.setSku(sku); product.setHsnCode(hsnCode);
-        product.setTitle(title); product.setTechnicalName(technicalName); product.setVendor(vendor);
+        product.setTitle(title); product.setTechnicalName(technicalName);
         product.setDescription(description); product.setImages(images); product.setTechnicalContent(technicalContent);
         product.setFeatures(features); product.setBenefits(benefits); product.setModeOfAction(modeOfAction);
         product.setSuitableCrops(suitableCrops); product.setTargetPests(targetPests); product.setTargetDiseases(targetDiseases);
@@ -61,8 +60,6 @@ public class SellerProductWriteRequest {
     public void setTitle(String title) { this.title = title; }
     public String getTechnicalName() { return technicalName; }
     public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
-    public String getVendor() { return vendor; }
-    public void setVendor(String vendor) { this.vendor = vendor; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public List<String> getImages() { return images; }
