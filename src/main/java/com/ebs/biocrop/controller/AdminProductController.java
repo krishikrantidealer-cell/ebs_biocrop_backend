@@ -13,6 +13,7 @@ import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
 import com.ebs.biocrop.dto.request.ProductReviewRequest;
 import com.ebs.biocrop.dto.request.ProductAvailabilityRequest;
 import com.ebs.biocrop.dto.request.ProductFeaturedRequest;
+import com.ebs.biocrop.dto.request.ProductVariantDefaultRequest;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.service.AdminProductService;
 import com.ebs.biocrop.service.RateLimitGuard;
@@ -121,6 +122,21 @@ public class AdminProductController {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product variant updated",
                 ProductManagementResponse.from(products.patchVariant(productId, variantId, request))));
+    }
+
+    // Set or unset a variant as the default for a product
+    @PatchMapping("/{productId}/variants/{variantId}/default")
+    @Operation(summary = "Set a product variant as default or non-default")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> setDefaultVariant(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String productId,
+            @PathVariable String variantId,
+            @Valid @RequestBody ProductVariantDefaultRequest request) {
+        rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
+        boolean isDefault = Boolean.TRUE.equals(request.isDefault());
+        return ResponseEntity.ok(ApiResponse.ok(
+                isDefault ? "Variant marked as default" : "Variant unmarked as default",
+                ProductManagementResponse.from(products.setDefaultVariant(productId, variantId, isDefault))));
     }
 
     // Delete an existing variant of a product

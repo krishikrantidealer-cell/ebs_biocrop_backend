@@ -164,6 +164,16 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (product.getVariants() == null) product.setVariants(new ArrayList<>());
         ProductVariant added = request.toProductVariant();
         added.setId(new ObjectId().toHexString());
+        if (Boolean.TRUE.equals(request.getIsDefault())) {
+            for (ProductVariant v : product.getVariants()) {
+                v.setIsDefault(false);
+            }
+            added.setIsDefault(true);
+        } else if (product.getVariants().isEmpty()) {
+            added.setIsDefault(true);
+        } else {
+            added.setIsDefault(false);
+        }
         product.getVariants().add(added);
         return validateAndSaveVariantChange(product);
     }
@@ -174,7 +184,15 @@ public class AdminProductServiceImpl implements AdminProductService {
         ProductVariant replacement = request.toProductVariant();
         replacement.setId(existing.getId());
         replacement.setDisplayOrder(existing.getDisplayOrder());
-        replacement.setIsDefault(existing.getIsDefault());
+        Boolean targetDefault = request.getIsDefault() != null ? request.getIsDefault() : existing.getIsDefault();
+        if (Boolean.TRUE.equals(targetDefault)) {
+            for (ProductVariant v : product.getVariants()) {
+                v.setIsDefault(false);
+            }
+            replacement.setIsDefault(true);
+        } else {
+            replacement.setIsDefault(false);
+        }
         replaceVariant(product, existing, replacement);
         Product saved = validateAndSaveVariantChange(product);
         if (replacement.getStock() != null) {
@@ -208,6 +226,16 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (patch.getGstPercentage()!=null) updated.setGstPercentage(patch.getGstPercentage());
         if (patch.getDiscountPercentage()!=null) updated.setDiscountPercentage(patch.getDiscountPercentage());
         if (patch.getStock()!=null) updated.setStock(patch.getStock());
+        if (patch.getIsDefault() != null) {
+            if (Boolean.TRUE.equals(patch.getIsDefault())) {
+                for (ProductVariant v : product.getVariants()) {
+                    v.setIsDefault(false);
+                }
+                updated.setIsDefault(true);
+            } else {
+                updated.setIsDefault(false);
+            }
+        }
         replaceVariant(product, current, updated);
         Product saved = validateAndSaveVariantChange(product);
         if (patch.getStock() != null) {
@@ -220,16 +248,55 @@ public class AdminProductServiceImpl implements AdminProductService {
         return saved;
     }
 
+    @Override public Product setDefaultVariant(String productId, String variantId, boolean isDefault) {
+        Product product = getEditableProduct(productId);
+        ProductVariant target = findVariant(product, variantId);
+        if (isDefault) {
+            for (ProductVariant v : product.getVariants()) {
+                boolean match = v.getId() != null && v.getId().equalsIgnoreCase(target.getId());
+                v.setIsDefault(match);
+            }
+        } else {
+            target.setIsDefault(false);
+        }
+        return validateAndSaveVariantChange(product);
+    }
+
     @Override public Product deleteVariant(String productId, String variantId) {
         Product product = getEditableProduct(productId);
         ProductVariant variant = findVariant(product, variantId);
         if (product.getVariants().size() <= 1)
             throw new AppException("A product must retain at least one variant; delete the product instead", HttpStatus.CONFLICT);
+        boolean wasDefault = Boolean.TRUE.equals(variant.getIsDefault());
         product.getVariants().remove(variant);
+        if (wasDefault) {
+            for (int i = 0; i < product.getVariants().size(); i++) {
+                product.getVariants().get(i).setIsDefault(i == 0);
+            }
+        } else {
+            normalizeDefaultVariants(product.getVariants());
+        }
         Product saved = validateAndSaveVariantChange(product);
         cartService.removeVariantFromAllCarts(variant.getId());
         removeWishlistReferences(List.of(variant.getId()));
         return saved;
+    }
+
+    private void normalizeDefaultVariants(List<ProductVariant> variants) {
+        if (variants == null || variants.isEmpty()) return;
+        boolean foundDefault = false;
+        for (ProductVariant v : variants) {
+            if (Boolean.TRUE.equals(v.getIsDefault())) {
+                if (!foundDefault) {
+                    foundDefault = true;
+                } else {
+                    v.setIsDefault(false);
+                }
+            }
+        }
+        if (!foundDefault) {
+            variants.get(0).setIsDefault(true);
+        }
     }
 
     private Product getEditableProduct(String id) {
@@ -258,7 +325,7 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     private Product validateAndSaveVariantChange(Product product) {
         sellerProducts.validateProduct(product);
-        product.setStatus("INACTIVE"); product.setIsAvailable(false); product.setIsFeatured(false);
+        // Status and visibility preserved for admin variant operations
         product.setUpdatedAt(LocalDateTime.now());
         return saveAndInvalidatePublicCatalog(product);
     }

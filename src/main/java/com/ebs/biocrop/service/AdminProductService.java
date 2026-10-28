@@ -20,6 +20,7 @@ public interface AdminProductService {
     Product addVariant(String productId, AdminProductVariantWriteRequest request);
     Product updateVariant(String productId, String variantId, AdminProductVariantWriteRequest request);
     Product patchVariant(String productId, String variantId, AdminProductVariantPatchRequest request);
+    Product setDefaultVariant(String productId, String variantId, boolean isDefault);
     Product deleteVariant(String productId, String variantId);
     Product softDelete(String id);
     Product restore(String id);

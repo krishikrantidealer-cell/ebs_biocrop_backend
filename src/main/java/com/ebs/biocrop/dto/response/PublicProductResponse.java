@@ -7,9 +7,10 @@ import com.ebs.biocrop.service.GcsImageStorageService;
 
 import java.util.List;
 
-/** Shopper-facing product projection; excludes seller IDs, internal state, and cost price. */
+/** Shopper-facing product projection; excludes internal state and cost price. */
 public record PublicProductResponse(
         String id,
+        String sellerId,
         String sku,
         String productCode,
         String hsnCode,
@@ -42,7 +43,7 @@ public record PublicProductResponse(
 
     public static PublicProductResponse from(Product product, GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
-                product.getId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
+                product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
                 product.getVendor(), product.getDescription(), product.getImages(),
                 product.getProductImages() == null
                         ? List.of()

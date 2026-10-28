@@ -26,6 +26,7 @@ public class AdminProductVariantWriteRequest {
     @PositiveOrZero private Double gstPercentage;
     @PositiveOrZero private Double discountPercentage;
     @NotNull @PositiveOrZero private Integer stock;
+    private Boolean isDefault;
 
     public ProductVariant toProductVariant() {
         ProductVariant value = new ProductVariant();
@@ -35,6 +36,7 @@ public class AdminProductVariantWriteRequest {
         value.setDisplayRate(displayRate); value.setPrintedMrp(printedMrp); value.setCostPrice(costPrice);
         value.setDiscountRs(discountRs); value.setGstPercentage(gstPercentage);
         value.setDiscountPercentage(discountPercentage); value.setStock(stock);
+        if (isDefault != null) value.setIsDefault(isDefault);
         return value;
     }
 
@@ -54,4 +56,5 @@ public class AdminProductVariantWriteRequest {
     public Double getGstPercentage() { return gstPercentage; } public void setGstPercentage(Double v) { gstPercentage=v; }
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Integer getStock() { return stock; } public void setStock(Integer v) { stock=v; }
+    public Boolean getIsDefault() { return isDefault; } public void setIsDefault(Boolean v) { isDefault=v; }
 }
