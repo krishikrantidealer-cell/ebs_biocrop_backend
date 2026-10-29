@@ -75,6 +75,16 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.ok("User updated", adminUsers.updateManagedUser(userId, request)));
     }
 
+    @PutMapping("/{userId}")
+    @Operation(summary = "Replace an admin-managed customer or seller profile")
+    public ResponseEntity<ApiResponse<AdminUserResponse>> replaceManagedUser(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String userId,
+            @Valid @RequestBody AdminManagedUserUpdateRequest request) {
+        rateLimitGuard.enforce("admin-user-write", admin.getId(), 60, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("User profile replaced", adminUsers.replaceManagedUser(userId, request)));
+    }
+
     // List admin users with optional role and status filters.
     @GetMapping
     @Operation(summary = "List admin users with optional role and status filters")

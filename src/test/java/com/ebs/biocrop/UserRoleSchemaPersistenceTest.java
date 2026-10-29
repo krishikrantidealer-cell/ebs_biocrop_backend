@@ -41,6 +41,9 @@ class UserRoleSchemaPersistenceTest {
         assertFalse(customerDocument.containsKey("gstNumber"));
         assertFalse(customerDocument.containsKey("bankDetails"));
         assertFalse(customerDocument.containsKey("settlementTerms"));
+        assertTrue(customerDocument.containsKey("email"));
+        assertTrue(customerDocument.containsKey("address"));
+        assertTrue(customerDocument.containsKey("isKycComplete"));
 
         User seller = User.newSeller("9876543211", "seller@example.com");
         seller.setShopName("Farm Shop");
@@ -55,9 +58,14 @@ class UserRoleSchemaPersistenceTest {
         assertEquals(0L, sellerDocument.get("orderNumberSequence"));
         assertEquals(4, sellerDocument.get("version"));
         assertTrue(sellerDocument.containsKey("bankDetails"));
-        assertNull(sellerDocument.get("bankDetails"));
+        Document bankDetails = (Document) sellerDocument.get("bankDetails");
+        assertTrue(bankDetails.containsKey("accountHolderName"));
+        assertTrue(bankDetails.containsKey("accountNumber"));
+        assertFalse(bankDetails.getBoolean("isVerified"));
         assertTrue(sellerDocument.containsKey("settlementTerms"));
-        assertNull(sellerDocument.get("settlementTerms"));
+        Document settlementTerms = (Document) sellerDocument.get("settlementTerms");
+        assertEquals(0, settlementTerms.get("commissionPercentage"));
+        assertTrue(settlementTerms.containsKey("payoutStatus"));
         assertTrue(sellerDocument.containsKey("notesHistory"));
         assertTrue(sellerDocument.containsKey("shippingAddresses"));
 

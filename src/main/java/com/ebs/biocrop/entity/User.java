@@ -78,6 +78,8 @@ public class User {
         if (this.role == UserRole.ROLE_SELLER) {
             this.productCodeSequence = 0L;
             this.orderNumberSequence = 0L;
+            this.bankDetails = defaultBankDetails();
+            this.settlementTerms = defaultSettlementTerms();
         } else if (this.role == UserRole.ROLE_ADMIN) {
             this.isVerified = null;
             this.isProfileComplete = true;
@@ -95,6 +97,26 @@ public class User {
         User seller = new User(phoneNumber, UserRole.ROLE_SELLER);
         seller.setEmail(email);
         return seller;
+    }
+
+    private static Map<String, Object> defaultBankDetails() {
+        Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("accountHolderName", null);
+        details.put("bankName", null);
+        details.put("accountNumber", null);
+        details.put("ifscCode", null);
+        details.put("branch", null);
+        details.put("upiId", null);
+        details.put("isVerified", false);
+        return details;
+    }
+
+    private static Map<String, Object> defaultSettlementTerms() {
+        Map<String, Object> terms = new java.util.LinkedHashMap<>();
+        terms.put("commissionPercentage", 0);
+        terms.put("settlementCycle", null);
+        terms.put("payoutStatus", null);
+        return terms;
     }
 
     public static User newAdmin(String phoneNumber, String email) {

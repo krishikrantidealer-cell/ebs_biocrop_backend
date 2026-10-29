@@ -69,6 +69,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (role != UserRole.ROLE_CUSTOMER && role != UserRole.ROLE_SELLER) {
             throw new AppException("Only CUSTOMER or SELLER accounts can be created here", HttpStatus.BAD_REQUEST);
         }
+        if (request.getRole() != null && !role.name().equalsIgnoreCase(request.getRole())) {
+            throw new AppException("The role in the request must match the endpoint", HttpStatus.BAD_REQUEST);
+        }
+        if (role == UserRole.ROLE_SELLER
+                && (Boolean.TRUE.equals(request.getIsKycComplete())
+                || "APPROVED".equalsIgnoreCase(request.getKycStatus()))) {
+            throw new AppException("Seller KYC approval must use the admin KYC review endpoint", HttpStatus.CONFLICT);
+        }
         String phone = request.getPhoneNumber();
         if (users.existsByPhoneNumber(phone)) {
             throw new AppException("A user with this phone number already exists", HttpStatus.CONFLICT);
@@ -80,13 +88,25 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (role == UserRole.ROLE_SELLER && request.getMonthlyTarget() != null && request.getMonthlyTarget() < 0) {
             throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
         }
+        if (role == UserRole.ROLE_SELLER
+                && ((request.getProductCodeSequence() != null && request.getProductCodeSequence() != 0L)
+                || (request.getOrderNumberSequence() != null && request.getOrderNumberSequence() != 0L))) {
+            throw new AppException("Seller sequences are server-managed and must start at zero", HttpStatus.BAD_REQUEST);
+        }
 
         User user = role == UserRole.ROLE_SELLER ? User.newSeller(phone, email) : User.newCustomer(phone);
+        if (request.getPasswordHash() != null) user.setPasswordHash(request.getPasswordHash());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAddress(request.getAddress());
+        user.setShippingAddresses(request.getShippingAddresses() == null
+                ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
         user.setStatus(request.getStatus() == null ? "ACTIVE" : request.getStatus());
         user.setNotes(request.getNotes());
+        if (request.getNotesHistory() != null) user.setNotesHistory(new ArrayList<>(request.getNotesHistory()));
+        user.setIsBlocked(Boolean.TRUE.equals(request.getIsBlocked()));
+        user.setIsDeleted(Boolean.TRUE.equals(request.getIsDeleted()));
+        if (request.getIsVerified() != null) user.setIsVerified(request.getIsVerified());
         if (role == UserRole.ROLE_SELLER) {
             user.setShopName(request.getShopName());
             user.setGstNumber(request.getGstNumber());
@@ -94,6 +114,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             user.setShopImage(request.getShopImage());
             user.setMonthlyTarget(request.getMonthlyTarget());
             user.setPreferredLanguage(request.getPreferredLanguage());
+            if (request.getBankDetails() != null) user.setBankDetails(merge(user.getBankDetails(), request.getBankDetails()));
+            if (request.getSettlementTerms() != null) user.setSettlementTerms(merge(user.getSettlementTerms(), request.getSettlementTerms()));
         }
         user.setIsProfileComplete(user.hasCompleteProfile());
         user.setUpdatedAt(LocalDateTime.now());
@@ -107,49 +129,90 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse updateManagedUser(String id, AdminManagedUserUpdateRequest request) {
+        return updateManagedUser(id, request, false);
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponse replaceManagedUser(String id, AdminManagedUserUpdateRequest request) {
+        return updateManagedUser(id, request, true);
+    }
+
+    private AdminUserResponse updateManagedUser(String id, AdminManagedUserUpdateRequest request, boolean replace) {
         User user = findUser(id);
         if (user.getRole() != UserRole.ROLE_CUSTOMER && user.getRole() != UserRole.ROLE_SELLER) {
             throw new AppException("Only customer and seller profiles can be updated here", HttpStatus.CONFLICT);
         }
-        if (request.getEmail() != null) {
-            String email = normalizeEmail(request.getEmail());
-            users.findByEmailIgnoreCase(email).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
-                throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
+        if (replace && (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank())) {
+            throw new AppException("Phone number is required when replacing a user profile", HttpStatus.BAD_REQUEST);
+        }
+        if ((replace || request.getPhoneNumber() != null) && !Objects.equals(request.getPhoneNumber(), user.getPhoneNumber())) {
+            if (request.getPhoneNumber() == null) throw new AppException("Phone number cannot be null", HttpStatus.BAD_REQUEST);
+            users.findByPhoneNumber(request.getPhoneNumber()).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
+                throw new AppException("A user with this phone number already exists", HttpStatus.CONFLICT);
             });
+            user.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (replace || request.getEmail() != null) {
+            String email = normalizeEmail(request.getEmail());
+            if (email != null) {
+                users.findByEmailIgnoreCase(email).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
+                    throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
+                });
+            }
             user.setEmail(email);
         }
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getAddress() != null) user.setAddress(request.getAddress());
-        if (request.getStatus() != null) user.setStatus(request.getStatus());
-        if (request.getNotes() != null) user.setNotes(request.getNotes());
+        if (replace || request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (replace || request.getLastName() != null) user.setLastName(request.getLastName());
+        if (replace || request.getAddress() != null) user.setAddress(request.getAddress());
+        if (replace || request.getShippingAddresses() != null) user.setShippingAddresses(
+                request.getShippingAddresses() == null ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
+        if (replace || request.getStatus() != null) user.setStatus(request.getStatus() == null ? "ACTIVE" : request.getStatus());
+        if (replace || request.getNotes() != null) user.setNotes(request.getNotes());
+        if (replace || request.getNotesHistory() != null) user.setNotesHistory(
+                request.getNotesHistory() == null ? new ArrayList<>() : new ArrayList<>(request.getNotesHistory()));
+        if (replace || request.getIsVerified() != null) user.setIsVerified(Boolean.TRUE.equals(request.getIsVerified()));
         String priorShopName = user.getShopName();
         if (user.getRole() == UserRole.ROLE_SELLER) {
-            if (request.getShopName() != null) user.setShopName(request.getShopName());
-            if (request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
-            if (request.getLicenceImage() != null) user.setLicenceImage(request.getLicenceImage());
-            if (request.getShopImage() != null) user.setShopImage(request.getShopImage());
-            if (request.getMonthlyTarget() != null) {
-                if (request.getMonthlyTarget() < 0) throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
+            if (replace || request.getShopName() != null) user.setShopName(request.getShopName());
+            if (replace || request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
+            if (replace || request.getLicenceImage() != null) user.setLicenceImage(request.getLicenceImage());
+            if (replace || request.getShopImage() != null) user.setShopImage(request.getShopImage());
+            if (replace || request.getMonthlyTarget() != null) {
+                if (request.getMonthlyTarget() != null && request.getMonthlyTarget() < 0)
+                    throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
                 user.setMonthlyTarget(request.getMonthlyTarget());
             }
-            if (request.getPreferredLanguage() != null) user.setPreferredLanguage(request.getPreferredLanguage());
+            if (replace || request.getPreferredLanguage() != null) user.setPreferredLanguage(request.getPreferredLanguage());
+            if (replace || request.getBankDetails() != null) user.setBankDetails(request.getBankDetails() == null
+                    ? defaultBankDetails() : merge(defaultBankDetails(), request.getBankDetails()));
+            if (replace || request.getSettlementTerms() != null) user.setSettlementTerms(request.getSettlementTerms() == null
+                    ? defaultSettlementTerms() : merge(defaultSettlementTerms(), request.getSettlementTerms()));
         }
+        Boolean desiredBlocked = replace ? Boolean.TRUE.equals(request.getIsBlocked()) : request.getIsBlocked();
+        Boolean desiredDeleted = replace ? Boolean.TRUE.equals(request.getIsDeleted()) : request.getIsDeleted();
         user.setIsProfileComplete(user.hasCompleteProfile());
         user.setUpdatedAt(LocalDateTime.now());
         try {
             User saved = users.save(user);
-            if (saved.getRole() == UserRole.ROLE_SELLER && !Objects.equals(priorShopName, saved.getShopName())) {
+            if (desiredBlocked != null && !Objects.equals(desiredBlocked, saved.getIsBlocked())) {
+                setBlockedStatus(id, desiredBlocked);
+            }
+            if (desiredDeleted != null && !Objects.equals(desiredDeleted, saved.getIsDeleted())) {
+                setDeletedStatus(id, desiredDeleted);
+            }
+            User finalUser = findUser(id);
+            if (finalUser.getRole() == UserRole.ROLE_SELLER && !Objects.equals(priorShopName, finalUser.getShopName())) {
                 mongoTemplate.updateMulti(
                         Query.query(Criteria.where("sellerId").is(id)),
-                        new Update().set("sellerName", saved.getShopName())
-                                .set("updatedAt", saved.getUpdatedAt())
+                        new Update().set("sellerName", finalUser.getShopName())
+                                .set("updatedAt", finalUser.getUpdatedAt())
                                 .inc("version", 1),
                         "products");
                 redisCache.invalidateRegion("public-products");
                 redisCache.invalidateRegion("public-collections");
             }
-            return AdminUserResponse.from(saved);
+            return AdminUserResponse.from(finalUser);
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
         }
@@ -157,6 +220,33 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     private String normalizeEmail(String email) {
         return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Map<String, Object> merge(Map<String, Object> current, Map<String, Object> supplied) {
+        Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        if (current != null) merged.putAll(current);
+        if (supplied != null) merged.putAll(supplied);
+        return merged;
+    }
+
+    private Map<String, Object> defaultBankDetails() {
+        Map<String, Object> values = new java.util.LinkedHashMap<>();
+        values.put("accountHolderName", null);
+        values.put("bankName", null);
+        values.put("accountNumber", null);
+        values.put("ifscCode", null);
+        values.put("branch", null);
+        values.put("upiId", null);
+        values.put("isVerified", false);
+        return values;
+    }
+
+    private Map<String, Object> defaultSettlementTerms() {
+        Map<String, Object> values = new java.util.LinkedHashMap<>();
+        values.put("commissionPercentage", 0);
+        values.put("settlementCycle", null);
+        values.put("payoutStatus", null);
+        return values;
     }
 
     @Override

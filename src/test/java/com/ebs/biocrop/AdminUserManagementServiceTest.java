@@ -26,6 +26,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 
 import java.util.Optional;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -78,6 +79,8 @@ class AdminUserManagementServiceTest {
         request.setGstNumber("GST-123");
         request.setLicenceImage("https://storage.example/licence.pdf");
         request.setShopImage("https://storage.example/shop.jpg");
+        request.setBankDetails(Map.of("accountHolderName", "Krishi Seva Kendra LLP", "bankName", "State Bank of India"));
+        request.setSettlementTerms(Map.of("commissionPercentage", 5, "settlementCycle", "MONTHLY"));
         when(users.existsByPhoneNumber("9876543211")).thenReturn(false);
         when(users.findByEmailIgnoreCase("seller@example.com")).thenReturn(Optional.empty());
         when(users.save(any(User.class))).thenAnswer(invocation -> {
@@ -98,6 +101,13 @@ class AdminUserManagementServiceTest {
         assertTrue(seller.hasRequiredSellerKycInformation());
         assertFalse(seller.getIsKycComplete());
         assertNull(seller.getKycStatus());
+        assertEquals("Krishi Seva Kendra LLP", seller.getBankDetails().get("accountHolderName"));
+        assertEquals("State Bank of India", seller.getBankDetails().get("bankName"));
+        assertTrue(seller.getBankDetails().containsKey("accountNumber"));
+        assertFalse((Boolean) seller.getBankDetails().get("isVerified"));
+        assertEquals(5, seller.getSettlementTerms().get("commissionPercentage"));
+        assertEquals("MONTHLY", seller.getSettlementTerms().get("settlementCycle"));
+        assertTrue(seller.getSettlementTerms().containsKey("payoutStatus"));
         assertTrue(seller.getIsProfileComplete());
         assertEquals("seller-id", response.id());
     }
