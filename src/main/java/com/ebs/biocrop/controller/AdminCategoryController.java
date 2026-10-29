@@ -98,20 +98,9 @@ public class AdminCategoryController {
                 AdminCategoryResponse.from(categoryService.deactivate(categoryId), imageStorage)));
     }
 
-    // Permanently delete an unused category
-    @DeleteMapping("/{categoryId}/permanent")
-    @Operation(summary = "Permanently delete an unused category")
-    public ResponseEntity<ApiResponse<CountedListResponse<String>>> permanentlyDeleteCategory(
-            @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String categoryId) {
-        rateLimitGuard.enforce("admin-category-write", admin.getId(), 10, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Category permanently deleted",
-                CountedListResponse.from(categoryService.permanentlyDelete(categoryId))));
-    }
-
-    // Permanently delete multiple unused categories
+    // Permanently delete one or more unused categories. Pass a one-item list for a single category.
     @DeleteMapping("/permanent")
-    @Operation(summary = "Permanently delete multiple unused categories", description = "All categories are validated before deletion. Categories with child categories or assigned products are rejected.")
+    @Operation(summary = "Permanently delete one or more unused categories", description = "Pass one category ID to delete a single category or multiple IDs to delete in bulk. All categories are validated before deletion. Categories with child categories or assigned products are rejected.")
     public ResponseEntity<ApiResponse<CountedListResponse<String>>> permanentlyDeleteCategories(
             @AuthenticationPrincipal CustomUserDetails admin,
             @Valid @RequestBody DeleteCategoriesRequest request) {

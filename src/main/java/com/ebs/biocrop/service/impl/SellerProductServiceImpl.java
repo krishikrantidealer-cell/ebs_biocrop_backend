@@ -67,9 +67,9 @@ public class SellerProductServiceImpl implements SellerProductService {
         listing.setSellerId(sellerId);
         listing.setSellerName(findSellerShopName(sellerId));
         listing.setProductCode(nextProductCode(sellerId));
-        listing.setStatus("INACTIVE");
-        listing.setIsAvailable(false);
-        listing.setIsFeatured(false);
+        listing.setStatus("ACTIVE");
+        listing.setIsAvailable(true);
+        listing.setIsFeatured(true);
         listing.setAverageRating(null);
         listing.setCreatedAt(LocalDateTime.now());
         listing.setUpdatedAt(listing.getCreatedAt());
