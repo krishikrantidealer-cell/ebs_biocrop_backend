@@ -3,7 +3,7 @@ package com.ebs.biocrop.controller;
 import com.ebs.biocrop.dto.request.CategoryWriteRequest;
 import com.ebs.biocrop.dto.request.DeleteCategoriesRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
-import com.ebs.biocrop.dto.response.CategoryResponse;
+import com.ebs.biocrop.dto.response.AdminCategoryResponse;
 import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Category;
@@ -45,7 +45,7 @@ public class AdminCategoryController {
     // List all categories for admin with optional filters
     @GetMapping
     @Operation(summary = "List categories for administration", description = "Returns a bounded page; optionally filter by parentId or level.")
-    public ResponseEntity<ApiResponse<PagedResponse<CategoryResponse>>> getCategories(
+    public ResponseEntity<ApiResponse<PagedResponse<AdminCategoryResponse>>> getCategories(
             @RequestParam(required = false) String parentId,
             @RequestParam(required = false) Integer level,
             @RequestParam(required = false) Boolean active,
@@ -53,49 +53,49 @@ public class AdminCategoryController {
             @RequestParam(defaultValue = "20") int size) {
         Page<Category> result = categoryService.listAdmin(parentId, level, active, page, size);
         return ResponseEntity.ok(ApiResponse.ok("Admin categories retrieved",
-                PagedResponse.from(result, category -> CategoryResponse.from(category, imageStorage))));
+                PagedResponse.from(result, category -> AdminCategoryResponse.from(category, imageStorage))));
     }
 
     // Get a category by ID, including inactive categories
     @GetMapping("/{categoryId}")
     @Operation(summary = "Get a category for administration, including inactive categories")
-    public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable String categoryId) {
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> getCategoryById(@PathVariable String categoryId) {
         return ResponseEntity.ok(ApiResponse.ok("Admin category retrieved",
-                CategoryResponse.from(categoryService.getAdminById(categoryId), imageStorage)));
+                AdminCategoryResponse.from(categoryService.getAdminById(categoryId), imageStorage)));
     }
 
     // Create a new category
     @PostMapping
     @Operation(summary = "Create a category")
-    public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> createCategory(
             @AuthenticationPrincipal CustomUserDetails admin,
             @Valid @RequestBody CategoryWriteRequest request) {
         rateLimitGuard.enforce("admin-category-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Category created", CategoryResponse.from(categoryService.create(request), imageStorage)));
+                .body(ApiResponse.ok("Category created", AdminCategoryResponse.from(categoryService.create(request), imageStorage)));
     }
 
     // Update an existing category
     @PutMapping("/{categoryId}")
     @Operation(summary = "Update a category")
-    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> updateCategory(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId,
             @Valid @RequestBody CategoryWriteRequest request) {
         rateLimitGuard.enforce("admin-category-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Category updated",
-                CategoryResponse.from(categoryService.update(categoryId, request), imageStorage)));
+                AdminCategoryResponse.from(categoryService.update(categoryId, request), imageStorage)));
     }
 
     // Deactivate a category (soft delete)
     @DeleteMapping("/{categoryId}")
     @Operation(summary = "Deactivate a category")
-    public ResponseEntity<ApiResponse<CategoryResponse>> deactivateCategory(
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> deactivateCategory(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId) {
         rateLimitGuard.enforce("admin-category-write", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Category deactivated",
-                CategoryResponse.from(categoryService.deactivate(categoryId), imageStorage)));
+                AdminCategoryResponse.from(categoryService.deactivate(categoryId), imageStorage)));
     }
 
     // Permanently delete an unused category
@@ -124,23 +124,23 @@ public class AdminCategoryController {
     // Upload or replace a category image.
     @PostMapping(value = "/{categoryId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload or replace a category image")
-    public ResponseEntity<ApiResponse<CategoryResponse>> uploadCategoryImage(
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> uploadCategoryImage(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId,
             @RequestPart("file") MultipartFile file) {
         rateLimitGuard.enforce("admin-category-image-upload", admin.getId(), 10, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Category image uploaded",
-                CategoryResponse.from(categoryService.uploadImage(categoryId, file), imageStorage)));
+                AdminCategoryResponse.from(categoryService.uploadImage(categoryId, file), imageStorage)));
     }
 
     // Delete a category image.
     @DeleteMapping("/{categoryId}/image")
     @Operation(summary = "Delete a category image")
-    public ResponseEntity<ApiResponse<CategoryResponse>> deleteCategoryImage(
+    public ResponseEntity<ApiResponse<AdminCategoryResponse>> deleteCategoryImage(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String categoryId) {
         rateLimitGuard.enforce("admin-category-image-delete", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Category image deleted",
-                CategoryResponse.from(categoryService.deleteImage(categoryId), imageStorage)));
+                AdminCategoryResponse.from(categoryService.deleteImage(categoryId), imageStorage)));
     }
 }

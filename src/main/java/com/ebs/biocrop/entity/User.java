@@ -236,6 +236,10 @@ public class User {
 
     public Integer getWhatsappSequence() { return whatsappSequence; }
     public void setWhatsappSequence(Integer whatsappSequence) { this.whatsappSequence = whatsappSequence; }
+    public Map<String, Object> getBankDetails() { return bankDetails; }
+    public void setBankDetails(Map<String, Object> bankDetails) { this.bankDetails = bankDetails; }
+    public Map<String, Object> getSettlementTerms() { return settlementTerms; }
+    public void setSettlementTerms(Map<String, Object> settlementTerms) { this.settlementTerms = settlementTerms; }
 
     public Boolean getIsDeleted() { return isDeleted; }
     public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }

@@ -2,6 +2,7 @@ package com.ebs.biocrop.dto.response;
 
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductDimensions;
+import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
 
 import java.time.LocalDateTime;
@@ -11,18 +12,19 @@ import java.util.List;
 public record ProductManagementResponse(
         String id, String sku, String productCode, String hsnCode, String sellerId,
         String title, String technicalName, String sellerName, String description,
-        List<String> images, String technicalContent, List<String> features, List<String> benefits,
+        List<String> images, List<ProductImage> productImages, String technicalContent, List<String> features, List<String> benefits,
         String modeOfAction, List<String> suitableCrops, List<String> targetPests,
         List<String> targetDiseases, String dosage, String applicationMethod, String categoryId,
         List<String> assignedCollections, ProductDimensions dimensions,
         Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
         Double averageRating, Long totalReviews, String refundPolicy, Double productWeight, String productWeightUnit,
-        String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt,
+        Integer version) {
 
     public static ProductManagementResponse from(Product product, String currentSellerName) {
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
                 product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getTechnicalName(),
-                currentSellerName, product.getDescription(), product.getImages(), product.getTechnicalContent(),
+                currentSellerName, product.getDescription(), product.getImages(), product.getProductImages(), product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
@@ -30,7 +32,8 @@ public record ProductManagementResponse(
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
                 product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,
                 product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
-                product.getStatus(), product.getIsDeleted(), product.getDeletedAt(), product.getCreatedAt(), product.getUpdatedAt());
+                product.getStatus(), product.getIsDeleted(), product.getDeletedAt(), product.getCreatedAt(), product.getUpdatedAt(),
+                product.getVersion());
     }
 
     public record ManagementVariant(String id, String label, String unit, Integer packSize,

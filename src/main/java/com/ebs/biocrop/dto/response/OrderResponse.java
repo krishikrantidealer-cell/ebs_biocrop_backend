@@ -37,7 +37,13 @@ public record OrderResponse(
         String customerPhoneNumber,
         SellerSummary seller,
         CustomerSummary customer,
-        List<StatusEvent> statusHistory) {
+        List<StatusEvent> statusHistory,
+        String customerId,
+        String sellerId,
+        Boolean stockReserved,
+        LocalDateTime cancelledAt,
+        Integer version,
+        OrderPaymentDetails paymentDetails) {
 
     public static OrderResponse forCustomer(Order order) { return from(order, true, false, false); }
     public static OrderResponse forSeller(Order order) { return from(order, false, true, false); }
@@ -74,7 +80,10 @@ public record OrderResponse(
                 order.getPlacedAt(), order.getCreatedAt(), order.getUpdatedAt(),
                 includeCustomer && customerSnapshot != null ? customerSnapshot.getName() : null,
                 includeCustomer && customerSnapshot != null ? customerSnapshot.getPhoneNumber() : null,
-                seller, customer, history);
+                seller, customer, history, adminView ? order.getCustomerId() : null,
+                adminView ? order.getSellerId() : null, adminView ? order.getStockReserved() : null,
+                adminView ? order.getCancelledAt() : null, adminView ? order.getVersion() : null,
+                adminView ? details : null);
     }
 
     private static Double safe(Double value) { return value == null ? 0.0 : value; }
@@ -86,20 +95,23 @@ public record OrderResponse(
 
     public record CustomerSummary(String name, String phoneNumber, String companyName, String gstNumber) { }
 
-    /** Public timeline fields only; actor database IDs and internal notes are intentionally omitted. */
-    public record StatusEvent(String status, LocalDateTime changedAt) {
+    /** Admin receives audit details; customer and seller views omit actor IDs and internal notes. */
+    public record StatusEvent(String status, LocalDateTime changedAt, String changedBy, String note) {
         private static StatusEvent from(OrderStatusEvent event, boolean sellerView, boolean adminView) {
             String status = adminView ? event.getStatus() : sellerView
                     ? OrderStatusPresentation.forSeller(event.getStatus())
                     : OrderStatusPresentation.forCustomer(event.getStatus());
-            return new StatusEvent(status, event.getChangedAt());
+            return new StatusEvent(status, event.getChangedAt(), adminView ? event.getChangedBy() : null,
+                    adminView ? event.getNote() : null);
         }
     }
 
-    public record Item(String productId, String variantId, String title, String sellerName, String image,
+    public record Item(String id, String productId, String variantId, String productCode, String sku,
+                       String title, String sellerName, String image,
                        String variant, Integer quantity, Double listPrice, Double unitPrice, Double lineTotal) {
         private static Item from(OrderItem item) {
-            return new Item(item.getProductId(), item.getVariantId(), item.getTitle(), item.getSellerName(),
+            return new Item(item.getId(), item.getProductId(), item.getVariantId(), item.getProductCode(), item.getSku(),
+                    item.getTitle(), item.getSellerName(),
                     item.getImage(), item.getVariant(), item.getQuantity(), item.getListPrice(),
                     item.getUnitPrice(), item.getLineTotal());
         }

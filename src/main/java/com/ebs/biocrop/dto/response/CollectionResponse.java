@@ -9,7 +9,8 @@ import java.util.function.ToLongFunction;
 public record CollectionResponse(String id, String name, String slug, String description,
                                  Boolean isActive, Integer priority, List<SubCollectionResponse> subCollections,
                                  int subCollectionCount,
-                                 Instant createdAt, Instant updatedAt, Long productCount, String bannerTitle) {
+                                 Instant createdAt, Instant updatedAt, Long productCount, String bannerTitle,
+                                 Integer version) {
     public static CollectionResponse from(ProductCollection collection, long productCount, boolean publicView,
                                           ToLongFunction<ProductCollection.SubCollection> subCount) {
         List<SubCollectionResponse> subs = collection.getSubCollections() == null ? List.of()
@@ -21,7 +22,8 @@ public record CollectionResponse(String id, String name, String slug, String des
                 .toList();
         return new CollectionResponse(collection.getId(), collection.getName(), collection.getSlug(),
                 collection.getDescription(), collection.getIsActive(), collection.getPriority(), subs, subs.size(),
-                collection.getCreatedAt(), collection.getUpdatedAt(), productCount, collection.getBannerTitle());
+                collection.getCreatedAt(), collection.getUpdatedAt(), productCount, collection.getBannerTitle(),
+                publicView ? null : collection.getVersion());
     }
 
     public record SubCollectionResponse(String id, String name, String slug, Boolean isActive,
