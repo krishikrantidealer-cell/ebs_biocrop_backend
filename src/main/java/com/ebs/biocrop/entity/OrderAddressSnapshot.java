@@ -5,7 +5,7 @@ public class OrderAddressSnapshot {
     private String name;
     private String phoneNumber;
     private String villageArea;
-    private String addressLine2;
+    private String address2;
     private String cityTehsil;
     private String state;
     private String pincode;
@@ -17,8 +17,8 @@ public class OrderAddressSnapshot {
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
     public String getVillageArea() { return villageArea; }
     public void setVillageArea(String villageArea) { this.villageArea = villageArea; }
-    public String getAddressLine2() { return addressLine2; }
-    public void setAddressLine2(String addressLine2) { this.addressLine2 = addressLine2; }
+    public String getAddress2() { return address2; }
+    public void setAddress2(String address2) { this.address2 = address2; }
     public String getCityTehsil() { return cityTehsil; }
     public void setCityTehsil(String cityTehsil) { this.cityTehsil = cityTehsil; }
     public String getState() { return state; }

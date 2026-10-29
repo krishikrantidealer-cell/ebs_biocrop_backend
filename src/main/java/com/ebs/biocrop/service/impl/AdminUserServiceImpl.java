@@ -5,9 +5,13 @@ import java.util.Map;
 
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
+import com.ebs.biocrop.dto.response.AdminSellerDashboardResponse;
+import com.ebs.biocrop.dto.request.AdminManagedUserCreateRequest;
+import com.ebs.biocrop.dto.request.AdminManagedUserUpdateRequest;
 import com.ebs.biocrop.entity.Cart;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.entity.Review;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.Wishlist;
 import com.ebs.biocrop.entity.enums.UserRole;
@@ -32,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 public class AdminUserServiceImpl implements AdminUserService {
@@ -51,6 +56,107 @@ public class AdminUserServiceImpl implements AdminUserService {
         this.users = users;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
+    }
+
+    @Override
+    public AdminUserResponse createManagedUser(String requestedRole, AdminManagedUserCreateRequest request) {
+        UserRole role;
+        try {
+            role = UserRole.valueOf("ROLE_" + requestedRole.trim().toUpperCase(Locale.ROOT));
+        } catch (RuntimeException invalidRole) {
+            throw new AppException("Only CUSTOMER or SELLER accounts can be created here", HttpStatus.BAD_REQUEST);
+        }
+        if (role != UserRole.ROLE_CUSTOMER && role != UserRole.ROLE_SELLER) {
+            throw new AppException("Only CUSTOMER or SELLER accounts can be created here", HttpStatus.BAD_REQUEST);
+        }
+        String phone = request.getPhoneNumber();
+        if (users.existsByPhoneNumber(phone)) {
+            throw new AppException("A user with this phone number already exists", HttpStatus.CONFLICT);
+        }
+        String email = normalizeEmail(request.getEmail());
+        if (email != null && users.findByEmailIgnoreCase(email).isPresent()) {
+            throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
+        }
+        if (role == UserRole.ROLE_SELLER && request.getMonthlyTarget() != null && request.getMonthlyTarget() < 0) {
+            throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
+        }
+
+        User user = role == UserRole.ROLE_SELLER ? User.newSeller(phone, email) : User.newCustomer(phone);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setAddress(request.getAddress());
+        user.setStatus(request.getStatus() == null ? "ACTIVE" : request.getStatus());
+        user.setNotes(request.getNotes());
+        if (role == UserRole.ROLE_SELLER) {
+            user.setShopName(request.getShopName());
+            user.setGstNumber(request.getGstNumber());
+            user.setLicenceImage(request.getLicenceImage());
+            user.setShopImage(request.getShopImage());
+            user.setMonthlyTarget(request.getMonthlyTarget());
+            user.setPreferredLanguage(request.getPreferredLanguage());
+        }
+        user.setIsProfileComplete(user.hasCompleteProfile());
+        user.setUpdatedAt(LocalDateTime.now());
+        try {
+            return AdminUserResponse.from(users.save(user));
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
+        }
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponse updateManagedUser(String id, AdminManagedUserUpdateRequest request) {
+        User user = findUser(id);
+        if (user.getRole() != UserRole.ROLE_CUSTOMER && user.getRole() != UserRole.ROLE_SELLER) {
+            throw new AppException("Only customer and seller profiles can be updated here", HttpStatus.CONFLICT);
+        }
+        if (request.getEmail() != null) {
+            String email = normalizeEmail(request.getEmail());
+            users.findByEmailIgnoreCase(email).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
+                throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
+            });
+            user.setEmail(email);
+        }
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getAddress() != null) user.setAddress(request.getAddress());
+        if (request.getStatus() != null) user.setStatus(request.getStatus());
+        if (request.getNotes() != null) user.setNotes(request.getNotes());
+        String priorShopName = user.getShopName();
+        if (user.getRole() == UserRole.ROLE_SELLER) {
+            if (request.getShopName() != null) user.setShopName(request.getShopName());
+            if (request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
+            if (request.getLicenceImage() != null) user.setLicenceImage(request.getLicenceImage());
+            if (request.getShopImage() != null) user.setShopImage(request.getShopImage());
+            if (request.getMonthlyTarget() != null) {
+                if (request.getMonthlyTarget() < 0) throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
+                user.setMonthlyTarget(request.getMonthlyTarget());
+            }
+            if (request.getPreferredLanguage() != null) user.setPreferredLanguage(request.getPreferredLanguage());
+        }
+        user.setIsProfileComplete(user.hasCompleteProfile());
+        user.setUpdatedAt(LocalDateTime.now());
+        try {
+            User saved = users.save(user);
+            if (saved.getRole() == UserRole.ROLE_SELLER && !Objects.equals(priorShopName, saved.getShopName())) {
+                mongoTemplate.updateMulti(
+                        Query.query(Criteria.where("sellerId").is(id)),
+                        new Update().set("sellerName", saved.getShopName())
+                                .set("updatedAt", saved.getUpdatedAt())
+                                .inc("version", 1),
+                        "products");
+                redisCache.invalidateRegion("public-products");
+                redisCache.invalidateRegion("public-collections");
+            }
+            return AdminUserResponse.from(saved);
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     @Override
@@ -88,8 +194,29 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    public AdminSellerDashboardResponse getSellerDashboard(String id) {
+        User seller = findUser(id);
+        if (seller.getRole() != UserRole.ROLE_SELLER) {
+            throw new AppException("Seller dashboard is only available for seller accounts", HttpStatus.CONFLICT);
+        }
+        Query bySeller = Query.query(Criteria.where("sellerId").is(id));
+        long totalProducts = mongoTemplate.count(bySeller, Product.class);
+        Query activeProducts = Query.query(new Criteria().andOperator(
+                Criteria.where("sellerId").is(id),
+                Criteria.where("status").is("ACTIVE"),
+                Criteria.where("isAvailable").is(true),
+                Criteria.where("isDeleted").ne(true)));
+        long activeProductCount = mongoTemplate.count(activeProducts, Product.class);
+        long totalOrders = mongoTemplate.count(bySeller, Order.class);
+        long totalReviews = mongoTemplate.count(bySeller, Review.class);
+        return new AdminSellerDashboardResponse(
+                AdminUserResponse.from(seller), totalProducts, activeProductCount, totalOrders, totalReviews);
+    }
+
+    @Override
     public AdminUserResponse setBlockedStatus(String id, boolean blocked) {
         User user = findUser(id);
+        ensureCustomerOrSellerLifecycle(user);
         boolean isTransitionToBlocked = blocked && !Boolean.TRUE.equals(user.getIsBlocked());
         if (isTransitionToBlocked
                 && user.getRole() == UserRole.ROLE_ADMIN
@@ -115,6 +242,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public AdminUserResponse setDeletedStatus(String id, boolean deleted) {
         User user = findUser(id);
+        ensureCustomerOrSellerLifecycle(user);
         boolean isTransitionToDeleted = deleted && !Boolean.TRUE.equals(user.getIsDeleted());
         if (isTransitionToDeleted
                 && user.getRole() == UserRole.ROLE_ADMIN
@@ -138,36 +266,44 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    public AdminUserResponse reviewSellerKyc(String id, boolean approved) {
+        User seller = findUser(id);
+        if (seller.getRole() != UserRole.ROLE_SELLER) {
+            throw new AppException("KYC review is only available for seller accounts", HttpStatus.CONFLICT);
+        }
+        if (approved && !seller.hasRequiredSellerKycInformation()) {
+            throw new AppException("Seller must provide GST number, licence image, and shop image before approval",
+                    HttpStatus.CONFLICT);
+        }
+
+        seller.setKycStatus(approved ? "APPROVED" : null);
+        seller.setUpdatedAt(LocalDateTime.now());
+        User saved = users.save(seller);
+        webSocketService.sendToUser(id, "users:kyc_updated", Map.of(
+                "userId", id,
+                "status", approved ? "APPROVED" : "PENDING"
+        ));
+        return AdminUserResponse.from(saved);
+    }
+
+    @Override
     public UserRole assignRole(String id, String requestedRole) {
         User user = findUser(id);
         UserRole role = parseRole(requestedRole);
-
-        if (Boolean.TRUE.equals(user.getIsDeleted())) {
-            throw new AppException("A deleted account cannot be assigned a role", HttpStatus.CONFLICT);
+        if (user.getRole() != role) {
+            throw new AppException(
+                    "Account roles cannot be changed after creation. Create a new account with the required role.",
+                    HttpStatus.CONFLICT);
         }
-        if (user.getRole() == UserRole.ROLE_ADMIN
-                && role != UserRole.ROLE_ADMIN
-                && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
-            throw new AppException("The last active admin account cannot be demoted", HttpStatus.CONFLICT);
-        }
-        if (user.getRole() == UserRole.ROLE_SELLER && role != UserRole.ROLE_SELLER) {
-            deactivateSellerListings(id);
-        }
-
-        user.setRole(role);
-        user.setUpdatedAt(LocalDateTime.now());
-        users.save(user);
-        webSocketService.sendToUser(id, "users:role_updated", Map.of(
-                "userId", id,
-                "newRole", role.name()
-        ));
-        return role;
+        return user.getRole();
     }
 
     @Override
     @Transactional
     public void permanentlyDelete(String adminId, String id) {
         User user = findUser(id);
+
+        ensureCustomerOrSellerLifecycle(user);
 
         if (adminId != null && adminId.equals(id)) {
             throw new AppException("You cannot delete your own admin account", HttpStatus.CONFLICT);
@@ -267,6 +403,13 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(
                     "Role must be ROLE_CUSTOMER, ROLE_SELLER, or ROLE_ADMIN",
                     HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void ensureCustomerOrSellerLifecycle(User user) {
+        if (user.getRole() != UserRole.ROLE_CUSTOMER && user.getRole() != UserRole.ROLE_SELLER) {
+            throw new AppException("Account lifecycle actions are only available for customers and sellers",
+                    HttpStatus.CONFLICT);
         }
     }
 

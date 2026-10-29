@@ -5,6 +5,8 @@ import com.ebs.biocrop.dto.request.OtpVerifyRequest;
 import com.ebs.biocrop.dto.request.EmailOtpRequest;
 import com.ebs.biocrop.dto.request.EmailOtpVerifyRequest;
 import com.ebs.biocrop.dto.request.EmailPasswordRequest;
+import com.ebs.biocrop.dto.request.SellerEmailRegistrationRequest;
+import com.ebs.biocrop.dto.request.SellerEmailRegistrationSendRequest;
 import com.ebs.biocrop.dto.request.PasswordSetupRequest;
 import com.ebs.biocrop.dto.request.ForgotPasswordRequest;
 import com.ebs.biocrop.dto.request.ResetPasswordRequest;
@@ -109,6 +111,26 @@ public class AuthController {
         checkLimit("email-otp-verify", request.getEmail(), 5, 300);
         checkLimit("email-otp-verify-ip", httpRequest.getRemoteAddr(), 30, 300);
         return ResponseEntity.ok(ApiResponse.ok("Authentication successful", authService.verifyEmailOtpAndLogin(request.getEmail(), request.getOtp())));
+    }
+
+    @PostMapping("/seller/register/email/otp/send")
+    @Operation(summary = "Send email OTP for seller self-registration", description = "The phone number is collected as the seller account's unique contact identity; this flow verifies email only.")
+    public ResponseEntity<ApiResponse<Map<String, String>>> sendSellerRegistrationEmailOtp(
+            @Valid @RequestBody SellerEmailRegistrationSendRequest request, HttpServletRequest httpRequest) {
+        checkLimit("seller-registration-email-otp-send", request.getEmail(), 3, 900);
+        checkLimit("seller-registration-email-otp-send-ip", httpRequest.getRemoteAddr(), 20, 900);
+        authService.sendSellerRegistrationEmailOtp(request.getEmail(), request.getPhoneNumber());
+        return ResponseEntity.ok(ApiResponse.ok("If the identifiers are eligible, an OTP has been sent.", Map.of("status", "OTP_REQUESTED")));
+    }
+
+    @PostMapping("/seller/register/email/otp/verify")
+    @Operation(summary = "Register a seller using email OTP")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerSellerWithEmailOtp(
+            @Valid @RequestBody SellerEmailRegistrationRequest request, HttpServletRequest httpRequest) {
+        checkLimit("seller-registration-email-otp-verify", request.getEmail(), 5, 300);
+        checkLimit("seller-registration-email-otp-verify-ip", httpRequest.getRemoteAddr(), 30, 300);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok("Seller registered successfully", authService.registerSellerWithEmailOtp(request)));
     }
 
     // Password login endpoint for privileged accounts with rate limiting

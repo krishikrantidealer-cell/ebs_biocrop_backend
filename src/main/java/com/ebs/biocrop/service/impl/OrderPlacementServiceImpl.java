@@ -329,7 +329,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         address.setName(input.getName().trim());
         address.setPhoneNumber(input.getPhoneNumber().trim());
         address.setVillageArea(input.getVillageArea().trim());
-        address.setAddressLine2(input.getAddressLine2() == null ? null : input.getAddressLine2().trim());
+          address.setAddress2(input.getAddress2() == null ? null : input.getAddress2().trim());
         address.setCityTehsil(input.getCityTehsil().trim());
         address.setState(input.getState().trim());
         address.setPincode(input.getPincode());
@@ -341,7 +341,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         copy.setName(source.getName());
         copy.setPhoneNumber(source.getPhoneNumber());
         copy.setVillageArea(source.getVillageArea());
-        copy.setAddressLine2(source.getAddressLine2());
+          copy.setAddress2(source.getAddress2());
         copy.setCityTehsil(source.getCityTehsil());
         copy.setState(source.getState());
         copy.setPincode(source.getPincode());

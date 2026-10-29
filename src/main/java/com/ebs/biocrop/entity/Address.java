@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 public class Address {
 
     private String villageArea;
-    private String addressLine2;
     private String address2;
     private String cityTehsil;
     private String state;
@@ -28,14 +27,6 @@ public class Address {
 
     public void setVillageArea(String villageArea) {
         this.villageArea = villageArea != null ? villageArea.trim() : null;
-    }
-
-    public String getAddressLine2() {
-        return addressLine2;
-    }
-
-    public void setAddressLine2(String addressLine2) {
-        this.addressLine2 = addressLine2 != null ? addressLine2.trim() : null;
     }
 
     public String getAddress2() {

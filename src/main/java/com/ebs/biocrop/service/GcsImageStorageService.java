@@ -184,15 +184,12 @@ public class GcsImageStorageService {
             return;
         }
 
-        String expectedPrefix =
-                "Sellers/" + sellerId + "/products/" + productId + "/";
-
         for (String objectName : List.of(
                 image.getOriginalObjectName(),
                 image.getMidObjectName(),
                 image.getLowObjectName())) {
 
-            if (objectName != null && objectName.startsWith(expectedPrefix)) {
+            if (belongsToProduct(productId, objectName)) {
                 storage.delete(bucketName, objectName);
             }
         }
@@ -206,10 +203,7 @@ public class GcsImageStorageService {
         requireSafeSegment(sellerId, "Seller ID");
         requireSafeSegment(productId, "Product ID");
 
-        String expectedPrefix =
-                "Sellers/" + sellerId + "/products/" + productId + "/";
-
-        if (objectName == null || !objectName.startsWith(expectedPrefix)) {
+        if (!belongsToProduct(productId, objectName)) {
             throw badRequest("Image object does not belong to this product");
         }
 
@@ -220,6 +214,27 @@ public class GcsImageStorageService {
                 Storage.SignUrlOption.withV4Signature());
 
         return signedUrl.toString();
+    }
+
+    /**
+     * Image object names are stable asset identifiers. A product may be reassigned to another seller
+     * without moving its existing GCS objects, so validate the product folder rather than the
+     * current seller folder. This still prevents one product from signing or deleting another
+     * product's objects.
+     */
+    static boolean belongsToProduct(String productId, String objectName) {
+        if (objectName == null) {
+            return false;
+        }
+
+        String[] segments = objectName.split("/", 6);
+        return segments.length == 6
+                && "Sellers".equals(segments[0])
+                && segments[1].matches("[A-Za-z0-9_-]{1,128}")
+                && "products".equals(segments[2])
+                && productId.equals(segments[3])
+                && List.of("original", "mid", "low").contains(segments[4])
+                && !segments[5].isBlank();
     }
 
     private void requireSafeSegment(String value, String label) {

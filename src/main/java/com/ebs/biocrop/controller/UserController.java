@@ -35,7 +35,7 @@ public class UserController {
 
     // Update the current user's profile.
     @PutMapping("/profile")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'SELLER')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateUserProfile(
             Authentication authentication,
             @Valid @RequestBody UserProfileUpdateRequest request) {

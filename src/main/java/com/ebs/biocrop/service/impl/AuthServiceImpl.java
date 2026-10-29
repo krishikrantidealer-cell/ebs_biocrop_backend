@@ -1,6 +1,7 @@
 package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.dto.request.OtpVerifyRequest;
+import com.ebs.biocrop.dto.request.SellerEmailRegistrationRequest;
 import com.ebs.biocrop.dto.response.AuthResponse;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
@@ -63,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
         otpService.verifyOtp(phoneNumber, request.getOtp());
 
         // Public OTP verification must never grant or change privileged roles.
-        UserRole defaultRole = UserRole.ROLE_CUSTOMER;
+        UserRole requestedRole = requestedRegistrationRole(request.getRole());
 
         User user = userRepository.findByPhoneNumber(phoneNumber).map(existingUser -> {
             if (Boolean.TRUE.equals(existingUser.getIsDeleted()) || Boolean.TRUE.equals(existingUser.getIsBlocked())) {
@@ -73,10 +74,14 @@ public class AuthServiceImpl implements AuthService {
             if (existingUser.getRole() == UserRole.ROLE_ADMIN) {
                 throw new AppException("Admin accounts must authenticate with email OTP or email and password.", HttpStatus.FORBIDDEN);
             }
+            if (request.getRole() != null && existingUser.getRole() != requestedRole) {
+                throw new AppException("The phone number is already registered with a different role", HttpStatus.CONFLICT);
+            }
             return existingUser;
         }).orElseGet(() -> {
-            log.info("First-time login: Auto-registering user with phone [{}] and role [{}]", maskPhoneNumber(phoneNumber), defaultRole);
-            return new User(phoneNumber, defaultRole);
+            UserRole role = requestedRole == null ? UserRole.ROLE_CUSTOMER : requestedRole;
+            log.info("First-time login: Auto-registering user with phone [{}] and role [{}]", maskPhoneNumber(phoneNumber), role);
+            return role == UserRole.ROLE_SELLER ? User.newSeller(phoneNumber, null) : User.newCustomer(phoneNumber);
         });
 
         boolean isNewUser = user.getId() == null;
@@ -137,6 +142,17 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmailIgnoreCase(email.trim().toLowerCase())
                 .orElseThrow(() -> new AppException("Account is unavailable", HttpStatus.UNAUTHORIZED));
         ensurePrivilegedLoginAllowed(user);
+        if (user.getRole() == UserRole.ROLE_SELLER) {
+            boolean profileComplete = user.hasCompleteProfile();
+            boolean needsSave = !Boolean.TRUE.equals(user.getIsVerified())
+                    || !Boolean.valueOf(profileComplete).equals(user.getIsProfileComplete());
+            user.setIsVerified(true);
+            user.setIsProfileComplete(profileComplete);
+            if (needsSave) {
+                user.setUpdatedAt(LocalDateTime.now());
+                user = userRepository.save(user);
+            }
+        }
         return issueTokens(user);
     }
 
@@ -145,6 +161,45 @@ public class AuthServiceImpl implements AuthService {
         userRepository.findByEmailIgnoreCase(email.trim().toLowerCase()).filter(this::isPrivileged)
                 .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()) && !Boolean.TRUE.equals(user.getIsBlocked()))
                 .ifPresent(user -> emailOtpService.send(user.getEmail()));
+    }
+
+    @Override
+    public void sendSellerRegistrationEmailOtp(String email, String phoneNumber) {
+        String normalizedEmail = email.trim().toLowerCase(java.util.Locale.ROOT);
+        String normalizedPhone = phoneNumber.trim();
+        // Keep the response generic; do not reveal whether either identifier is already registered.
+        if (!userRepository.existsByPhoneNumber(normalizedPhone)
+                && userRepository.findByEmailIgnoreCase(normalizedEmail).isEmpty()) {
+            emailOtpService.send(normalizedEmail);
+        }
+    }
+
+    @Override
+    public AuthResponse registerSellerWithEmailOtp(SellerEmailRegistrationRequest request) {
+        String email = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
+        String phone = request.getPhoneNumber().trim();
+        emailOtpService.verify(email, request.getOtp());
+        if (userRepository.existsByPhoneNumber(phone) || userRepository.findByEmailIgnoreCase(email).isPresent()) {
+            throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
+        }
+        User seller = User.newSeller(phone, email);
+        seller.setIsVerified(true); // Email ownership was verified by this registration flow.
+        seller.setIsProfileComplete(false);
+        seller.setUpdatedAt(LocalDateTime.now());
+        try {
+            return issueTokens(userRepository.save(seller));
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
+        }
+    }
+
+    private UserRole requestedRegistrationRole(String role) {
+        if (role == null || role.isBlank()) return null;
+        String normalized = role.trim().toUpperCase(java.util.Locale.ROOT);
+        if (normalized.startsWith("ROLE_")) normalized = normalized.substring(5);
+        if (normalized.equals("CUSTOMER")) return UserRole.ROLE_CUSTOMER;
+        if (normalized.equals("SELLER")) return UserRole.ROLE_SELLER;
+        throw new AppException("Role must be CUSTOMER or SELLER", HttpStatus.BAD_REQUEST);
     }
 
     @Override

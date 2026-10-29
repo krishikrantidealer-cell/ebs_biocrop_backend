@@ -15,6 +15,9 @@ public class UserProfileUpdateRequest {
     @Size(min = 2, max = 50, message = "Last Name must be between 2 and 50 characters")
     private String lastName;
 
+    @Size(max = 120, message = "Shop name cannot exceed 120 characters")
+    private String shopName;
+
     @NotNull(message = "Address is required")
     @Valid
     private com.ebs.biocrop.entity.Address address;
@@ -26,6 +29,12 @@ public class UserProfileUpdateRequest {
         this.firstName = firstName;
         this.lastName = lastName;
         this.address = address;
+    }
+
+    public UserProfileUpdateRequest(String firstName, String lastName, String shopName,
+                                    com.ebs.biocrop.entity.Address address) {
+        this(firstName, lastName, address);
+        setShopName(shopName);
     }
 
     public String getFirstName() {
@@ -42,6 +51,12 @@ public class UserProfileUpdateRequest {
 
     public void setLastName(String lastName) {
         this.lastName = lastName != null ? lastName.trim() : null;
+    }
+
+    public String getShopName() { return shopName; }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName != null ? shopName.trim() : null;
     }
 
     public com.ebs.biocrop.entity.Address getAddress() {

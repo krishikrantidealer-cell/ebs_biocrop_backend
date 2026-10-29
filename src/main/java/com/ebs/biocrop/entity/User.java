@@ -9,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Document(collection = "users")
 public class User {
@@ -28,28 +29,22 @@ public class User {
     private String lastName;
     private String shopName;
     /** Atomic per-seller counter used to issue stable seller product codes. */
-    private Long productCodeSequence = 0L;
+    private Long productCodeSequence;
     /** Atomic per-seller counter used to issue seller order numbers. */
-    private Long orderNumberSequence = 0L;
-    private String source;
-    
-    private String assignedAgent; // ObjectId
+    private Long orderNumberSequence;
     private Boolean isVerified = false;
     private Boolean isProfileComplete = false;
-    private String addressType;
     private UserRole role = UserRole.ROLE_CUSTOMER;
     private String kycStatus;
     private Boolean isKycComplete = false;
     private List<Address> shippingAddresses = new ArrayList<>();
     
-    private String fcmToken;
     private Address address;
     
     private Boolean isBlocked = false;
     private String notes;
     private List<String> notesHistory = new ArrayList<>();
     private String status;
-    private String userType;
     private Integer whatsappSequence = 0;
     
     private Boolean isDeleted = false;
@@ -58,16 +53,9 @@ public class User {
     private String gstNumber;
     private String licenceImage;
     private String shopImage;
-    private Integer kycReminderCount;
-
-    private LocalDateTime assignedAt;
-    private LocalDateTime lastMarketingNotificationSentAt;
-    private String lastMarketingSegment;
-    private LocalDateTime last530PMSentAt;
-    private LocalDateTime last8PMSentAt;
-    private LocalDateTime lastWinBackSentAt;
-    private LocalDateTime lastFirstOrderSentAt;
-    private LocalDateTime lastKycReminderSentAt;
+    // Reserved seller-schema placeholders; payout data is intentionally not collected or exposed yet.
+    private Map<String, Object> bankDetails;
+    private Map<String, Object> settlementTerms;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -84,23 +72,37 @@ public class User {
         this();
         this.phoneNumber = phoneNumber;
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
-        if (this.role == UserRole.ROLE_ADMIN) {
+        if (this.role == UserRole.ROLE_CUSTOMER || this.role == UserRole.ROLE_SELLER) {
+            this.status = "ACTIVE";
+        }
+        if (this.role == UserRole.ROLE_SELLER) {
+            this.productCodeSequence = 0L;
+            this.orderNumberSequence = 0L;
+        } else if (this.role == UserRole.ROLE_ADMIN) {
             this.isVerified = null;
             this.isProfileComplete = true;
             this.isBlocked = null;
             this.isDeleted = null;
             this.whatsappSequence = null;
-            this.productCodeSequence = null;
-            this.orderNumberSequence = null;
         }
     }
 
+    public static User newCustomer(String phoneNumber) {
+        return new User(phoneNumber, UserRole.ROLE_CUSTOMER);
+    }
+
+    public static User newSeller(String phoneNumber, String email) {
+        User seller = new User(phoneNumber, UserRole.ROLE_SELLER);
+        seller.setEmail(email);
+        return seller;
+    }
 
     public static User newAdmin(String phoneNumber, String email) {
         User admin = new User(phoneNumber, UserRole.ROLE_ADMIN);
         admin.setEmail(email);
         return admin;
     }
+
     // Getters and Setters
 
     public String getId() { return id; }
@@ -131,12 +133,6 @@ public class User {
     public Long getOrderNumberSequence() { return orderNumberSequence; }
     public void setOrderNumberSequence(Long orderNumberSequence) { this.orderNumberSequence = orderNumberSequence; }
 
-    public String getSource() { return source; }
-    public void setSource(String source) { this.source = source; }
-
-    public String getAssignedAgent() { return assignedAgent; }
-    public void setAssignedAgent(String assignedAgent) { this.assignedAgent = assignedAgent; }
-
     public Boolean getIsVerified() { return isVerified; }
     public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
 
@@ -144,11 +140,14 @@ public class User {
     public void setIsProfileComplete(Boolean isProfileComplete) { this.isProfileComplete = isProfileComplete; }
 
     public boolean hasCompleteProfile() {
-        return hasText(firstName)
-                && hasText(lastName)
-                && address != null
+        if (!hasText(firstName) || !hasText(lastName) || !hasCompleteAddress()) return false;
+        return getRole() != UserRole.ROLE_SELLER || hasText(shopName);
+    }
+
+    private boolean hasCompleteAddress() {
+        return address != null
                 && hasText(address.getVillageArea())
-                && (hasText(address.getAddress2()) || hasText(address.getAddressLine2()))
+                && hasText(address.getAddress2())
                 && hasText(address.getCityTehsil())
                 && hasText(address.getState())
                 && address.getPincode() != null
@@ -159,13 +158,19 @@ public class User {
         return value != null && !value.isBlank();
     }
 
-    public String getAddressType() { return addressType; }
-    public void setAddressType(String addressType) { this.addressType = addressType; }
-
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) {
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
-        if (this.role == UserRole.ROLE_ADMIN) {
+        if (this.role == UserRole.ROLE_SELLER) {
+            if (status == null || status.isBlank()) status = "ACTIVE";
+            if (productCodeSequence == null) productCodeSequence = 0L;
+            if (orderNumberSequence == null) orderNumberSequence = 0L;
+            if (isVerified == null) isVerified = false;
+            if (isBlocked == null) isBlocked = false;
+            if (isDeleted == null) isDeleted = false;
+            if (whatsappSequence == null) whatsappSequence = 0;
+        } else if (this.role == UserRole.ROLE_ADMIN) {
+            status = null;
             isVerified = null;
             isProfileComplete = hasCompleteProfile();
             isBlocked = null;
@@ -173,20 +178,46 @@ public class User {
             whatsappSequence = null;
             productCodeSequence = null;
             orderNumberSequence = null;
+        } else {
+            if (status == null || status.isBlank()) status = "ACTIVE";
+            if (isVerified == null) isVerified = false;
+            if (isBlocked == null) isBlocked = false;
+            if (isDeleted == null) isDeleted = false;
+            if (whatsappSequence == null) whatsappSequence = 0;
+            isProfileComplete = hasCompleteProfile();
         }
     }
 
     public String getKycStatus() { return kycStatus; }
-    public void setKycStatus(String kycStatus) { this.kycStatus = kycStatus; }
+    public void setKycStatus(String kycStatus) {
+        boolean approved = role == UserRole.ROLE_SELLER
+                && "APPROVED".equalsIgnoreCase(kycStatus)
+                && hasRequiredSellerKycInformation();
+        this.kycStatus = approved ? "APPROVED" : null;
+        this.isKycComplete = approved;
+    }
 
     public Boolean getIsKycComplete() { return isKycComplete; }
-    public void setIsKycComplete(Boolean isKycComplete) { this.isKycComplete = isKycComplete; }
+    public void setIsKycComplete(Boolean isKycComplete) {
+        this.isKycComplete = role == UserRole.ROLE_SELLER
+                && Boolean.TRUE.equals(isKycComplete)
+                && "APPROVED".equalsIgnoreCase(kycStatus);
+    }
+
+    /** Seller KYC information is ready for review when all required details are present. */
+    public boolean hasRequiredSellerKycInformation() {
+        return hasText(gstNumber) && hasText(licenceImage) && hasText(shopImage);
+    }
+
+    private void invalidateSellerKycApprovalIfChanged(String current, String replacement) {
+        if (role == UserRole.ROLE_SELLER && !java.util.Objects.equals(current, replacement)) {
+            this.kycStatus = null;
+            this.isKycComplete = false;
+        }
+    }
 
     public List<Address> getShippingAddresses() { return shippingAddresses; }
     public void setShippingAddresses(List<Address> shippingAddresses) { this.shippingAddresses = shippingAddresses; }
-
-    public String getFcmToken() { return fcmToken; }
-    public void setFcmToken(String fcmToken) { this.fcmToken = fcmToken; }
 
     public Address getAddress() { return address; }
     public void setAddress(Address address) { this.address = address; }
@@ -203,9 +234,6 @@ public class User {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public String getUserType() { return userType; }
-    public void setUserType(String userType) { this.userType = userType; }
-
     public Integer getWhatsappSequence() { return whatsappSequence; }
     public void setWhatsappSequence(Integer whatsappSequence) { this.whatsappSequence = whatsappSequence; }
 
@@ -219,40 +247,22 @@ public class User {
     public void setPreferredLanguage(String preferredLanguage) { this.preferredLanguage = preferredLanguage; }
 
     public String getGstNumber() { return gstNumber; }
-    public void setGstNumber(String gstNumber) { this.gstNumber = gstNumber; }
+    public void setGstNumber(String gstNumber) {
+        invalidateSellerKycApprovalIfChanged(this.gstNumber, gstNumber);
+        this.gstNumber = gstNumber;
+    }
 
     public String getLicenceImage() { return licenceImage; }
-    public void setLicenceImage(String licenceImage) { this.licenceImage = licenceImage; }
+    public void setLicenceImage(String licenceImage) {
+        invalidateSellerKycApprovalIfChanged(this.licenceImage, licenceImage);
+        this.licenceImage = licenceImage;
+    }
 
     public String getShopImage() { return shopImage; }
-    public void setShopImage(String shopImage) { this.shopImage = shopImage; }
-
-    public Integer getKycReminderCount() { return kycReminderCount; }
-    public void setKycReminderCount(Integer kycReminderCount) { this.kycReminderCount = kycReminderCount; }
-
-    public LocalDateTime getAssignedAt() { return assignedAt; }
-    public void setAssignedAt(LocalDateTime assignedAt) { this.assignedAt = assignedAt; }
-
-    public LocalDateTime getLastMarketingNotificationSentAt() { return lastMarketingNotificationSentAt; }
-    public void setLastMarketingNotificationSentAt(LocalDateTime lastMarketingNotificationSentAt) { this.lastMarketingNotificationSentAt = lastMarketingNotificationSentAt; }
-
-    public String getLastMarketingSegment() { return lastMarketingSegment; }
-    public void setLastMarketingSegment(String lastMarketingSegment) { this.lastMarketingSegment = lastMarketingSegment; }
-
-    public LocalDateTime getLast530PMSentAt() { return last530PMSentAt; }
-    public void setLast530PMSentAt(LocalDateTime last530PMSentAt) { this.last530PMSentAt = last530PMSentAt; }
-
-    public LocalDateTime getLast8PMSentAt() { return last8PMSentAt; }
-    public void setLast8PMSentAt(LocalDateTime last8PMSentAt) { this.last8PMSentAt = last8PMSentAt; }
-
-    public LocalDateTime getLastWinBackSentAt() { return lastWinBackSentAt; }
-    public void setLastWinBackSentAt(LocalDateTime lastWinBackSentAt) { this.lastWinBackSentAt = lastWinBackSentAt; }
-
-    public LocalDateTime getLastFirstOrderSentAt() { return lastFirstOrderSentAt; }
-    public void setLastFirstOrderSentAt(LocalDateTime lastFirstOrderSentAt) { this.lastFirstOrderSentAt = lastFirstOrderSentAt; }
-
-    public LocalDateTime getLastKycReminderSentAt() { return lastKycReminderSentAt; }
-    public void setLastKycReminderSentAt(LocalDateTime lastKycReminderSentAt) { this.lastKycReminderSentAt = lastKycReminderSentAt; }
+    public void setShopImage(String shopImage) {
+        invalidateSellerKycApprovalIfChanged(this.shopImage, shopImage);
+        this.shopImage = shopImage;
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

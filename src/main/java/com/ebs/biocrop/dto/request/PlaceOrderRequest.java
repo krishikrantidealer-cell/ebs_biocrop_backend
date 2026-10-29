@@ -28,7 +28,7 @@ public class PlaceOrderRequest {
         @jakarta.validation.constraints.NotBlank private String name;
         @jakarta.validation.constraints.NotBlank private String phoneNumber;
         @jakarta.validation.constraints.NotBlank private String villageArea;
-        private String addressLine2;
+        private String address2;
         @jakarta.validation.constraints.NotBlank private String cityTehsil;
         @jakarta.validation.constraints.NotBlank private String state;
         @jakarta.validation.constraints.NotBlank
@@ -40,8 +40,8 @@ public class PlaceOrderRequest {
         public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
         public String getVillageArea() { return villageArea; }
         public void setVillageArea(String villageArea) { this.villageArea = villageArea; }
-        public String getAddressLine2() { return addressLine2; }
-        public void setAddressLine2(String addressLine2) { this.addressLine2 = addressLine2; }
+        public String getAddress2() { return address2; }
+        public void setAddress2(String address2) { this.address2 = address2; }
         public String getCityTehsil() { return cityTehsil; }
         public void setCityTehsil(String cityTehsil) { this.cityTehsil = cityTehsil; }
         public String getState() { return state; }

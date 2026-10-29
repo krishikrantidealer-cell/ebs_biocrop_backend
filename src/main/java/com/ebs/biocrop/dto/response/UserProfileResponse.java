@@ -8,6 +8,7 @@ public class UserProfileResponse {
     private String phoneNumber;
     private String firstName;
     private String lastName;
+    private String shopName;
     private com.ebs.biocrop.entity.Address address;
     private String role;
     private Boolean isDeleted;
@@ -32,10 +33,19 @@ public class UserProfileResponse {
                                com.ebs.biocrop.entity.Address address, String role, Boolean isDeleted,
                                Boolean isProfileComplete, Boolean isVerified,
                                LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, phoneNumber, firstName, lastName, null, address, role, isDeleted,
+                isProfileComplete, isVerified, createdAt, updatedAt);
+    }
+
+    public UserProfileResponse(String id, String phoneNumber, String firstName, String lastName,
+                               String shopName, com.ebs.biocrop.entity.Address address, String role,
+                               Boolean isDeleted, Boolean isProfileComplete, Boolean isVerified,
+                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
         this.firstName = firstName;
         this.lastName = lastName;
+        this.shopName = shopName;
         this.address = address;
         this.role = role;
         this.isDeleted = isDeleted != null ? isDeleted : false;
@@ -76,6 +86,10 @@ public class UserProfileResponse {
     public void setLastName(String lastName) {
         this.lastName = lastName;
     }
+
+    public String getShopName() { return shopName; }
+
+    public void setShopName(String shopName) { this.shopName = shopName; }
 
     public com.ebs.biocrop.entity.Address getAddress() {
         return address;
