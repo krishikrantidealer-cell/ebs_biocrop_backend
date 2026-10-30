@@ -81,7 +81,7 @@ public record ProductManagementResponse(
         }
     }
 
-    public record ManagementVariant(String id, String label, String unit, Integer packSize,
+    public record ManagementVariant(String id, String sku, String label, String unit, Integer packSize,
                                     String packSizeUnit, Integer packQuantity, String packUnit,
                                     String shippedBy, Double swg, Long totalBaseQuantity,
                                     String totalBaseUnit, ProductDimensions dimensions,
@@ -90,7 +90,7 @@ public record ProductManagementResponse(
                                     Integer stock, Double pricePerBaseUnit, Integer displayOrder,
                                     Boolean isDefault) {
         static ManagementVariant from(ProductVariant variant) {
-            return new ManagementVariant(variant.getId(), variant.getLabel(), variant.getUnit(),
+            return new ManagementVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(),
                     variant.getPackSize(), variant.getPackSizeUnit(), variant.getPackQuantity(),
                     variant.getPackUnit(), variant.getShippedBy(), variant.getSwg(),
                     variant.getTotalBaseQuantity(), variant.getTotalBaseUnit(), variant.getDimensions(),

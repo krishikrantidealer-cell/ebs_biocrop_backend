@@ -30,6 +30,7 @@ public interface AdminProductService {
     Product softDelete(String id);
     Product restore(String id);
     void permanentlyDelete(String id);
+    List<String> permanentlyDeleteMany(List<String> ids);
     Product review(String id, boolean approved);
     Product setAvailability(String id, boolean available);
     Product setFeatured(String id, boolean featured);

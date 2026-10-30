@@ -197,7 +197,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             List<ProductVariant> submittedVariants = request.getVariants().stream()
                     .map(SellerProductWriteRequest.VariantWriteRequest::toVariant)
                     .toList();
-            List<ProductVariant> sanitized = sanitizeVariants(submittedVariants, current.getVariants());
+            List<ProductVariant> sanitized = sanitizeVariants(submittedVariants, current.getVariants(), current.getSku());
             normalizeDefaultVariants(sanitized);
             current.setVariants(new ArrayList<>(sanitized));
 
@@ -275,6 +275,10 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current) {
+        return sanitizeVariants(submitted, current, null);
+    }
+
+    private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current, String productSku) {
         List<ProductVariant> currentList = current != null ? current : List.of();
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
@@ -284,6 +288,13 @@ public class AdminProductServiceImpl implements AdminProductService {
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
             clean.setId(retain ? prior.getId() : new ObjectId().toHexString());
+            clean.setSku(input.getSku() != null && !input.getSku().isBlank()
+                    ? input.getSku().trim()
+                    : (prior != null && prior.getSku() != null ? prior.getSku() : null));
+            if (clean.getSku() == null || clean.getSku().isBlank()) {
+                String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
+                clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
+            }
             clean.setLabel(input.getLabel());
             clean.setUnit(input.getUnit() == null ? (input.getPackSizeUnit() == null ? null : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT));
             clean.setPackSize(input.getPackSize());
@@ -318,6 +329,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (product.getVariants() == null) product.setVariants(new ArrayList<>());
         ProductVariant added = request.toProductVariant();
         added.setId(new ObjectId().toHexString());
+        if (added.getSku() == null || added.getSku().isBlank()) {
+            String baseSku = product.getSku() != null ? product.getSku().replaceAll("\\s*-\\s*", "-").trim() : "PROD";
+            int vIndex = product.getVariants().size() + 1;
+            added.setSku(String.format("%s-%02d", baseSku, vIndex));
+        }
         if (Boolean.TRUE.equals(request.getIsDefault())) {
             for (ProductVariant v : product.getVariants()) {
                 v.setIsDefault(false);
@@ -338,6 +354,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         ProductVariant replacement = request.toProductVariant();
         replacement.setId(existing.getId());
         replacement.setDisplayOrder(existing.getDisplayOrder());
+        if (replacement.getSku() == null || replacement.getSku().isBlank()) {
+            replacement.setSku(existing.getSku());
+        }
         Boolean targetDefault = request.getIsDefault() != null ? request.getIsDefault() : existing.getIsDefault();
         if (Boolean.TRUE.equals(targetDefault)) {
             for (ProductVariant v : product.getVariants()) {
@@ -364,6 +383,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product product = getEditableProduct(productId);
         ProductVariant current = findVariant(product, variantId);
         ProductVariant updated = copyVariant(current);
+        if (patch.getSku()!=null) updated.setSku(patch.getSku());
         if (patch.getLabel()!=null) updated.setLabel(patch.getLabel());
         if (patch.getUnit()!=null) updated.setUnit(patch.getUnit());
         if (patch.getPackSize()!=null) updated.setPackSize(patch.getPackSize());
@@ -486,7 +506,7 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     private ProductVariant copyVariant(ProductVariant source) {
         ProductVariant copy = new ProductVariant();
-        copy.setId(source.getId()); copy.setDisplayOrder(source.getDisplayOrder()); copy.setIsDefault(source.getIsDefault());
+        copy.setId(source.getId()); copy.setSku(source.getSku()); copy.setDisplayOrder(source.getDisplayOrder()); copy.setIsDefault(source.getIsDefault());
         copy.setLabel(source.getLabel()); copy.setUnit(source.getUnit()); copy.setPackSize(source.getPackSize());
         copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity()); copy.setPackUnit(source.getPackUnit());
         copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(source.getDimensions());
@@ -517,28 +537,62 @@ public class AdminProductServiceImpl implements AdminProductService {
     }
 
     @Override public void permanentlyDelete(String id) {
-        Product product = products.findById(id).orElse(null);
-        if (product == null) {
+        permanentlyDeleteMany(List.of(id));
+    }
+
+    @Override
+    public List<String> permanentlyDeleteMany(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        List<String> deletedIds = new ArrayList<>();
+        List<String> allVariantIds = new ArrayList<>();
+
+        for (String id : ids) {
+            Product product = products.findById(id).orElse(null);
+            if (product == null) {
+                product = products.findByProductCode(id).orElse(null);
+            }
+            if (product == null) {
+                product = products.findBySku(id).orElse(null);
+            }
+            if (product != null) {
+                String actualId = product.getId();
+                if (product.getProductImages() != null && product.getSellerId() != null) {
+                    for (ProductImage image : product.getProductImages()) {
+                        try {
+                            imageStorage.deleteImageVariants(product.getSellerId(), actualId, image);
+                        } catch (Exception ignored) {}
+                    }
+                }
+                if (product.getVariants() != null) {
+                    product.getVariants().stream()
+                            .map(ProductVariant::getId)
+                            .filter(java.util.Objects::nonNull)
+                            .forEach(allVariantIds::add);
+                }
+                try {
+                    cartService.removeProductFromAllCarts(actualId);
+                } catch (Exception ignored) {}
+
+                products.delete(product);
+                deletedIds.add(actualId);
+                webSocketService.broadcast("products:delete", Map.of(
+                        "productId", actualId,
+                        "isPermanent", true
+                ));
+            }
+        }
+
+        if (!deletedIds.isEmpty()) {
+            removeWishlistReferences(allVariantIds);
             invalidatePublicCatalog();
-            return;
+            webSocketService.broadcast("products:refresh", Map.of(
+                    "message", "Catalog invalidated",
+                    "deletedCount", deletedIds.size(),
+                    "timestamp", java.time.Instant.now().toString()
+            ));
         }
-        if (!Boolean.TRUE.equals(product.getIsDeleted()))
-            throw new AppException("Soft-delete the product before permanently deleting it", HttpStatus.CONFLICT);
-        if (product.getProductImages() != null && product.getSellerId() != null) {
-            for (ProductImage image : product.getProductImages())
-                imageStorage.deleteImageVariants(product.getSellerId(), product.getId(), image);
-        }
-        List<String> variantIds = product.getVariants() == null ? List.of() : product.getVariants().stream()
-                .map(ProductVariant::getId).filter(java.util.Objects::nonNull).toList();
-        cartService.removeProductFromAllCarts(id);
-        removeWishlistReferences(variantIds);
-        products.delete(product);
-        invalidatePublicCatalog();
-        webSocketService.broadcast("products:delete", Map.of(
-                "productId", id,
-                "isPermanent", true
-        ));
-        webSocketService.broadcast("products:refresh", Map.of("message", "Catalog invalidated", "timestamp", java.time.Instant.now().toString()));
+
+        return deletedIds;
     }
 
     private void removeWishlistReferences(List<String> variantIds) {

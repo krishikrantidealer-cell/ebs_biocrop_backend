@@ -27,9 +27,11 @@ public class AdminProductVariantWriteRequest {
     @PositiveOrZero private Double discountPercentage;
     @NotNull @PositiveOrZero private Integer stock;
     private Boolean isDefault;
+    @Size(max = 80) private String sku;
 
     public ProductVariant toProductVariant() {
         ProductVariant value = new ProductVariant();
+        value.setSku(sku);
         value.setLabel(label); value.setUnit(unit); value.setPackSize(packSize);
         value.setPackSizeUnit(packSizeUnit); value.setPackQuantity(packQuantity); value.setPackUnit(packUnit);
         value.setShippedBy(shippedBy); value.setSwg(swg); value.setDimensions(dimensions);
@@ -57,4 +59,5 @@ public class AdminProductVariantWriteRequest {
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Integer getStock() { return stock; } public void setStock(Integer v) { stock=v; }
     public Boolean getIsDefault() { return isDefault; } public void setIsDefault(Boolean v) { isDefault=v; }
+    public String getSku() { return sku; } public void setSku(String v) { sku=v; }
 }

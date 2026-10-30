@@ -113,9 +113,11 @@ public class SellerProductWriteRequest {
         @PositiveOrZero private Double gstPercentage;
         @PositiveOrZero private Double discountPercentage;
         @NotNull @PositiveOrZero private Integer stock;
+        @Size(max = 80) private String sku;
 
         public ProductVariant toVariant() {
             ProductVariant variant = new ProductVariant();
+            variant.setSku(sku);
             variant.setLabel(label); variant.setUnit(unit); variant.setPackSize(packSize);
             variant.setPackSizeUnit(packSizeUnit); variant.setPackQuantity(packQuantity); variant.setPackUnit(packUnit);
             variant.setShippedBy(shippedBy); variant.setSwg(swg); variant.setDimensions(dimensions);
@@ -159,5 +161,7 @@ public class SellerProductWriteRequest {
         public void setDiscountPercentage(Double discountPercentage) { this.discountPercentage = discountPercentage; }
         public Integer getStock() { return stock; }
         public void setStock(Integer stock) { this.stock = stock; }
+        public String getSku() { return sku; }
+        public void setSku(String sku) { this.sku = sku; }
     }
 }

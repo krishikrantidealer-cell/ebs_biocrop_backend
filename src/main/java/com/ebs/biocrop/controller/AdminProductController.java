@@ -5,6 +5,7 @@ import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.ProductManagementResponse;
 import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.request.DeleteProductImagesRequest;
+import com.ebs.biocrop.dto.request.DeleteProductsRequest;
 import com.ebs.biocrop.dto.request.AdminProductWriteRequest;
 import com.ebs.biocrop.dto.request.AdminProductPatchRequest;
 import com.ebs.biocrop.dto.request.AdminProductUpdateRequest;
@@ -46,6 +47,7 @@ public class AdminProductController {
     private final SellerShopNameLookup sellerNames;
     private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
                                   SellerShopNameLookup sellerNames,
                                   com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
@@ -179,11 +181,23 @@ public class AdminProductController {
         return ResponseEntity.ok(ApiResponse.ok("Product restored for review", managementResponse(products.restore(productId))));
     }
 
-    // Permanently delete a previously soft-deleted product listing
+    // Permanently delete one or more products (unified single & bulk endpoint)
+    @DeleteMapping("/permanent")
+    @Operation(summary = "Permanently delete one or more products",
+               description = "Pass one product ID to delete a single product, or multiple IDs to delete in bulk.")
+    public ResponseEntity<ApiResponse<CountedListResponse<String>>> permanentlyDeleteProducts(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @Valid @RequestBody DeleteProductsRequest request) {
+        rateLimitGuard.enforce("admin-product-permanent-delete", admin.getId(), 30, Duration.ofMinutes(1));
+        List<String> deleted = products.permanentlyDeleteMany(request.productIds());
+        return ResponseEntity.ok(ApiResponse.ok("Products permanently deleted", CountedListResponse.from(deleted)));
+    }
+
+    // Permanently delete a single product listing (delegates to unified handler)
     @DeleteMapping("/{productId}/permanent")
-    @Operation(summary = "Permanently delete a previously soft-deleted product")
+    @Operation(summary = "Permanently delete a product listing")
     public ResponseEntity<ApiResponse<String>> permanentlyDeleteProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId) {
-        rateLimitGuard.enforce("admin-product-permanent-delete", admin.getId(), 10, Duration.ofMinutes(1));
+        rateLimitGuard.enforce("admin-product-permanent-delete", admin.getId(), 30, Duration.ofMinutes(1));
         products.permanentlyDelete(productId);
         return ResponseEntity.ok(ApiResponse.ok("Product permanently deleted", productId));
     }

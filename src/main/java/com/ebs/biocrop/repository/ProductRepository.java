@@ -15,6 +15,8 @@ public interface ProductRepository extends MongoRepository<Product, String>, Pro
     @Query(value = "{ 'sellerId': ?0, '$or': [ { 'isDeleted': false }, { 'isDeleted': null }, { 'isDeleted': { '$exists': false } } ] }")
     Page<Product> findActiveBySellerId(String sellerId, Pageable pageable);
     boolean existsBySkuIgnoreCase(String sku);
+    Optional<Product> findByProductCode(String productCode);
+    Optional<Product> findBySku(String sku);
     Optional<Product> findByIdAndSellerId(String id, String sellerId);
     List<Product> findBySellerId(String sellerId);
 

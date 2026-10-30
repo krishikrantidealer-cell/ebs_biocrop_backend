@@ -25,12 +25,13 @@ public class AdminProductVariantPatchRequest {
     @PositiveOrZero private Double discountPercentage;
     @PositiveOrZero private Integer stock;
     private Boolean isDefault;
+    @Size(max = 80) private String sku;
 
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packSizeUnit != null || packQuantity != null
                 || packUnit != null || shippedBy != null || swg != null || dimensions != null || displayRate != null
                 || printedMrp != null || costPrice != null || discountRs != null || gstPercentage != null
-                || discountPercentage != null || stock != null || isDefault != null;
+                || discountPercentage != null || stock != null || isDefault != null || sku != null;
     }
     public String getLabel() { return label; } public void setLabel(String v) { label=v; }
     public String getUnit() { return unit; } public void setUnit(String v) { unit=v; }
@@ -49,4 +50,5 @@ public class AdminProductVariantPatchRequest {
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Integer getStock() { return stock; } public void setStock(Integer v) { stock=v; }
     public Boolean getIsDefault() { return isDefault; } public void setIsDefault(Boolean v) { isDefault=v; }
+    public String getSku() { return sku; } public void setSku(String v) { sku=v; }
 }

@@ -220,7 +220,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setRefundPolicy(source.getRefundPolicy()); target.setProductWeight(source.getProductWeight());
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
-        target.setVariants(sanitizeVariants(source.getVariants(), oldVariants));
+        target.setVariants(sanitizeVariants(source.getVariants(), oldVariants, source.getSku()));
     }
 
     private String findSellerShopName(String sellerId) {
@@ -239,6 +239,10 @@ public class SellerProductServiceImpl implements SellerProductService {
     }
 
     private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current) {
+        return sanitizeVariants(submitted, current, null);
+    }
+
+    private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current, String productSku) {
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
         for (ProductVariant input : submitted) {
@@ -247,6 +251,13 @@ public class SellerProductServiceImpl implements SellerProductService {
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
             clean.setId(retain ? prior.getId() : new ObjectId().toHexString());
+            clean.setSku(input.getSku() != null && !input.getSku().isBlank()
+                    ? input.getSku().trim()
+                    : (prior != null && prior.getSku() != null ? prior.getSku() : null));
+            if (clean.getSku() == null || clean.getSku().isBlank()) {
+                String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
+                clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
+            }
             clean.setLabel(input.getLabel());
             clean.setUnit(input.getUnit() == null ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : input.getUnit().trim().toLowerCase(Locale.ROOT));
             clean.setPackSize(input.getPackSize()); clean.setPackSizeUnit(input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));

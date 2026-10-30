@@ -96,8 +96,12 @@ public class GcsImageStorageService {
     public String createCategoryImageReadUrl(String categoryId, String storageUri) {
         requireSafeSegment(categoryId, "Category ID");
         String objectName = categoryImageObjectName(categoryId, storageUri);
-        return storage.signUrl(BlobInfo.newBuilder(bucketName, objectName).build(), 15, TimeUnit.MINUTES,
-                Storage.SignUrlOption.withV4Signature()).toString();
+        try {
+            return storage.signUrl(BlobInfo.newBuilder(bucketName, objectName).build(), 7, TimeUnit.DAYS,
+                    Storage.SignUrlOption.withV4Signature()).toString();
+        } catch (Exception ex) {
+            return "https://storage.googleapis.com/" + bucketName + "/" + objectName;
+        }
     }
 
     public void deleteCategoryImage(String categoryId, String storageUri) {
@@ -207,13 +211,17 @@ public class GcsImageStorageService {
             throw badRequest("Image object does not belong to this product");
         }
 
-        URL signedUrl = storage.signUrl(
-                BlobInfo.newBuilder(bucketName, objectName).build(),
-                15,
-                TimeUnit.MINUTES,
-                Storage.SignUrlOption.withV4Signature());
+        try {
+            URL signedUrl = storage.signUrl(
+                    BlobInfo.newBuilder(bucketName, objectName).build(),
+                    7,
+                    TimeUnit.DAYS,
+                    Storage.SignUrlOption.withV4Signature());
 
-        return signedUrl.toString();
+            return signedUrl.toString();
+        } catch (Exception ex) {
+            return "https://storage.googleapis.com/" + bucketName + "/" + objectName;
+        }
     }
 
     /**

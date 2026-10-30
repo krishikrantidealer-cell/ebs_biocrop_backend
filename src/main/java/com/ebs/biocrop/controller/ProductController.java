@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.PublicProductResponse;
@@ -49,10 +50,12 @@ public class ProductController {
     @GetMapping
     @Operation(summary = "List available products")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return pageResponse("list|page=" + page + "|size=" + size,
-                () -> productCatalog.listPublic(page, size), "Products retrieved successfully");
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        return pageResponse("list|page=" + resolvedPage + "|size=" + resolvedSize,
+                () -> productCatalog.listPublic(resolvedPage, resolvedSize), "Products retrieved successfully");
     }
 
     // Get available product details.
@@ -75,10 +78,12 @@ public class ProductController {
     @Operation(summary = "List available products in a category subtree")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProductsByCategory(
             @PathVariable String categoryId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return pageResponse("category=" + categoryId + "|page=" + page + "|size=" + size,
-                () -> productCatalog.listByCategory(categoryId, page, size), "Products retrieved successfully");
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        return pageResponse("category=" + categoryId + "|page=" + resolvedPage + "|size=" + resolvedSize,
+                () -> productCatalog.listByCategory(categoryId, resolvedPage, resolvedSize), "Products retrieved successfully");
     }
 
     // Search available products.
@@ -86,10 +91,12 @@ public class ProductController {
     @Operation(summary = "Search available products")
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> searchProducts(
             @RequestParam String q,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return pageResponse("search=" + q + "|page=" + page + "|size=" + size,
-                () -> productCatalog.search(q, page, size), "Products retrieved successfully");
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        return pageResponse("search=" + q + "|page=" + resolvedPage + "|size=" + resolvedSize,
+                () -> productCatalog.search(q, resolvedPage, resolvedSize), "Products retrieved successfully");
     }
 
     private ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> pageResponse(
@@ -104,7 +111,13 @@ public class ProductController {
     private PagedResponse<PublicProductResponse> mapPage(Page<Product> products) {
         Map<String, String> currentSellerNames = sellerNames.findCurrentShopNames(products.getContent().stream()
                 .map(Product::getSellerId).distinct().toList());
-        return PagedResponse.from(products, product -> PublicProductResponse.from(
-                product, currentSellerNames.get(product.getSellerId()), imageStorage));
+        List<PublicProductResponse> content = products.getContent().stream()
+                .map(product -> PublicProductResponse.from(product, currentSellerNames.get(product.getSellerId()), imageStorage))
+                .toList();
+        int reportedSize = (products.getSize() >= PageRequestSupport.MAX_SIZE && products.getTotalPages() <= 1)
+                ? content.size()
+                : products.getSize();
+        return new PagedResponse<>(content, products.getNumber(), reportedSize,
+                products.getTotalElements(), products.getTotalPages(), products.isFirst(), products.isLast());
     }
 }

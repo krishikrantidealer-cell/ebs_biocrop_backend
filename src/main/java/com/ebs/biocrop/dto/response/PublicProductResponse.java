@@ -80,6 +80,7 @@ public record PublicProductResponse(
 
     public record PublicVariant(
             String id,
+            String sku,
             String label,
             String unit,
             Integer packSize,
@@ -101,7 +102,7 @@ public record PublicProductResponse(
             Integer displayOrder,
             Boolean isDefault) {
         public static PublicVariant from(ProductVariant variant) {
-            return new PublicVariant(variant.getId(), variant.getLabel(), variant.getUnit(), variant.getPackSize(),
+            return new PublicVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(), variant.getPackSize(),
                     variant.getPackSizeUnit(), variant.getPackQuantity(), variant.getPackUnit(),
                     variant.getShippedBy(), variant.getSwg(),
                     variant.getTotalBaseQuantity(), variant.getTotalBaseUnit(), variant.getDimensions(),

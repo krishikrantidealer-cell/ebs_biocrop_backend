@@ -32,6 +32,7 @@ public class SellerProductController {
     private final SellerShopNameLookup sellerNames;
     private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public SellerProductController(SellerProductService sellerProducts, SellerShopNameLookup sellerNames,
                                    com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
         this.sellerProducts = sellerProducts;

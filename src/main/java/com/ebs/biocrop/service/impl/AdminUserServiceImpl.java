@@ -189,8 +189,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (replace || request.getSettlementTerms() != null) user.setSettlementTerms(request.getSettlementTerms() == null
                     ? defaultSettlementTerms() : merge(defaultSettlementTerms(), request.getSettlementTerms()));
         }
-        Boolean desiredBlocked = replace ? Boolean.TRUE.equals(request.getIsBlocked()) : request.getIsBlocked();
-        Boolean desiredDeleted = replace ? Boolean.TRUE.equals(request.getIsDeleted()) : request.getIsDeleted();
+        Boolean desiredBlocked = replace ? (request.getIsBlocked() != null ? request.getIsBlocked() : Boolean.FALSE) : request.getIsBlocked();
+        Boolean desiredDeleted = replace ? (request.getIsDeleted() != null ? request.getIsDeleted() : Boolean.FALSE) : request.getIsDeleted();
         user.setIsProfileComplete(user.hasCompleteProfile());
         user.setUpdatedAt(LocalDateTime.now());
         try {

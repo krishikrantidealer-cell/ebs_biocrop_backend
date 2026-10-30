@@ -17,6 +17,9 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Boolean isDefault = false;
 
+    @Field(write = Field.Write.ALWAYS)
+    private String sku;
+
     // Packaging fields: e.g. 1 litre (250 ml x 4 units).
     @Field(write = Field.Write.ALWAYS)
     private String label;
@@ -67,6 +70,8 @@ public class ProductVariant {
     public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
     public Boolean getIsDefault() { return Boolean.TRUE.equals(isDefault); }
     public void setIsDefault(Boolean isDefault) { this.isDefault = Boolean.TRUE.equals(isDefault); }
+    public String getSku() { return sku; }
+    public void setSku(String sku) { this.sku = sku; }
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
     public String getUnit() { return unit != null ? unit : packSizeUnit; }

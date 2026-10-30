@@ -58,12 +58,14 @@ class UserRoleSchemaPersistenceTest {
         assertEquals(0L, sellerDocument.get("orderNumberSequence"));
         assertEquals(4, sellerDocument.get("version"));
         assertTrue(sellerDocument.containsKey("bankDetails"));
-        Document bankDetails = (Document) sellerDocument.get("bankDetails");
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> bankDetails = (java.util.Map<String, Object>) sellerDocument.get("bankDetails");
         assertTrue(bankDetails.containsKey("accountHolderName"));
         assertTrue(bankDetails.containsKey("accountNumber"));
-        assertFalse(bankDetails.getBoolean("isVerified"));
+        assertEquals(Boolean.FALSE, bankDetails.get("isVerified"));
         assertTrue(sellerDocument.containsKey("settlementTerms"));
-        Document settlementTerms = (Document) sellerDocument.get("settlementTerms");
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> settlementTerms = (java.util.Map<String, Object>) sellerDocument.get("settlementTerms");
         assertEquals(0, settlementTerms.get("commissionPercentage"));
         assertTrue(settlementTerms.containsKey("payoutStatus"));
         assertTrue(sellerDocument.containsKey("notesHistory"));
