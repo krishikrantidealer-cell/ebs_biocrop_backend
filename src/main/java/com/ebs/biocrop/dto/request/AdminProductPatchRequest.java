@@ -15,12 +15,12 @@ public class AdminProductPatchRequest {
     @Size(max = 10000) private String description;
     @Size(max = 20) private List<@NotBlank @Size(max = 2048) String> images;
     @Size(max = 10000) private String technicalContent;
-    @Size(max = 50) private List<@NotBlank @Size(max = 300) String> features;
-    @Size(max = 50) private List<@NotBlank @Size(max = 300) String> benefits;
+    @Size(max = 50) private List<@Size(max = 300) String> features;
+    @Size(max = 50) private List<@Size(max = 300) String> benefits;
     @Size(max = 5000) private String modeOfAction;
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> suitableCrops;
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> targetPests;
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> targetDiseases;
+    @Size(max = 50) private List<@Size(max = 160) String> suitableCrops;
+    @Size(max = 50) private List<@Size(max = 160) String> targetPests;
+    @Size(max = 50) private List<@Size(max = 160) String> targetDiseases;
     @Size(max = 2000) private String dosage;
     @Size(max = 2000) private String applicationMethod;
     @Size(max = 24) private String categoryId;
@@ -28,6 +28,7 @@ public class AdminProductPatchRequest {
     @Size(max = 2000) private String refundPolicy;
     @PositiveOrZero private Double productWeight;
     @Size(max = 10) private String productWeightUnit;
+    @Size(max = 50) @Valid private List<SellerProductWriteRequest.VariantWriteRequest> variants;
 
     public String getSku() { return sku; } public void setSku(String v) { sku=v; }
     public String getHsnCode() { return hsnCode; } public void setHsnCode(String v) { hsnCode=v; }
@@ -49,12 +50,14 @@ public class AdminProductPatchRequest {
     public String getRefundPolicy() { return refundPolicy; } public void setRefundPolicy(String v) { refundPolicy=v; }
     public Double getProductWeight() { return productWeight; } public void setProductWeight(Double v) { productWeight=v; }
     public String getProductWeightUnit() { return productWeightUnit; } public void setProductWeightUnit(String v) { productWeightUnit=v; }
+    public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; } public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> v) { variants=v; }
 
     public boolean hasChanges() {
         return sku != null || hsnCode != null || title != null || technicalName != null
                 || description != null || images != null || technicalContent != null || features != null
                 || benefits != null || modeOfAction != null || suitableCrops != null || targetPests != null
                 || targetDiseases != null || dosage != null || applicationMethod != null || categoryId != null
-                || dimensions != null || refundPolicy != null || productWeight != null || productWeightUnit != null;
+                || dimensions != null || refundPolicy != null || productWeight != null || productWeightUnit != null
+                || (variants != null && !variants.isEmpty());
     }
 }

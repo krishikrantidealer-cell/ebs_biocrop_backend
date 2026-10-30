@@ -43,22 +43,22 @@ public class AdminProductUpdateRequest {
     private String technicalContent;
 
     @Size(max = 50)
-    private List<@NotBlank @Size(max = 300) String> features;
+    private List<@Size(max = 300) String> features;
 
     @Size(max = 50)
-    private List<@NotBlank @Size(max = 300) String> benefits;
+    private List<@Size(max = 300) String> benefits;
 
     @Size(max = 5000)
     private String modeOfAction;
 
     @Size(max = 50)
-    private List<@NotBlank @Size(max = 160) String> suitableCrops;
+    private List<@Size(max = 160) String> suitableCrops;
 
     @Size(max = 50)
-    private List<@NotBlank @Size(max = 160) String> targetPests;
+    private List<@Size(max = 160) String> targetPests;
 
     @Size(max = 50)
-    private List<@NotBlank @Size(max = 160) String> targetDiseases;
+    private List<@Size(max = 160) String> targetDiseases;
 
     @Size(max = 2000)
     private String dosage;

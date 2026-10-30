@@ -23,12 +23,12 @@ public class SellerProductWriteRequest {
     @Size(max = 10000) private String description;
     @Size(max = 20) private List<@NotBlank @Size(max = 2048) String> images = new ArrayList<>();
     @Size(max = 10000) private String technicalContent;
-    @Size(max = 50) private List<@NotBlank @Size(max = 300) String> features = new ArrayList<>();
-    @Size(max = 50) private List<@NotBlank @Size(max = 300) String> benefits = new ArrayList<>();
+    @Size(max = 50) private List<@Size(max = 300) String> features = new ArrayList<>();
+    @Size(max = 50) private List<@Size(max = 300) String> benefits = new ArrayList<>();
     @Size(max = 5000) private String modeOfAction;
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> suitableCrops = new ArrayList<>();
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> targetPests = new ArrayList<>();
-    @Size(max = 50) private List<@NotBlank @Size(max = 160) String> targetDiseases = new ArrayList<>();
+    @Size(max = 50) private List<@Size(max = 160) String> suitableCrops = new ArrayList<>();
+    @Size(max = 50) private List<@Size(max = 160) String> targetPests = new ArrayList<>();
+    @Size(max = 50) private List<@Size(max = 160) String> targetDiseases = new ArrayList<>();
     @Size(max = 2000) private String dosage;
     @Size(max = 2000) private String applicationMethod;
     @NotBlank private String categoryId;

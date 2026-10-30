@@ -168,12 +168,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (request.getDescription() != null) current.setDescription(request.getDescription().trim());
         if (request.getImages() != null) current.setImages(request.getImages());
         if (request.getTechnicalContent() != null) current.setTechnicalContent(request.getTechnicalContent().trim());
-        if (request.getFeatures() != null) current.setFeatures(request.getFeatures());
-        if (request.getBenefits() != null) current.setBenefits(request.getBenefits());
+        if (request.getFeatures() != null) current.setFeatures(sanitizeStringList(request.getFeatures()));
+        if (request.getBenefits() != null) current.setBenefits(sanitizeStringList(request.getBenefits()));
         if (request.getModeOfAction() != null) current.setModeOfAction(request.getModeOfAction().trim());
-        if (request.getSuitableCrops() != null) current.setSuitableCrops(request.getSuitableCrops());
-        if (request.getTargetPests() != null) current.setTargetPests(request.getTargetPests());
-        if (request.getTargetDiseases() != null) current.setTargetDiseases(request.getTargetDiseases());
+        if (request.getSuitableCrops() != null) current.setSuitableCrops(sanitizeStringList(request.getSuitableCrops()));
+        if (request.getTargetPests() != null) current.setTargetPests(sanitizeStringList(request.getTargetPests()));
+        if (request.getTargetDiseases() != null) current.setTargetDiseases(sanitizeStringList(request.getTargetDiseases()));
         if (request.getDosage() != null) current.setDosage(request.getDosage().trim());
         if (request.getApplicationMethod() != null) current.setApplicationMethod(request.getApplicationMethod().trim());
         if (request.getCategoryId() != null) {
@@ -208,10 +208,19 @@ public class AdminProductServiceImpl implements AdminProductService {
             removeWishlistReferences(removedVariantIds);
         }
 
+        if (current.getDimensions() == null) {
+            current.setDimensions(new ProductDimensions(20.0, 10.0, 10.0, "cm"));
+        }
         sellerProducts.validateProduct(current);
-        current.setStatus("INACTIVE");
-        current.setIsAvailable(false);
-        current.setIsFeatured(false);
+        if (current.getStatus() == null || current.getStatus().isBlank()) {
+            current.setStatus("ACTIVE");
+        }
+        if (current.getIsAvailable() == null) {
+            current.setIsAvailable(true);
+        }
+        if (current.getIsFeatured() == null) {
+            current.setIsFeatured(false);
+        }
         current.setUpdatedAt(LocalDateTime.now());
         return saveAndInvalidatePublicCatalog(current);
     }
@@ -267,7 +276,17 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
+        updateRequest.setVariants(request.getVariants());
         return update(id, updateRequest);
+    }
+
+    private List<String> sanitizeStringList(List<String> list) {
+        if (list == null) return List.of();
+        return list.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
     }
 
     private ProductDimensions normalizeDimensions(ProductDimensions value) {
@@ -282,7 +301,6 @@ public class AdminProductServiceImpl implements AdminProductService {
         List<ProductVariant> currentList = current != null ? current : List.of();
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
-        int inputIndex = 0;
         for (ProductVariant input : submitted) {
             ProductVariant prior = null;
             if (input.getId() != null && !input.getId().isBlank()) {
@@ -296,17 +314,10 @@ public class AdminProductServiceImpl implements AdminProductService {
                                 && (v.getId() == null || !retainedIds.contains(v.getId().toLowerCase(Locale.ROOT))))
                         .findFirst().orElse(null);
             }
-            if (prior == null && inputIndex < currentList.size()) {
-                ProductVariant candidate = currentList.get(inputIndex);
-                if (candidate.getId() != null && !retainedIds.contains(candidate.getId().toLowerCase(Locale.ROOT))) {
-                    prior = candidate;
-                }
-            }
-            inputIndex++;
 
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
-            clean.setId(retain ? prior.getId() : new ObjectId().toHexString());
+            clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
             clean.setSku(input.getSku() != null && !input.getSku().isBlank()
                     ? input.getSku().trim()
                     : (prior != null && prior.getSku() != null ? prior.getSku() : null));
@@ -314,29 +325,29 @@ public class AdminProductServiceImpl implements AdminProductService {
                 String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
                 clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
             }
-            clean.setLabel(input.getLabel());
-            clean.setUnit(input.getUnit() == null ? (input.getPackSizeUnit() == null ? null : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setPackSize(input.getPackSize());
-            clean.setPackSizeUnit(input.getPackSizeUnit() == null ? null : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setPackQuantity(input.getPackQuantity());
-            clean.setPackUnit(input.getPackUnit() == null ? null : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setShippedBy(input.getShippedBy() == null ? null : input.getShippedBy().trim());
+            clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
+            String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
+            clean.setUnit(unit.isBlank() ? "ml" : unit);
+            clean.setPackSize(input.getPackSize() != null && input.getPackSize() > 0 ? input.getPackSize() : 1);
+            clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
+            clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
+            clean.setPackUnit(input.getPackUnit() == null || input.getPackUnit().isBlank() ? "bottle" : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
+            clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
             clean.setSwg(input.getSwg());
-            if (input.getPackSize() != null && input.getPackQuantity() != null) {
-                clean.setTotalBaseQuantity(Math.multiplyExact(input.getPackSize().longValue(), input.getPackQuantity().longValue()));
-            }
-            if (input.getPackSizeUnit() != null) {
-                clean.setTotalBaseUnit(input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
-            }
-            clean.setDimensions(input.getDimensions() == null ? null : normalizeDimensions(input.getDimensions()));
-            clean.setDisplayRate(input.getDisplayRate());
-            clean.setPrintedMrp(input.getPrintedMrp());
-            clean.setCostPrice(input.getCostPrice());
-            clean.setDiscountRs(input.getDiscountRs());
-            clean.setGstPercentage(input.getGstPercentage());
-            clean.setDiscountPercentage(input.getDiscountPercentage());
-            clean.setStock(input.getStock());
-            clean.setDisplayOrder(input.getDisplayOrder());
+            clean.setTotalBaseQuantity(Math.multiplyExact(clean.getPackSize().longValue(), clean.getPackQuantity().longValue()));
+            clean.setTotalBaseUnit(clean.getPackSizeUnit());
+            clean.setDimensions(input.getDimensions() == null ? new ProductDimensions(20.0, 10.0, 10.0, "cm") : normalizeDimensions(input.getDimensions()));
+
+            double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
+            clean.setDisplayRate(dispRate);
+            double printedMrp = (input.getPrintedMrp() != null && input.getPrintedMrp() >= dispRate) ? input.getPrintedMrp() : dispRate;
+            clean.setPrintedMrp(printedMrp);
+            clean.setCostPrice(input.getCostPrice() != null && input.getCostPrice() >= 0 ? input.getCostPrice() : 0.0);
+            clean.setDiscountRs(printedMrp > dispRate ? (printedMrp - dispRate) : 0.0);
+            clean.setGstPercentage(input.getGstPercentage() != null && input.getGstPercentage() >= 0 ? input.getGstPercentage() : 5.0);
+            clean.setDiscountPercentage(printedMrp > 0 ? ((printedMrp - dispRate) / printedMrp * 100) : 0.0);
+            clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
+            clean.setDisplayOrder(input.getDisplayOrder() != null ? input.getDisplayOrder() : (result.size() + 1));
             clean.setIsDefault(input.getIsDefault());
             result.add(clean);
         }

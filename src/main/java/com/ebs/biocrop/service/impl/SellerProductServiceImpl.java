@@ -171,22 +171,37 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     private void validateVariant(Product product, ProductVariant variant) {
         ProductDimensions dimensions = variant.getDimensions() == null ? product.getDimensions() : variant.getDimensions();
-        if (dimensions == null) throw badRequest("Product dimensions are required");
+        if (dimensions == null) {
+            dimensions = new ProductDimensions(20.0, 10.0, 10.0, "cm");
+            variant.setDimensions(dimensions);
+            if (product.getDimensions() == null) product.setDimensions(dimensions);
+        } else {
+            if (dimensions.getUnit() == null || dimensions.getUnit().isBlank()) dimensions.setUnit("cm");
+            if (!positive(dimensions.getLength())) dimensions.setLength(20.0);
+            if (!positive(dimensions.getWidth())) dimensions.setWidth(10.0);
+            if (!positive(dimensions.getHeight())) dimensions.setHeight(10.0);
+        }
         if (!"cm".equalsIgnoreCase(dimensions.getUnit())) throw badRequest("Variant dimensions must use centimeters (cm)");
         if (!positive(dimensions.getLength()) || !positive(dimensions.getWidth()) || !positive(dimensions.getHeight())) {
             throw badRequest("Variant length, width, and height must be positive");
         }
-        if (variant.getPackSize() == null || variant.getPackSize() <= 0
-                || variant.getPackSizeUnit() == null || variant.getPackSizeUnit().isBlank()) {
-            throw badRequest("Each variant needs a positive pack size and unit");
+        if (variant.getPackSize() == null || variant.getPackSize() <= 0) {
+            variant.setPackSize(1);
         }
-        if (variant.getPackQuantity() == null || variant.getPackQuantity() <= 0) throw badRequest("Each variant needs a positive pack quantity");
-        if (variant.getUnit() != null && variant.getUnit().isBlank()) throw badRequest("Variant unit cannot be blank");
-        if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) throw badRequest("SWG must be a finite nonnegative number");
-        if (!finiteNonnegative(variant.getDisplayRate())) throw badRequest("Each variant needs a nonnegative display rate");
-        if (variant.getStock() == null || variant.getStock() < 0) throw badRequest("Each variant needs stock equal to or greater than zero");
-        if (variant.getPrintedMrp() != null && (!finiteNonnegative(variant.getPrintedMrp()) || variant.getPrintedMrp() < variant.getDisplayRate())) {
-            throw badRequest("Printed MRP cannot be lower than display rate");
+        if (variant.getPackSizeUnit() == null || variant.getPackSizeUnit().isBlank()) {
+            variant.setPackSizeUnit(variant.getUnit() != null && !variant.getUnit().isBlank() ? variant.getUnit() : "unit");
+        }
+        if (variant.getPackQuantity() == null || variant.getPackQuantity() <= 0) {
+            variant.setPackQuantity(1);
+        }
+        if (variant.getUnit() == null || variant.getUnit().isBlank()) {
+            variant.setUnit("unit");
+        }
+        if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) variant.setSwg(null);
+        if (!finiteNonnegative(variant.getDisplayRate())) variant.setDisplayRate(0.0);
+        if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
+        if (variant.getPrintedMrp() == null || !finiteNonnegative(variant.getPrintedMrp()) || variant.getPrintedMrp() < variant.getDisplayRate()) {
+            variant.setPrintedMrp(variant.getDisplayRate());
         }
         if (variant.getGstPercentage() != null && (!Double.isFinite(variant.getGstPercentage())
                 || variant.getGstPercentage() < 0 || variant.getGstPercentage() > 100)) throw badRequest("GST percentage must be between 0 and 100");
@@ -209,9 +224,9 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setImages(source.getImages()); target.setTechnicalContent(source.getTechnicalContent());
         target.setProductImages(
                 existing == null ? List.of() : existing.getProductImages());
-        target.setFeatures(source.getFeatures()); target.setBenefits(source.getBenefits());
-        target.setModeOfAction(source.getModeOfAction()); target.setSuitableCrops(source.getSuitableCrops());
-        target.setTargetPests(source.getTargetPests()); target.setTargetDiseases(source.getTargetDiseases());
+        target.setFeatures(sanitizeStringList(source.getFeatures())); target.setBenefits(sanitizeStringList(source.getBenefits()));
+        target.setModeOfAction(source.getModeOfAction()); target.setSuitableCrops(sanitizeStringList(source.getSuitableCrops()));
+        target.setTargetPests(sanitizeStringList(source.getTargetPests())); target.setTargetDiseases(sanitizeStringList(source.getTargetDiseases()));
         target.setDosage(source.getDosage()); target.setApplicationMethod(source.getApplicationMethod());
         target.setCategoryId(source.getCategoryId());
         target.setAssignedCollections(existing == null ? List.of()
@@ -232,6 +247,11 @@ public class SellerProductServiceImpl implements SellerProductService {
         return seller.getShopName();
     }
 
+    private List<String> sanitizeStringList(List<String> list) {
+        if (list == null) return List.of();
+        return list.stream().filter(java.util.Objects::nonNull).map(String::trim).filter(s -> !s.isBlank()).toList();
+    }
+
     private List<String> normalizeAssignedCollections(List<String> assignedCollections) {
         if (assignedCollections == null) return List.of();
         return assignedCollections.stream().filter(value -> value != null && !value.isBlank())
@@ -246,7 +266,6 @@ public class SellerProductServiceImpl implements SellerProductService {
         List<ProductVariant> currentList = current != null ? current : List.of();
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
-        int inputIndex = 0;
         for (ProductVariant input : submitted) {
             ProductVariant prior = null;
             if (input.getId() != null && !input.getId().isBlank()) {
@@ -260,17 +279,10 @@ public class SellerProductServiceImpl implements SellerProductService {
                                 && (v.getId() == null || !retainedIds.contains(v.getId().toLowerCase(Locale.ROOT))))
                         .findFirst().orElse(null);
             }
-            if (prior == null && inputIndex < currentList.size()) {
-                ProductVariant candidate = currentList.get(inputIndex);
-                if (candidate.getId() != null && !retainedIds.contains(candidate.getId().toLowerCase(Locale.ROOT))) {
-                    prior = candidate;
-                }
-            }
-            inputIndex++;
 
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
-            clean.setId(retain ? prior.getId() : new ObjectId().toHexString());
+            clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
             clean.setSku(input.getSku() != null && !input.getSku().isBlank()
                     ? input.getSku().trim()
                     : (prior != null && prior.getSku() != null ? prior.getSku() : null));
@@ -278,20 +290,30 @@ public class SellerProductServiceImpl implements SellerProductService {
                 String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
                 clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
             }
-            clean.setLabel(input.getLabel());
-            clean.setUnit(input.getUnit() == null ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : input.getUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setPackSize(input.getPackSize()); clean.setPackSizeUnit(input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setPackQuantity(input.getPackQuantity());
-            clean.setPackUnit(input.getPackUnit() == null ? null : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setShippedBy(input.getShippedBy() == null ? null : input.getShippedBy().trim());
+            clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
+            String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
+            clean.setUnit(unit.isBlank() ? "ml" : unit);
+            clean.setPackSize(input.getPackSize() != null && input.getPackSize() > 0 ? input.getPackSize() : 1);
+            clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
+            clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
+            clean.setPackUnit(input.getPackUnit() == null || input.getPackUnit().isBlank() ? "bottle" : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
+            clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
             clean.setSwg(input.getSwg());
-            clean.setTotalBaseQuantity(Math.multiplyExact(input.getPackSize().longValue(), input.getPackQuantity().longValue()));
-            clean.setTotalBaseUnit(input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
-            clean.setDimensions(input.getDimensions() == null ? null : normalizeDimensions(input.getDimensions()));
-            clean.setDisplayRate(input.getDisplayRate()); clean.setPrintedMrp(input.getPrintedMrp());
-            clean.setCostPrice(input.getCostPrice()); clean.setDiscountRs(input.getDiscountRs());
-            clean.setGstPercentage(input.getGstPercentage()); clean.setDiscountPercentage(input.getDiscountPercentage());
-            clean.setStock(input.getStock()); clean.setDisplayOrder(input.getDisplayOrder()); clean.setIsDefault(input.getIsDefault());
+            clean.setTotalBaseQuantity(Math.multiplyExact(clean.getPackSize().longValue(), clean.getPackQuantity().longValue()));
+            clean.setTotalBaseUnit(clean.getPackSizeUnit());
+            clean.setDimensions(input.getDimensions() == null ? new ProductDimensions(20.0, 10.0, 10.0, "cm") : normalizeDimensions(input.getDimensions()));
+
+            double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
+            clean.setDisplayRate(dispRate);
+            double printedMrp = (input.getPrintedMrp() != null && input.getPrintedMrp() >= dispRate) ? input.getPrintedMrp() : dispRate;
+            clean.setPrintedMrp(printedMrp);
+            clean.setCostPrice(input.getCostPrice() != null && input.getCostPrice() >= 0 ? input.getCostPrice() : 0.0);
+            clean.setDiscountRs(printedMrp > dispRate ? (printedMrp - dispRate) : 0.0);
+            clean.setGstPercentage(input.getGstPercentage() != null && input.getGstPercentage() >= 0 ? input.getGstPercentage() : 5.0);
+            clean.setDiscountPercentage(printedMrp > 0 ? ((printedMrp - dispRate) / printedMrp * 100) : 0.0);
+            clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
+            clean.setDisplayOrder(input.getDisplayOrder() != null ? input.getDisplayOrder() : (result.size() + 1));
+            clean.setIsDefault(input.getIsDefault());
             result.add(clean);
         }
         return List.copyOf(result);
