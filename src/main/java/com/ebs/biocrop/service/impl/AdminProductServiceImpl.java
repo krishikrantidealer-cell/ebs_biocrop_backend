@@ -282,9 +282,28 @@ public class AdminProductServiceImpl implements AdminProductService {
         List<ProductVariant> currentList = current != null ? current : List.of();
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
+        int inputIndex = 0;
         for (ProductVariant input : submitted) {
-            ProductVariant prior = currentList.stream().filter(value -> value.getId() != null && input.getId() != null
-                    && value.getId().equalsIgnoreCase(input.getId())).findFirst().orElse(null);
+            ProductVariant prior = null;
+            if (input.getId() != null && !input.getId().isBlank()) {
+                prior = currentList.stream()
+                        .filter(v -> v.getId() != null && v.getId().equalsIgnoreCase(input.getId().trim()))
+                        .findFirst().orElse(null);
+            }
+            if (prior == null && input.getSku() != null && !input.getSku().isBlank()) {
+                prior = currentList.stream()
+                        .filter(v -> v.getSku() != null && v.getSku().equalsIgnoreCase(input.getSku().trim())
+                                && (v.getId() == null || !retainedIds.contains(v.getId().toLowerCase(Locale.ROOT))))
+                        .findFirst().orElse(null);
+            }
+            if (prior == null && inputIndex < currentList.size()) {
+                ProductVariant candidate = currentList.get(inputIndex);
+                if (candidate.getId() != null && !retainedIds.contains(candidate.getId().toLowerCase(Locale.ROOT))) {
+                    prior = candidate;
+                }
+            }
+            inputIndex++;
+
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
             clean.setId(retain ? prior.getId() : new ObjectId().toHexString());

@@ -117,6 +117,7 @@ public class SellerProductWriteRequest {
 
         public ProductVariant toVariant() {
             ProductVariant variant = new ProductVariant();
+            variant.setId(id);
             variant.setSku(sku);
             variant.setLabel(label); variant.setUnit(unit); variant.setPackSize(packSize);
             variant.setPackSizeUnit(packSizeUnit); variant.setPackQuantity(packQuantity); variant.setPackUnit(packUnit);
