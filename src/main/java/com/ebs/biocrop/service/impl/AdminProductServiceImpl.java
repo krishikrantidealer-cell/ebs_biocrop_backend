@@ -20,6 +20,8 @@ import com.ebs.biocrop.service.SellerProductService;
 import com.ebs.biocrop.service.CartService;
 import com.ebs.biocrop.dto.request.AdminProductWriteRequest;
 import com.ebs.biocrop.dto.request.AdminProductPatchRequest;
+import com.ebs.biocrop.dto.request.AdminProductUpdateRequest;
+import com.ebs.biocrop.dto.request.SellerProductWriteRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantPatchRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantWriteRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -120,43 +122,185 @@ public class AdminProductServiceImpl implements AdminProductService {
         return sellerProducts.create(request.getSellerId(), request);
     }
 
-    @Override public Product update(String id, AdminProductWriteRequest request) {
+    @Override
+    public Product update(String id, AdminProductUpdateRequest request) {
+        if (request == null || !request.hasChanges()) {
+            throw new AppException("At least one product field must be provided", HttpStatus.BAD_REQUEST);
+        }
         Product current = findProduct(id);
-        if (Boolean.TRUE.equals(current.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
-        if (current.getSellerId() != null) {
-            if (!current.getSellerId().equals(request.getSellerId())) throw new AppException("Product ownership cannot be changed", HttpStatus.CONFLICT);
+        if (Boolean.TRUE.equals(current.getIsDeleted())) {
+            throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
+        }
+
+        // Ownership validation
+        if (request.getSellerId() != null && !request.getSellerId().isBlank()) {
+            if (current.getSellerId() != null && !current.getSellerId().equals(request.getSellerId().trim())) {
+                throw new AppException("Product ownership cannot be changed", HttpStatus.CONFLICT);
+            }
+        }
+
+        // SKU uniqueness validation
+        if (request.getSku() != null && !request.getSku().isBlank()) {
+            String requestedSku = request.getSku().trim();
+            if (!requestedSku.equalsIgnoreCase(current.getSku()) && products.existsBySkuIgnoreCase(requestedSku)) {
+                throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
+            }
+            current.setSku(requestedSku);
+        }
+
+        // Apply provided non-null fields
+        if (request.getHsnCode() != null) current.setHsnCode(request.getHsnCode().trim());
+        if (request.getTitle() != null) {
+            if (request.getTitle().isBlank()) throw new AppException("Product title cannot be blank", HttpStatus.BAD_REQUEST);
+            current.setTitle(request.getTitle().trim());
+        }
+        if (request.getTechnicalName() != null) current.setTechnicalName(request.getTechnicalName().trim());
+        if (request.getDescription() != null) current.setDescription(request.getDescription().trim());
+        if (request.getImages() != null) current.setImages(request.getImages());
+        if (request.getTechnicalContent() != null) current.setTechnicalContent(request.getTechnicalContent().trim());
+        if (request.getFeatures() != null) current.setFeatures(request.getFeatures());
+        if (request.getBenefits() != null) current.setBenefits(request.getBenefits());
+        if (request.getModeOfAction() != null) current.setModeOfAction(request.getModeOfAction().trim());
+        if (request.getSuitableCrops() != null) current.setSuitableCrops(request.getSuitableCrops());
+        if (request.getTargetPests() != null) current.setTargetPests(request.getTargetPests());
+        if (request.getTargetDiseases() != null) current.setTargetDiseases(request.getTargetDiseases());
+        if (request.getDosage() != null) current.setDosage(request.getDosage().trim());
+        if (request.getApplicationMethod() != null) current.setApplicationMethod(request.getApplicationMethod().trim());
+        if (request.getCategoryId() != null) {
+            if (request.getCategoryId().isBlank()) throw new AppException("Category ID cannot be blank", HttpStatus.BAD_REQUEST);
+            current.setCategoryId(request.getCategoryId().trim());
+        }
+        if (request.getDimensions() != null) current.setDimensions(normalizeDimensions(request.getDimensions()));
+        if (request.getRefundPolicy() != null) current.setRefundPolicy(request.getRefundPolicy().trim());
+        if (request.getProductWeight() != null) current.setProductWeight(request.getProductWeight());
+        if (request.getProductWeightUnit() != null) {
+            current.setProductWeightUnit(request.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
+        }
+
+        // Variants update (if provided)
+        if (request.getVariants() != null) {
+            if (request.getVariants().isEmpty()) {
+                throw new AppException("At least one product variant is required", HttpStatus.BAD_REQUEST);
+            }
             Set<String> existingVariantIds = current.getVariants() == null ? Set.of() : current.getVariants().stream()
                     .map(ProductVariant::getId).filter(java.util.Objects::nonNull).map(v -> v.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
-            Product updated = sellerProducts.update(current.getSellerId(), id, request);
-            Set<String> retainedVariantIds = updated.getVariants() == null ? Set.of() : updated.getVariants().stream()
+            List<ProductVariant> submittedVariants = request.getVariants().stream()
+                    .map(SellerProductWriteRequest.VariantWriteRequest::toVariant)
+                    .toList();
+            List<ProductVariant> sanitized = sanitizeVariants(submittedVariants, current.getVariants());
+            normalizeDefaultVariants(sanitized);
+            current.setVariants(new ArrayList<>(sanitized));
+
+            Set<String> retainedVariantIds = sanitized.stream()
                     .map(ProductVariant::getId).filter(java.util.Objects::nonNull).map(v -> v.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
             List<String> removedVariantIds = existingVariantIds.stream().filter(v -> !retainedVariantIds.contains(v)).toList();
             for (String variantId : removedVariantIds) cartService.removeVariantFromAllCarts(variantId);
             removeWishlistReferences(removedVariantIds);
-            return updated;
         }
-        throw new AppException("Platform-owned or legacy products cannot be reassigned through this endpoint", HttpStatus.CONFLICT);
+
+        sellerProducts.validateProduct(current);
+        current.setStatus("INACTIVE");
+        current.setIsAvailable(false);
+        current.setIsFeatured(false);
+        current.setUpdatedAt(LocalDateTime.now());
+        return saveAndInvalidatePublicCatalog(current);
     }
 
-    @Override public Product patch(String id, AdminProductPatchRequest request) {
-        if (!request.hasChanges()) throw new AppException("At least one product field must be provided", HttpStatus.BAD_REQUEST);
-        Product p = findProduct(id);
-        if (Boolean.TRUE.equals(p.getIsDeleted())) throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
-        if (request.getSku()!=null) p.setSku(request.getSku().trim()); if (request.getHsnCode()!=null) p.setHsnCode(request.getHsnCode());
-        if (request.getTitle()!=null) p.setTitle(request.getTitle().trim()); if (request.getTechnicalName()!=null) p.setTechnicalName(request.getTechnicalName());
-        if (request.getDescription()!=null) p.setDescription(request.getDescription());
-        if (request.getImages()!=null) p.setImages(request.getImages()); if (request.getTechnicalContent()!=null) p.setTechnicalContent(request.getTechnicalContent());
-        if (request.getFeatures()!=null) p.setFeatures(request.getFeatures()); if (request.getBenefits()!=null) p.setBenefits(request.getBenefits());
-        if (request.getModeOfAction()!=null) p.setModeOfAction(request.getModeOfAction()); if (request.getSuitableCrops()!=null) p.setSuitableCrops(request.getSuitableCrops());
-        if (request.getTargetPests()!=null) p.setTargetPests(request.getTargetPests()); if (request.getTargetDiseases()!=null) p.setTargetDiseases(request.getTargetDiseases());
-        if (request.getDosage()!=null) p.setDosage(request.getDosage()); if (request.getApplicationMethod()!=null) p.setApplicationMethod(request.getApplicationMethod());
-        if (request.getCategoryId()!=null) p.setCategoryId(request.getCategoryId()); if (request.getDimensions()!=null) p.setDimensions(request.getDimensions());
-        if (request.getRefundPolicy()!=null) p.setRefundPolicy(request.getRefundPolicy()); if (request.getProductWeight()!=null) p.setProductWeight(request.getProductWeight());
-        if (request.getProductWeightUnit()!=null) p.setProductWeightUnit(request.getProductWeightUnit());
-        sellerProducts.validateProduct(p);
-        p.setStatus("INACTIVE"); p.setIsAvailable(false); p.setIsFeatured(false);
-        p.setUpdatedAt(LocalDateTime.now());
-        return saveAndInvalidatePublicCatalog(p);
+    @Override
+    public Product update(String id, AdminProductWriteRequest request) {
+        AdminProductUpdateRequest updateRequest = new AdminProductUpdateRequest();
+        updateRequest.setSellerId(request.getSellerId());
+        updateRequest.setSku(request.getSku());
+        updateRequest.setHsnCode(request.getHsnCode());
+        updateRequest.setTitle(request.getTitle());
+        updateRequest.setTechnicalName(request.getTechnicalName());
+        updateRequest.setDescription(request.getDescription());
+        updateRequest.setImages(request.getImages());
+        updateRequest.setTechnicalContent(request.getTechnicalContent());
+        updateRequest.setFeatures(request.getFeatures());
+        updateRequest.setBenefits(request.getBenefits());
+        updateRequest.setModeOfAction(request.getModeOfAction());
+        updateRequest.setSuitableCrops(request.getSuitableCrops());
+        updateRequest.setTargetPests(request.getTargetPests());
+        updateRequest.setTargetDiseases(request.getTargetDiseases());
+        updateRequest.setDosage(request.getDosage());
+        updateRequest.setApplicationMethod(request.getApplicationMethod());
+        updateRequest.setCategoryId(request.getCategoryId());
+        updateRequest.setDimensions(request.getDimensions());
+        updateRequest.setRefundPolicy(request.getRefundPolicy());
+        updateRequest.setProductWeight(request.getProductWeight());
+        updateRequest.setProductWeightUnit(request.getProductWeightUnit());
+        updateRequest.setVariants(request.getVariants());
+        return update(id, updateRequest);
+    }
+
+    @Override
+    public Product patch(String id, AdminProductPatchRequest request) {
+        AdminProductUpdateRequest updateRequest = new AdminProductUpdateRequest();
+        updateRequest.setSku(request.getSku());
+        updateRequest.setHsnCode(request.getHsnCode());
+        updateRequest.setTitle(request.getTitle());
+        updateRequest.setTechnicalName(request.getTechnicalName());
+        updateRequest.setDescription(request.getDescription());
+        updateRequest.setImages(request.getImages());
+        updateRequest.setTechnicalContent(request.getTechnicalContent());
+        updateRequest.setFeatures(request.getFeatures());
+        updateRequest.setBenefits(request.getBenefits());
+        updateRequest.setModeOfAction(request.getModeOfAction());
+        updateRequest.setSuitableCrops(request.getSuitableCrops());
+        updateRequest.setTargetPests(request.getTargetPests());
+        updateRequest.setTargetDiseases(request.getTargetDiseases());
+        updateRequest.setDosage(request.getDosage());
+        updateRequest.setApplicationMethod(request.getApplicationMethod());
+        updateRequest.setCategoryId(request.getCategoryId());
+        updateRequest.setDimensions(request.getDimensions());
+        updateRequest.setRefundPolicy(request.getRefundPolicy());
+        updateRequest.setProductWeight(request.getProductWeight());
+        updateRequest.setProductWeightUnit(request.getProductWeightUnit());
+        return update(id, updateRequest);
+    }
+
+    private ProductDimensions normalizeDimensions(ProductDimensions value) {
+        return value == null ? null : new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm");
+    }
+
+    private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current) {
+        List<ProductVariant> currentList = current != null ? current : List.of();
+        Set<String> retainedIds = new HashSet<>();
+        List<ProductVariant> result = new ArrayList<>();
+        for (ProductVariant input : submitted) {
+            ProductVariant prior = currentList.stream().filter(value -> value.getId() != null && input.getId() != null
+                    && value.getId().equalsIgnoreCase(input.getId())).findFirst().orElse(null);
+            boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
+            ProductVariant clean = new ProductVariant();
+            clean.setId(retain ? prior.getId() : new ObjectId().toHexString());
+            clean.setLabel(input.getLabel());
+            clean.setUnit(input.getUnit() == null ? (input.getPackSizeUnit() == null ? null : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT));
+            clean.setPackSize(input.getPackSize());
+            clean.setPackSizeUnit(input.getPackSizeUnit() == null ? null : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
+            clean.setPackQuantity(input.getPackQuantity());
+            clean.setPackUnit(input.getPackUnit() == null ? null : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
+            clean.setShippedBy(input.getShippedBy() == null ? null : input.getShippedBy().trim());
+            clean.setSwg(input.getSwg());
+            if (input.getPackSize() != null && input.getPackQuantity() != null) {
+                clean.setTotalBaseQuantity(Math.multiplyExact(input.getPackSize().longValue(), input.getPackQuantity().longValue()));
+            }
+            if (input.getPackSizeUnit() != null) {
+                clean.setTotalBaseUnit(input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT));
+            }
+            clean.setDimensions(input.getDimensions() == null ? null : normalizeDimensions(input.getDimensions()));
+            clean.setDisplayRate(input.getDisplayRate());
+            clean.setPrintedMrp(input.getPrintedMrp());
+            clean.setCostPrice(input.getCostPrice());
+            clean.setDiscountRs(input.getDiscountRs());
+            clean.setGstPercentage(input.getGstPercentage());
+            clean.setDiscountPercentage(input.getDiscountPercentage());
+            clean.setStock(input.getStock());
+            clean.setDisplayOrder(input.getDisplayOrder());
+            clean.setIsDefault(input.getIsDefault());
+            result.add(clean);
+        }
+        return List.copyOf(result);
     }
 
     @Override public Product addVariant(String productId, AdminProductVariantWriteRequest request) {

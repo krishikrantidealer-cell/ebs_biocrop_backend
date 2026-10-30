@@ -4,6 +4,7 @@ import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
 import com.ebs.biocrop.dto.request.AdminProductWriteRequest;
 import com.ebs.biocrop.dto.request.AdminProductPatchRequest;
+import com.ebs.biocrop.dto.request.AdminProductUpdateRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantPatchRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantWriteRequest;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,7 @@ public interface AdminProductService {
     Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size);
     Product getById(String id);
     Product create(String adminId, AdminProductWriteRequest request);
+    Product update(String id, AdminProductUpdateRequest request);
     Product update(String id, AdminProductWriteRequest request);
     Product patch(String id, AdminProductPatchRequest request);
     Product addVariant(String productId, AdminProductVariantWriteRequest request);

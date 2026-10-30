@@ -7,6 +7,7 @@ import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.request.DeleteProductImagesRequest;
 import com.ebs.biocrop.dto.request.AdminProductWriteRequest;
 import com.ebs.biocrop.dto.request.AdminProductPatchRequest;
+import com.ebs.biocrop.dto.request.AdminProductUpdateRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantPatchRequest;
 import com.ebs.biocrop.dto.request.AdminProductVariantWriteRequest;
 import com.ebs.biocrop.dto.request.ProductCollectionAssignmentRequest;
@@ -85,18 +86,16 @@ public class AdminProductController {
         return ResponseEntity.ok(ApiResponse.ok("Product retrieved", managementResponse(products.getById(productId))));
     }
 
-    // Update an existing product listing
-    @PutMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductManagementResponse>> updateProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId, @Valid @RequestBody AdminProductWriteRequest request) {
+    // Unified Product Details Update (handles both complete details update and partial field updates)
+    @PatchMapping("/{productId}")
+    @Operation(summary = "Update product details (full or partial)",
+               description = "Single unified API to update product details. Supports updating all fields (complete update) or any single field / subset of fields (partial update).")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> updateProduct(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String productId,
+            @Valid @RequestBody AdminProductUpdateRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Product updated", managementResponse(products.update(productId, request))));
-    }
-
-    // Partially update an existing product listing
-    @PatchMapping("/{productId}")
-    public ResponseEntity<ApiResponse<ProductManagementResponse>> patchProduct(@AuthenticationPrincipal CustomUserDetails admin, @PathVariable String productId, @Valid @RequestBody AdminProductPatchRequest request) {
-        rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Product updated", managementResponse(products.patch(productId, request))));
     }
 
     // Add a new variant to an existing product

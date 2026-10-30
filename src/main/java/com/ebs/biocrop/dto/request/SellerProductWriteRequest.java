@@ -114,7 +114,7 @@ public class SellerProductWriteRequest {
         @PositiveOrZero private Double discountPercentage;
         @NotNull @PositiveOrZero private Integer stock;
 
-        ProductVariant toVariant() {
+        public ProductVariant toVariant() {
             ProductVariant variant = new ProductVariant();
             variant.setLabel(label); variant.setUnit(unit); variant.setPackSize(packSize);
             variant.setPackSizeUnit(packSizeUnit); variant.setPackQuantity(packQuantity); variant.setPackUnit(packUnit);
