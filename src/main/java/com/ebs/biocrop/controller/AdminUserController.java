@@ -6,6 +6,12 @@ import com.ebs.biocrop.dto.request.AdminManagedUserUpdateRequest;
 import com.ebs.biocrop.dto.request.SellerKycReviewRequest;
 import com.ebs.biocrop.dto.request.UserBlockedStatusRequest;
 import com.ebs.biocrop.dto.request.UserDeletedStatusRequest;
+import com.ebs.biocrop.dto.request.DeleteUsersRequest;
+import com.ebs.biocrop.dto.response.CountedListResponse;
+import com.ebs.biocrop.dto.response.PermanentDeleteUsersResponse;
+import com.ebs.biocrop.exception.AppException;
+import java.util.ArrayList;
+import java.util.List;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
 import com.ebs.biocrop.dto.response.AdminSellerDashboardResponse;
@@ -122,17 +128,29 @@ public class AdminUserController {
                 adminUsers.setBlockedStatus(userId, blocked)));
     }
 
-    // Soft-delete or restore a user.
-    @PatchMapping("/{userId}/deletion")
-    @Operation(summary = "Soft-delete or restore a user", description = "Send {\"deleted\": true} to soft-delete or false to restore.")
-    public ResponseEntity<ApiResponse<AdminUserResponse>> updateUserDeletedStatus(
+    // Soft-delete or restore one or more users.
+    @PatchMapping({"/{userId}/deletion", "/deletion"})
+    @Operation(summary = "Soft-delete or restore one or more users",
+               description = "Send {\"deleted\": true} to soft-delete or false to restore. Use the existing userId path for one user or send a 'userIds' array in the request body for multiple users.")
+    public ResponseEntity<ApiResponse<Object>> updateUserDeletedStatus(
             @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String userId,
+            @PathVariable(required = false) String userId,
             @Valid @RequestBody UserDeletedStatusRequest request) {
         rateLimitGuard.enforce("admin-user-write", admin.getId(), 60, Duration.ofMinutes(1));
+        List<String> targetIds = resolveUserIds(userId, request.userIds());
         boolean deleted = request.deleted();
-        return ResponseEntity.ok(ApiResponse.ok(deleted ? "User deactivated" : "User restored",
-                adminUsers.setDeletedStatus(userId, deleted)));
+        List<AdminUserResponse> responses = userId != null && request.userIds() == null
+                ? List.of(adminUsers.setDeletedStatus(userId, deleted))
+                : adminUsers.setDeletedStatusMany(targetIds, deleted);
+
+        String message = deleted
+                ? (responses.size() == 1 ? "User deactivated" : "Users deactivated")
+                : (responses.size() == 1 ? "User restored" : "Users restored");
+
+        if (targetIds.size() == 1 && (request.userIds() == null || request.userIds().isEmpty())) {
+            return ResponseEntity.ok(ApiResponse.ok(message, responses.get(0)));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(message, CountedListResponse.from(responses)));
     }
 
     @PatchMapping("/{userId}/kyc")
@@ -159,14 +177,39 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.ok("User role confirmed", new UserRoleAssignmentResponse(userId, role)));
     }
 
-    // Permanently delete a previously deactivated user
-    @DeleteMapping({"/{userId}/permanent", "/{userId}"})
-    @Operation(summary = "Permanently delete a user", description = "Permanently deletes a previously deactivated user account. Accounts with associated orders or product listings cannot be permanently deleted.")
-    public ResponseEntity<ApiResponse<String>> permanentlyDeleteUser(
+    // Permanently delete one or more previously deactivated users
+    @DeleteMapping({"/{userId}/permanent", "/permanent", "/{userId}"})
+    @Operation(summary = "Permanently delete one or more users",
+               description = "Use the existing userId path for one user, or /permanent with {\"userIds\":[...],\"confirm\":true} to delete multiple users directly. The account must be deactivated first.")
+    public ResponseEntity<ApiResponse<PermanentDeleteUsersResponse>> permanentlyDeleteUsers(
             @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String userId) {
+            @PathVariable(required = false) String userId,
+            @Valid @RequestBody(required = false) DeleteUsersRequest request) {
         rateLimitGuard.enforce("admin-user-write", admin.getId(), 10, Duration.ofMinutes(1));
-        adminUsers.permanentlyDelete(admin.getId(), userId);
-        return ResponseEntity.ok(ApiResponse.ok("User permanently deleted", userId));
+        List<String> targetIds = resolveUserIds(userId, request != null ? request.userIds() : null);
+        boolean legacySingleDelete = userId != null && (request == null || request.userIds() == null);
+        PermanentDeleteUsersResponse result = legacySingleDelete
+                ? adminUsers.permanentlyDelete(admin.getId(), userId)
+                : adminUsers.permanentlyDeleteMany(admin.getId(), targetIds);
+        String message = result.count() == 1 ? "User permanently deleted" : "Users permanently deleted";
+        return ResponseEntity.ok(ApiResponse.ok(message, result));
+    }
+
+    private List<String> resolveUserIds(String pathUserId, List<String> bodyUserIds) {
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+        if (pathUserId != null && !pathUserId.isBlank()) {
+            ids.add(pathUserId.trim());
+        }
+        if (bodyUserIds != null) {
+            for (String id : bodyUserIds) {
+                if (id != null && !id.isBlank()) {
+                    ids.add(id.trim());
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            throw new AppException("At least one userId is required", HttpStatus.BAD_REQUEST);
+        }
+        return new ArrayList<>(ids);
     }
 }

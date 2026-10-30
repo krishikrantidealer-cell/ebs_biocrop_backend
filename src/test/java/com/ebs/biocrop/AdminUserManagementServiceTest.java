@@ -366,19 +366,57 @@ class AdminUserManagementServiceTest {
     }
 
     @Test
-    void permanentDeletionIsRejectedWhenOrdersExist() {
+    void permanentDeletionAllowedWhenOrdersExist() {
         User customer = User.newCustomer("9876543224");
         customer.setId("customer-id");
         customer.setIsDeleted(true);
         when(users.findById("customer-id")).thenReturn(Optional.of(customer));
-        when(mongoTemplate.exists(any(org.springframework.data.mongodb.core.query.Query.class), eq(Order.class)))
-                .thenReturn(true);
+        when(mongoTemplate.count(any(), eq(Order.class))).thenReturn(3L);
 
-        AppException error = assertThrows(AppException.class,
-                () -> service.permanentlyDelete("admin-id", "customer-id"));
+        var response = service.permanentlyDelete("admin-id", "customer-id");
 
-        assertEquals(HttpStatus.CONFLICT, error.getStatus());
-        verify(users, never()).delete(any(User.class));
+        verify(users).delete(customer);
+        assertEquals(1, response.count());
+    }
+
+    @Test
+    void permanentDeletionAllowedWhenSellerHasProducts() {
+        User seller = User.newSeller("9876543228", "seller2@example.com");
+        seller.setId("seller-with-products");
+        seller.setIsDeleted(true);
+        when(users.findById("seller-with-products")).thenReturn(Optional.of(seller));
+        when(mongoTemplate.count(any(), eq(Product.class))).thenReturn(5L);
+
+        var response = service.permanentlyDelete("admin-id", "seller-with-products");
+
+        verify(users).delete(seller);
+        assertEquals(1, response.count());
+    }
+
+    @Test
+    void batchSoftDeleteAndPermanentDeleteSucceed() {
+        User c1 = User.newCustomer("9876543229");
+        c1.setId("c1");
+        c1.setIsDeleted(false);
+
+        User c2 = User.newCustomer("9876543230");
+        c2.setId("c2");
+        c2.setIsDeleted(false);
+
+        when(users.findById("c1")).thenReturn(Optional.of(c1));
+        when(users.findById("c2")).thenReturn(Optional.of(c2));
+        when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var softDeleteResp = service.setDeletedStatusMany(List.of("c1", "c2"), true);
+        assertEquals(2, softDeleteResp.size());
+
+        c1.setIsDeleted(true);
+        c2.setIsDeleted(true);
+
+        var permDeleteResp = service.permanentlyDeleteMany("admin-id", List.of("c1", "c2"));
+        assertEquals(2, permDeleteResp.count());
+        verify(users).delete(c1);
+        verify(users).delete(c2);
     }
 
     private Address completeAddress() {

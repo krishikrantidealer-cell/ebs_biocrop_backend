@@ -2,6 +2,7 @@ package com.ebs.biocrop;
 
 import com.ebs.biocrop.dto.response.AdminSellerDashboardResponse;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
+import com.ebs.biocrop.dto.response.PermanentDeleteUsersResponse;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.exception.AppException;
 import org.springframework.http.HttpStatus;
@@ -128,6 +129,9 @@ class AdminUserControllerTest {
                 .andExpect(jsonPath("$.data.kycStatus").value("APPROVED"))
                 .andExpect(jsonPath("$.data.isKycComplete").value(true));
 
+        when(adminUserService.permanentlyDelete("admin-id", "seller-id"))
+                .thenReturn(PermanentDeleteUsersResponse.of(List.of("seller-id")));
+
         mockMvc.perform(delete("/api/v1/admin/users/seller-id/permanent")
                         .with(user(admin())))
                 .andExpect(status().isOk())
@@ -138,6 +142,35 @@ class AdminUserControllerTest {
         verify(adminUserService).setDeletedStatus("seller-id", false);
         verify(adminUserService).reviewSellerKyc("seller-id", true);
         verify(adminUserService).permanentlyDelete(anyString(), eq("seller-id"));
+    }
+
+    @Test
+    void adminCanPerformBatchSoftDeleteAndBatchPermanentDelete() throws Exception {
+        when(adminUserService.setDeletedStatusMany(eq(List.of("u1", "u2")), eq(true)))
+                .thenReturn(List.of(
+                        response("u1", "ROLE_CUSTOMER", false, true),
+                        response("u2", "ROLE_CUSTOMER", false, true)
+                ));
+
+        mockMvc.perform(patch("/api/v1/admin/users/deletion")
+                        .with(user(admin()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userIds\":[\"u1\",\"u2\"],\"deleted\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(2))
+                .andExpect(jsonPath("$.message").value("Users deactivated"));
+
+        when(adminUserService.permanentlyDeleteMany(anyString(), eq(List.of("u1", "u2"))))
+                .thenReturn(PermanentDeleteUsersResponse.of(List.of("u1", "u2")));
+
+        mockMvc.perform(delete("/api/v1/admin/users/permanent")
+                        .with(user(admin()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userIds\":[\"u1\",\"u2\"],\"confirm\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(2))
+                .andExpect(jsonPath("$.data.deletedUserIds[0]").value("u1"))
+                .andExpect(jsonPath("$.message").value("Users permanently deleted"));
     }
 
     @Test

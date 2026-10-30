@@ -6,6 +6,7 @@ import java.util.Map;
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.AdminUserResponse;
 import com.ebs.biocrop.dto.response.AdminSellerDashboardResponse;
+import com.ebs.biocrop.dto.response.PermanentDeleteUsersResponse;
 import com.ebs.biocrop.dto.request.AdminManagedUserCreateRequest;
 import com.ebs.biocrop.dto.request.AdminManagedUserUpdateRequest;
 import com.ebs.biocrop.entity.Cart;
@@ -331,28 +332,58 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public AdminUserResponse setDeletedStatus(String id, boolean deleted) {
-        User user = findUser(id);
-        ensureCustomerOrSellerLifecycle(user);
-        boolean isTransitionToDeleted = deleted && !Boolean.TRUE.equals(user.getIsDeleted());
-        if (isTransitionToDeleted
-                && user.getRole() == UserRole.ROLE_ADMIN
-                && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
-            throw new AppException("The last active admin account cannot be deleted", HttpStatus.CONFLICT);
-        }
-        if (isTransitionToDeleted && user.getRole() == UserRole.ROLE_SELLER) {
-            deactivateSellerListings(id);
+        List<AdminUserResponse> results = setDeletedStatusMany(List.of(id), deleted);
+        return results.get(0);
+    }
+
+    @Override
+    public List<AdminUserResponse> setDeletedStatusMany(List<String> ids, boolean deleted) {
+        if (ids == null || ids.isEmpty()) {
+            throw new AppException("At least one userId is required", HttpStatus.BAD_REQUEST);
         }
 
-        user.setIsDeleted(deleted);
-        user.setUpdatedAt(LocalDateTime.now());
-        User saved = users.save(user);
-        if (deleted) {
-            webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
-                    "userId", id,
-                    "reason", "Account has been deactivated"
-            ));
+        List<String> distinctIds = ids.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        if (distinctIds.isEmpty()) {
+            throw new AppException("At least one valid userId is required", HttpStatus.BAD_REQUEST);
         }
-        return AdminUserResponse.from(saved);
+
+        List<User> targetUsers = new ArrayList<>(distinctIds.size());
+        for (String id : distinctIds) {
+            User user = findUser(id);
+            ensureCustomerOrSellerLifecycle(user);
+            boolean isTransitionToDeleted = deleted && !Boolean.TRUE.equals(user.getIsDeleted());
+            if (isTransitionToDeleted
+                    && user.getRole() == UserRole.ROLE_ADMIN
+                    && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
+                throw new AppException("The last active admin account cannot be deleted", HttpStatus.CONFLICT);
+            }
+            targetUsers.add(user);
+        }
+
+        List<AdminUserResponse> responses = new ArrayList<>(targetUsers.size());
+        for (User user : targetUsers) {
+            String id = user.getId();
+            boolean isTransitionToDeleted = deleted && !Boolean.TRUE.equals(user.getIsDeleted());
+            if (isTransitionToDeleted && user.getRole() == UserRole.ROLE_SELLER) {
+                deactivateSellerListings(id);
+            }
+
+            user.setIsDeleted(deleted);
+            user.setUpdatedAt(LocalDateTime.now());
+            User saved = users.save(user);
+            if (deleted) {
+                webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
+                        "userId", id,
+                        "reason", "Account has been deactivated"
+                ));
+            }
+            responses.add(AdminUserResponse.from(saved));
+        }
+        return responses;
     }
 
     @Override
@@ -390,46 +421,62 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     @Transactional
-    public void permanentlyDelete(String adminId, String id) {
-        User user = findUser(id);
+    public PermanentDeleteUsersResponse permanentlyDelete(String adminId, String id) {
+        return permanentlyDeleteMany(adminId, List.of(id));
+    }
 
-        ensureCustomerOrSellerLifecycle(user);
-
-        if (adminId != null && adminId.equals(id)) {
-            throw new AppException("You cannot delete your own admin account", HttpStatus.CONFLICT);
-        }
-        if (user.getRole() == UserRole.ROLE_ADMIN
-                && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
-            throw new AppException("The last active admin account cannot be permanently deleted", HttpStatus.CONFLICT);
-        }
-        if (!Boolean.TRUE.equals(user.getIsDeleted())) {
-            throw new AppException("Deactivate the user account before permanently deleting it", HttpStatus.CONFLICT);
+    @Override
+    @Transactional
+    public PermanentDeleteUsersResponse permanentlyDeleteMany(String adminId, List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new AppException("At least one userId is required for permanent deletion", HttpStatus.BAD_REQUEST);
         }
 
-        boolean hasOrders = mongoTemplate.exists(
-                Query.query(new Criteria().orOperator(
-                        Criteria.where("customerId").is(id),
-                        Criteria.where("sellerId").is(id))),
-                Order.class);
-        if (hasOrders) {
-            throw new AppException("Users with associated order records cannot be permanently deleted", HttpStatus.CONFLICT);
+        List<String> distinctIds = ids.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        if (distinctIds.isEmpty()) {
+            throw new AppException("At least one valid userId is required for permanent deletion", HttpStatus.BAD_REQUEST);
         }
 
-        boolean hasProducts = mongoTemplate.exists(
-                Query.query(Criteria.where("sellerId").is(id)),
-                Product.class);
-        if (hasProducts) {
-            throw new AppException("Sellers with existing product listings cannot be permanently deleted", HttpStatus.CONFLICT);
+        List<User> targetUsers = new ArrayList<>();
+
+        for (String id : distinctIds) {
+            User user = findUser(id);
+
+            ensureCustomerOrSellerLifecycle(user);
+
+            if (adminId != null && adminId.equals(id)) {
+                throw new AppException("You cannot delete your own admin account", HttpStatus.CONFLICT);
+            }
+            if (user.getRole() == UserRole.ROLE_ADMIN
+                    && users.countActiveByRole(UserRole.ROLE_ADMIN) <= 1) {
+                throw new AppException("The last active admin account cannot be permanently deleted", HttpStatus.CONFLICT);
+            }
+            if (!Boolean.TRUE.equals(user.getIsDeleted())) {
+                throw new AppException("Deactivate the user account before permanently deleting it", HttpStatus.CONFLICT);
+            }
+
+            targetUsers.add(user);
         }
 
-        mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Cart.class);
-        mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
+        List<String> deletedIds = new ArrayList<>();
+        for (User user : targetUsers) {
+            String id = user.getId();
+            mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Cart.class);
+            mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
 
-        users.delete(user);
-        webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
-                "userId", id,
-                "reason", "Account has been permanently deleted"
-        ));
+            users.delete(user);
+            webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
+                    "userId", id,
+                    "reason", "Account has been permanently deleted"
+            ));
+            deletedIds.add(id);
+        }
+
+        return PermanentDeleteUsersResponse.of(deletedIds);
     }
 
     private void addRoleFilter(List<Criteria> filters, String role) {
