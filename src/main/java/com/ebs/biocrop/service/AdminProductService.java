@@ -13,7 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface AdminProductService {
-    Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size);
+    default Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size) {
+        return list(status, sellerId, categoryId, query, deleted, null, page, size);
+    }
+    Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, Boolean available, int page, int size);
     Product getById(String id);
     Product create(String adminId, AdminProductWriteRequest request);
     Product update(String id, AdminProductUpdateRequest request);

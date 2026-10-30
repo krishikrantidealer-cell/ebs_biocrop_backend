@@ -44,12 +44,20 @@ public class AdminProductController {
     private final AdminProductService products;
     private final RateLimitGuard rateLimitGuard;
     private final SellerShopNameLookup sellerNames;
+    private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
 
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
-                                  SellerShopNameLookup sellerNames) {
+                                  SellerShopNameLookup sellerNames,
+                                  com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
         this.products = products;
         this.rateLimitGuard = rateLimitGuard;
         this.sellerNames = sellerNames;
+        this.imageStorage = imageStorage;
+    }
+
+    public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
+                                  SellerShopNameLookup sellerNames) {
+        this(products, rateLimitGuard, sellerNames, null);
     }
 
     // List admin-managed products
@@ -61,14 +69,15 @@ public class AdminProductController {
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean deleted,
+            @RequestParam(required = false) Boolean available,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, page, size);
+        Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, available, page, size);
         Map<String, String> currentNames = sellerNames.findCurrentShopNames(result.getContent().stream()
                 .map(Product::getSellerId).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",
                 PagedResponse.from(result, product -> ProductManagementResponse.from(
-                        product, currentNames.get(product.getSellerId())))));
+                        product, currentNames.get(product.getSellerId()), imageStorage))));
     }
 
     // Create a new product listing for an existing seller
@@ -272,6 +281,6 @@ public class AdminProductController {
     private ProductManagementResponse managementResponse(Product product) {
         String currentName = sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId()))
                 .get(product.getSellerId());
-        return ProductManagementResponse.from(product, currentName);
+        return ProductManagementResponse.from(product, currentName, imageStorage);
     }
 }

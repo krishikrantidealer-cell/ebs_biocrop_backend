@@ -88,6 +88,11 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override
     public Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, int page, int size) {
+        return list(status, sellerId, categoryId, query, deleted, null, page, size);
+    }
+
+    @Override
+    public Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, Boolean available, int page, int size) {
         String normalized = status == null || status.isBlank() || "ALL".equalsIgnoreCase(status) ? null : status.trim().toUpperCase(Locale.ROOT);
         if (normalized != null && !ALLOWED_STATUSES.contains(normalized)) {
             throw new AppException("Unsupported product status filter", HttpStatus.BAD_REQUEST);
@@ -97,13 +102,18 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (deleted != null) filters.add(Criteria.where("isDeleted").is(deleted));
         else filters.add(new Criteria().orOperator(Criteria.where("isDeleted").is(false), Criteria.where("isDeleted").exists(false), Criteria.where("isDeleted").is(null)));
         if (normalized != null) filters.add(Criteria.where("status").regex("^" + normalized + "$", "i"));
+        if (available != null) filters.add(Criteria.where("isAvailable").is(available));
         if (sellerId != null && !sellerId.isBlank()) filters.add(Criteria.where("sellerId").is(sellerId.trim()));
         if (categoryId != null && !categoryId.isBlank()) filters.add(Criteria.where("categoryId").is(categoryId.trim()));
         if (query != null && !query.isBlank()) {
             if (query.trim().length() > 100) throw new AppException("Search query must be at most 100 characters", HttpStatus.BAD_REQUEST);
             String escaped = java.util.regex.Pattern.quote(query.trim());
-            filters.add(new Criteria().orOperator(Criteria.where("title").regex("^" + escaped, "i"),
-                    Criteria.where("sku").regex("^" + escaped, "i"), Criteria.where("productCode").regex("^" + escaped, "i")));
+            filters.add(new Criteria().orOperator(
+                    Criteria.where("title").regex(escaped, "i"),
+                    Criteria.where("sku").regex(escaped, "i"),
+                    Criteria.where("productCode").regex(escaped, "i"),
+                    Criteria.where("technicalName").regex(escaped, "i")
+            ));
         }
         Query querySpec = new Query(filters.isEmpty() ? new Criteria() : new Criteria().andOperator(filters.toArray(Criteria[]::new)))
                 .with(pageable);

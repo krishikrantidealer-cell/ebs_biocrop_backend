@@ -30,10 +30,17 @@ import java.util.Map;
 public class SellerProductController {
     private final SellerProductService sellerProducts;
     private final SellerShopNameLookup sellerNames;
+    private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
 
-    public SellerProductController(SellerProductService sellerProducts, SellerShopNameLookup sellerNames) {
+    public SellerProductController(SellerProductService sellerProducts, SellerShopNameLookup sellerNames,
+                                   com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
         this.sellerProducts = sellerProducts;
         this.sellerNames = sellerNames;
+        this.imageStorage = imageStorage;
+    }
+
+    public SellerProductController(SellerProductService sellerProducts, SellerShopNameLookup sellerNames) {
+        this(sellerProducts, sellerNames, null);
     }
 
     // List the authenticated seller's product listings (Read-Only)
@@ -48,7 +55,7 @@ public class SellerProductController {
                 .map(Product::getSellerId).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Seller listings retrieved",
                 PagedResponse.from(result, product -> ProductManagementResponse.from(
-                        product, currentNames.get(product.getSellerId())))));
+                        product, currentNames.get(product.getSellerId()), imageStorage))));
     }
 
     // Get a specific product listing by ID for the authenticated seller (Read-Only)
@@ -61,6 +68,6 @@ public class SellerProductController {
         String currentName = sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId()))
                 .get(product.getSellerId());
         return ResponseEntity.ok(ApiResponse.ok("Seller listing retrieved",
-                ProductManagementResponse.from(product, currentName)));
+                ProductManagementResponse.from(product, currentName, imageStorage)));
     }
 }

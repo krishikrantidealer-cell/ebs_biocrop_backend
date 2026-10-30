@@ -4,15 +4,17 @@ import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.service.GcsImageStorageService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Management projection for admin and seller clients; omits persistence version metadata. */
 public record ProductManagementResponse(
         String id, String sku, String productCode, String hsnCode, String sellerId,
         String title, String technicalName, String sellerName, String description,
-        List<String> images, List<ProductImage> productImages, String technicalContent, List<String> features, List<String> benefits,
+        List<String> images, List<ManagementProductImage> productImages, String technicalContent, List<String> features, List<String> benefits,
         String modeOfAction, List<String> suitableCrops, List<String> targetPests,
         List<String> targetDiseases, String dosage, String applicationMethod, String categoryId,
         List<String> assignedCollections, ProductDimensions dimensions,
@@ -22,9 +24,33 @@ public record ProductManagementResponse(
         Integer version) {
 
     public static ProductManagementResponse from(Product product, String currentSellerName) {
+        return from(product, currentSellerName, null);
+    }
+
+    public static ProductManagementResponse from(Product product, String currentSellerName, GcsImageStorageService imageStorage) {
+        List<ManagementProductImage> managementImages = product.getProductImages() == null
+                ? List.of()
+                : product.getProductImages().stream()
+                        .map(image -> ManagementProductImage.from(product, image, imageStorage))
+                        .toList();
+
+        List<String> finalImages = new ArrayList<>();
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            finalImages.addAll(product.getImages());
+        }
+        if (finalImages.isEmpty() && !managementImages.isEmpty()) {
+            for (ManagementProductImage img : managementImages) {
+                if (img.midUrl() != null && !img.midUrl().isBlank()) {
+                    finalImages.add(img.midUrl());
+                } else if (img.lowUrl() != null && !img.lowUrl().isBlank()) {
+                    finalImages.add(img.lowUrl());
+                }
+            }
+        }
+
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
                 product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getTechnicalName(),
-                currentSellerName, product.getDescription(), product.getImages(), product.getProductImages(), product.getTechnicalContent(),
+                currentSellerName, product.getDescription(), finalImages, managementImages, product.getTechnicalContent(),
                 product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
                 product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
                 product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
@@ -34,6 +60,25 @@ public record ProductManagementResponse(
                 product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),
                 product.getStatus(), product.getIsDeleted(), product.getDeletedAt(), product.getCreatedAt(), product.getUpdatedAt(),
                 product.getVersion());
+    }
+
+    public record ManagementProductImage(
+            String id,
+            Integer displayOrder,
+            String originalObjectName,
+            String midObjectName,
+            String lowObjectName,
+            String midUrl,
+            String lowUrl) {
+        public static ManagementProductImage from(Product product, ProductImage image, GcsImageStorageService imageStorage) {
+            String midUrl = imageStorage != null && image.getMidObjectName() != null
+                    ? imageStorage.createReadUrl(product.getSellerId(), product.getId(), image.getMidObjectName()) : null;
+            String lowUrl = imageStorage != null && image.getLowObjectName() != null
+                    ? imageStorage.createReadUrl(product.getSellerId(), product.getId(), image.getLowObjectName()) : null;
+            return new ManagementProductImage(image.getId(), image.getDisplayOrder(),
+                    image.getOriginalObjectName(), image.getMidObjectName(), image.getLowObjectName(),
+                    midUrl, lowUrl);
+        }
     }
 
     public record ManagementVariant(String id, String label, String unit, Integer packSize,
