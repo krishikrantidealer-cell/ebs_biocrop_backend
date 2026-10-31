@@ -1,5 +1,7 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
+import java.util.List;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.CategoryResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
@@ -45,14 +47,25 @@ public class CategoryController {
     public ResponseEntity<ApiResponse<PagedResponse<CategoryResponse>>> getCategories(
             @RequestParam(required = false) String parentId,
             @RequestParam(required = false) Integer level,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        String key = "parent=" + parentId + "|level=" + level + "|page=" + page + "|size=" + size;
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        String key = "parent=" + parentId + "|level=" + level + "|page=" + resolvedPage + "|size=" + resolvedSize;
         JavaType responseType = typeFactory.constructParametricType(PagedResponse.class, CategoryResponse.class);
         PagedResponse<CategoryResponse> response = redisCache.getOrLoad(
                 "public-categories", key, responseType, Duration.ofMinutes(10),
-                () -> PagedResponse.from(categoryService.listPublic(parentId, level, page, size),
-                        category -> CategoryResponse.from(category, imageStorage)));
+                () -> {
+                    Page<Category> result = categoryService.listPublic(parentId, level, resolvedPage, resolvedSize);
+                    List<CategoryResponse> content = result.getContent().stream()
+                            .map(category -> CategoryResponse.from(category, imageStorage))
+                            .toList();
+                    int reportedSize = (result.getSize() >= PageRequestSupport.MAX_SIZE && result.getTotalPages() <= 1)
+                            ? content.size()
+                            : result.getSize();
+                    return new PagedResponse<>(content, result.getNumber(), reportedSize,
+                            result.getTotalElements(), result.getTotalPages(), result.isFirst(), result.isLast());
+                });
         return ResponseEntity.ok(ApiResponse.ok("Categories retrieved successfully", response));
     }
 

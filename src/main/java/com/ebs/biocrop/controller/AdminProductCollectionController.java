@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.CollectionWriteRequest;
 import com.ebs.biocrop.dto.request.CollectionPatchRequest;
 import com.ebs.biocrop.dto.request.DeleteCollectionsRequest;
@@ -57,10 +58,17 @@ public class AdminProductCollectionController {
     @Operation(summary = "List all merchandising collections")
     public ResponseEntity<ApiResponse<PagedResponse<CollectionResponse>>> listCollections(
             @RequestParam(required = false) Boolean active,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<CollectionResponse> result = collections.listAdmin(active, page, size);
-        return ResponseEntity.ok(ApiResponse.ok("Collections retrieved", PagedResponse.from(result, value -> value)));
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        Page<CollectionResponse> result = collections.listAdmin(active, resolvedPage, resolvedSize);
+        int reportedSize = (result.getSize() >= PageRequestSupport.MAX_SIZE && result.getTotalPages() <= 1)
+                ? result.getContent().size()
+                : result.getSize();
+        return ResponseEntity.ok(ApiResponse.ok("Collections retrieved",
+                new PagedResponse<>(result.getContent(), result.getNumber(), reportedSize,
+                        result.getTotalElements(), result.getTotalPages(), result.isFirst(), result.isLast())));
     }
 
     // Get a collection by ID

@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.CategoryWriteRequest;
 import com.ebs.biocrop.dto.request.DeleteCategoriesRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
@@ -50,11 +51,20 @@ public class AdminCategoryController {
             @RequestParam(required = false) String parentId,
             @RequestParam(required = false) Integer level,
             @RequestParam(required = false) Boolean active,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Category> result = categoryService.listAdmin(parentId, level, active, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = page != null ? Math.max(0, page) : 0;
+        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        Page<Category> result = categoryService.listAdmin(parentId, level, active, resolvedPage, resolvedSize);
+        List<AdminCategoryResponse> content = result.getContent().stream()
+                .map(category -> AdminCategoryResponse.from(category, imageStorage))
+                .toList();
+        int reportedSize = (result.getSize() >= PageRequestSupport.MAX_SIZE && result.getTotalPages() <= 1)
+                ? content.size()
+                : result.getSize();
         return ResponseEntity.ok(ApiResponse.ok("Admin categories retrieved",
-                PagedResponse.from(result, category -> AdminCategoryResponse.from(category, imageStorage))));
+                new PagedResponse<>(content, result.getNumber(), reportedSize,
+                        result.getTotalElements(), result.getTotalPages(), result.isFirst(), result.isLast())));
     }
 
     // Get a category by ID, including inactive categories
