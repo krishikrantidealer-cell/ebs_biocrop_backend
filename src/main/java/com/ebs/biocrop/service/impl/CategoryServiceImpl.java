@@ -117,20 +117,6 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public Category deactivate(String id) {
-        Category category = findCategory(id);
-        if (hasActiveChildren(id)) {
-            throw new AppException("Deactivate child categories before deactivating their parent", HttpStatus.CONFLICT);
-        }
-        category.setIsActive(false);
-        category.setUpdatedAt(Instant.now());
-        Category saved = categories.save(category);
-        invalidatePublicCatalogCaches();
-        broadcastCategoryUpdate(saved);
-        return saved;
-    }
-
-    @Override
     @Transactional
     public List<String> permanentlyDelete(String id) {
         return permanentlyDeleteMany(List.of(id));
@@ -158,10 +144,6 @@ public class CategoryServiceImpl implements CategoryService {
 
         List<Category> selected = new ArrayList<>();
         for (String id : requestedIds) selected.add(findCategory(id));
-
-        if (selected.stream().anyMatch(category -> !Boolean.FALSE.equals(category.getIsActive()))) {
-            throw new AppException("Deactivate every category before permanently deleting it", HttpStatus.CONFLICT);
-        }
 
         boolean hasExternalChildren = mongoTemplate.exists(
                 Query.query(Criteria.where("parentId").in(requestedIds).and("_id").nin(requestedIds)),

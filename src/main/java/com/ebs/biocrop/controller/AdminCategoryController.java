@@ -24,6 +24,7 @@ import com.ebs.biocrop.service.RateLimitGuard;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.time.Duration;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories")
@@ -87,17 +88,6 @@ public class AdminCategoryController {
                 AdminCategoryResponse.from(categoryService.update(categoryId, request), imageStorage)));
     }
 
-    // Deactivate a category (soft delete)
-    @DeleteMapping("/{categoryId}")
-    @Operation(summary = "Deactivate a category")
-    public ResponseEntity<ApiResponse<AdminCategoryResponse>> deactivateCategory(
-            @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String categoryId) {
-        rateLimitGuard.enforce("admin-category-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Category deactivated",
-                AdminCategoryResponse.from(categoryService.deactivate(categoryId), imageStorage)));
-    }
-
     // Permanently delete one or more unused categories. Pass a one-item list for a single category.
     @DeleteMapping("/permanent")
     @Operation(summary = "Permanently delete one or more unused categories", description = "Pass one category ID to delete a single category or multiple IDs to delete in bulk. All categories are validated before deletion. Categories with child categories or assigned products are rejected.")
@@ -105,8 +95,9 @@ public class AdminCategoryController {
             @AuthenticationPrincipal CustomUserDetails admin,
             @Valid @RequestBody DeleteCategoriesRequest request) {
         rateLimitGuard.enforce("admin-category-write", admin.getId(), 10, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Categories permanently deleted",
-                CountedListResponse.from(categoryService.permanentlyDeleteMany(request.categoryIds()))));
+        List<String> deleted = categoryService.permanentlyDeleteMany(request.categoryIds());
+        String message = deleted.size() == 1 ? "Category permanently deleted" : "Categories permanently deleted";
+        return ResponseEntity.ok(ApiResponse.ok(message, CountedListResponse.from(deleted)));
     }
 
 

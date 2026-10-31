@@ -13,7 +13,6 @@ public interface CategoryService {
     Category getAdminById(String id);
     Category create(CategoryWriteRequest request);
     Category update(String id, CategoryWriteRequest request);
-    Category deactivate(String id);
     List<String> permanentlyDelete(String id);
     List<String> permanentlyDeleteMany(List<String> ids);
     Category uploadImage(String id, MultipartFile file);
