@@ -4,6 +4,7 @@ import com.ebs.biocrop.exception.AppException;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -23,6 +24,20 @@ public class ProductImageVariantService {
 
     private static final int MID_MAX_DIMENSION = 1200;
     private static final int LOW_MAX_DIMENSION = 400;
+
+    public void validateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw badRequest("Image file is required and must not be empty");
+        }
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw badRequest("Image must be 8 MB or smaller");
+        }
+        try {
+            validateImage(file.getBytes());
+        } catch (IOException exception) {
+            throw badRequest("Image could not be read");
+        }
+    }
 
     public void validateImage(byte[] imageBytes) {
         validateImageSize(imageBytes);

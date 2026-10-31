@@ -124,12 +124,48 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override public Product getById(String id) { return findProduct(id); }
 
-    @Override public Product create(String adminId, AdminProductWriteRequest request) {
+    @Override
+    public Product create(String adminId, AdminProductWriteRequest request) {
+        return create(adminId, request, null);
+    }
+
+    @Override
+    public Product create(String adminId, AdminProductWriteRequest request, List<MultipartFile> files) {
         User seller = mongoTemplate.findById(request.getSellerId(), User.class);
         if (seller == null || seller.getRole() != com.ebs.biocrop.entity.enums.UserRole.ROLE_SELLER
                 || Boolean.TRUE.equals(seller.getIsDeleted())) throw new ResourceNotFoundException("Seller", "id", request.getSellerId());
         if (Boolean.TRUE.equals(seller.getIsBlocked())) throw new AppException("A blocked seller cannot receive new product listings", HttpStatus.CONFLICT);
-        return sellerProducts.create(request.getSellerId(), request);
+
+        List<MultipartFile> activeFiles = files == null ? List.of()
+                : files.stream().filter(java.util.Objects::nonNull).toList();
+
+        if (!activeFiles.isEmpty()) {
+            if (activeFiles.size() > MAX_PRODUCT_IMAGES) {
+                throw new AppException(
+                        "Upload between 1 and " + MAX_PRODUCT_IMAGES + " product images per request",
+                        HttpStatus.BAD_REQUEST);
+            }
+            for (MultipartFile file : activeFiles) {
+                imageVariants.validateImage(file);
+            }
+        }
+
+        Product created = sellerProducts.create(request.getSellerId(), request);
+
+        if (!activeFiles.isEmpty()) {
+            try {
+                return addImages(created.getId(), activeFiles);
+            } catch (RuntimeException uploadFailure) {
+                try {
+                    permanentlyDelete(created.getId());
+                } catch (RuntimeException cleanupFailure) {
+                    uploadFailure.addSuppressed(cleanupFailure);
+                }
+                throw uploadFailure;
+            }
+        }
+
+        return created;
     }
 
     @Override
@@ -826,15 +862,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new AppException("Uploaded image files must not be empty", HttpStatus.BAD_REQUEST);
         }
 
-        // Validate the whole batch before writing any object to GCS.
-        try {
-            for (MultipartFile file : files) {
-                imageVariants.validateImage(file.getBytes());
-            }
-        } catch (IOException readFailure) {
-            throw new AppException(
-                    "Could not read one of the uploaded image files",
-                    HttpStatus.BAD_REQUEST);
+        // Validate the whole batch and reject oversized files before reading them into memory or writing to GCS.
+        for (MultipartFile file : files) {
+            imageVariants.validateImage(file);
         }
 
         List<ProductImage> uploadedImages = new ArrayList<>();

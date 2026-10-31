@@ -19,6 +19,7 @@ public interface AdminProductService {
     Page<Product> list(String status, String sellerId, String categoryId, String query, Boolean deleted, Boolean available, int page, int size);
     Product getById(String id);
     Product create(String adminId, AdminProductWriteRequest request);
+    Product create(String adminId, AdminProductWriteRequest request, List<MultipartFile> files);
     Product update(String id, AdminProductUpdateRequest request);
     Product update(String id, AdminProductWriteRequest request);
     Product patch(String id, AdminProductPatchRequest request);

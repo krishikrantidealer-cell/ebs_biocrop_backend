@@ -153,13 +153,52 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     }
 
     @Override
-    public CollectionResponse deactivate(String id) {
-        ProductCollection collection = find(id);
-        collection.setIsActive(false);
-        collection.setUpdatedAt(Instant.now());
-        return save(collection);
-    }
+    @Transactional
+    public List<String> permanentlyDeleteMany(List<String> collectionIds) {
+        if (collectionIds == null || collectionIds.isEmpty()) {
+            throw badRequest("At least one collection ID is required");
+        }
+        if (collectionIds.size() > 100) {
+            throw badRequest("At most 100 collections can be deleted at once");
+        }
 
+        List<String> distinctIds = collectionIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+
+        if (distinctIds.isEmpty()) {
+            throw badRequest("At least one valid collection ID is required");
+        }
+
+        List<ProductCollection> targetCollections = new ArrayList<>(distinctIds.size());
+        for (String id : distinctIds) {
+            targetCollections.add(find(id));
+        }
+
+        Set<String> allTokens = new LinkedHashSet<>();
+        List<String> deletedIds = new ArrayList<>(targetCollections.size());
+
+        for (ProductCollection collection : targetCollections) {
+            allTokens.addAll(tokens(collection.getId(), collection.getName(), collection.getSlug(), collection.getSubCollections()));
+            collections.delete(collection);
+            broadcastCollectionDelete(collection.getId());
+            deletedIds.add(collection.getId());
+        }
+
+        if (!allTokens.isEmpty()) {
+            mongoTemplate.updateMulti(
+                    Query.query(Criteria.where("assignedCollections").in(allTokens)),
+                    new Update().pullAll("assignedCollections", allTokens.toArray()),
+                    Product.class);
+        }
+
+        redisCache.invalidateRegion("public-collections");
+        redisCache.invalidateRegion("public-products");
+
+        return deletedIds;
+    }
     @Override
     @Transactional
     public List<String> deleteSubCollections(String collectionId, List<String> subCollectionIds) {

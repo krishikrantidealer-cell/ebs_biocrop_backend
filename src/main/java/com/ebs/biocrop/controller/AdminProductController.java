@@ -34,6 +34,17 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import jakarta.validation.Valid;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Validator;
+import jakarta.validation.ConstraintViolation;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+import com.ebs.biocrop.exception.AppException;
+import org.springframework.http.HttpStatus;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Set;
+
 import java.time.Duration;
 
 @RestController
@@ -46,21 +57,28 @@ public class AdminProductController {
     private final RateLimitGuard rateLimitGuard;
     private final SellerShopNameLookup sellerNames;
     private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
                                   SellerShopNameLookup sellerNames,
-                                  com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
+                                  com.ebs.biocrop.service.GcsImageStorageService imageStorage,
+                                  ObjectMapper objectMapper, Validator validator) {
         this.products = products;
         this.rateLimitGuard = rateLimitGuard;
         this.sellerNames = sellerNames;
         this.imageStorage = imageStorage;
+        this.objectMapper = objectMapper;
+        this.validator = validator;
     }
 
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
                                   SellerShopNameLookup sellerNames) {
-        this(products, rateLimitGuard, sellerNames, null);
+        this(products, rateLimitGuard, sellerNames, null, new ObjectMapper(),
+                jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator());
     }
+
 
     // List admin-managed products
     @GetMapping
@@ -82,13 +100,35 @@ public class AdminProductController {
                         product, currentNames.get(product.getSellerId()), imageStorage))));
     }
 
-    // Create a new product listing for an existing seller
-    @PostMapping
-    @Operation(summary = "Create a product listing for an existing seller")
+    // Create a new product listing for an existing seller (JSON payload, no images)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Create a product listing for an existing seller (JSON)")
     public ResponseEntity<ApiResponse<ProductManagementResponse>> createProduct(@AuthenticationPrincipal CustomUserDetails admin,
             @Valid @RequestBody AdminProductWriteRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         return ResponseEntity.status(201).body(ApiResponse.ok("Product created", managementResponse(products.create(admin.getId(), request))));
+    }
+
+    // Create a new product listing with optional product images in one request (Multipart form-data)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Create a product listing with product images in one request (Multipart)",
+               description = "Accepts product payload under 'product' or 'data' part (JSON string) and 1 to 6 image files under 'files' or 'images'.")
+    public ResponseEntity<ApiResponse<ProductManagementResponse>> createProductMultipart(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            MultipartHttpServletRequest request) {
+        rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
+        AdminProductWriteRequest productRequest = parseAndValidateProductRequest(request);
+        if (productRequest.getImages() != null && !productRequest.getImages().isEmpty()) {
+            throw new AppException(
+                    "Send uploaded image files as multipart parts; image URLs are not accepted during multipart creation",
+                    HttpStatus.BAD_REQUEST);
+        }
+        List<MultipartFile> files = extractImageFiles(request);
+        if (!files.isEmpty()) {
+            rateLimitGuard.enforce("admin-product-image-upload", admin.getId(), 10, Duration.ofMinutes(1));
+        }
+        return ResponseEntity.status(201).body(ApiResponse.ok("Product created",
+                managementResponse(products.create(admin.getId(), productRequest, files))));
     }
 
     // Get a product by ID, including inactive or soft-deleted products
@@ -290,6 +330,58 @@ public class AdminProductController {
 
         return ResponseEntity.ok(
                 ApiResponse.ok("Product images deleted", CountedListResponse.from(request.imageIds())));
+    }
+
+
+    private AdminProductWriteRequest parseAndValidateProductRequest(MultipartHttpServletRequest request) {
+        String rawJson = null;
+        String param = request.getParameter("product");
+        if (param == null || param.isBlank()) {
+            param = request.getParameter("data");
+        }
+        if (param != null && !param.isBlank()) {
+            rawJson = param;
+        } else {
+            MultipartFile part = request.getFile("product");
+            if (part == null) {
+                part = request.getFile("data");
+            }
+            if (part != null && !part.isEmpty()) {
+                try {
+                    rawJson = new String(part.getBytes(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    throw new AppException("Failed to read product JSON payload", HttpStatus.BAD_REQUEST);
+                }
+            }
+        }
+
+        if (rawJson == null || rawJson.isBlank()) {
+            throw new AppException("Product payload ('product' or 'data') is required", HttpStatus.BAD_REQUEST);
+        }
+
+        AdminProductWriteRequest writeRequest;
+        try {
+            writeRequest = objectMapper.readValue(rawJson, AdminProductWriteRequest.class);
+        } catch (Exception e) {
+            throw new AppException("Invalid product JSON payload: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
+        Set<ConstraintViolation<AdminProductWriteRequest>> violations = validator.validate(writeRequest);
+        if (!violations.isEmpty()) {
+            ConstraintViolation<AdminProductWriteRequest> firstViolation = violations.iterator().next();
+            throw new AppException(firstViolation.getPropertyPath() + ": " + firstViolation.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
+        return writeRequest;
+    }
+
+    private List<MultipartFile> extractImageFiles(MultipartHttpServletRequest request) {
+        List<MultipartFile> candidate = new ArrayList<>();
+        List<MultipartFile> files = request.getFiles("files");
+        if (files != null) candidate.addAll(files);
+        List<MultipartFile> images = request.getFiles("images");
+        if (images != null) candidate.addAll(images);
+        return candidate.stream().filter(file -> file != null && !file.isEmpty()).toList();
     }
 
     private ProductManagementResponse managementResponse(Product product) {

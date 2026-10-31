@@ -308,10 +308,6 @@ class AdminUserManagementServiceTest {
         verify(users, never()).delete(any(User.class));
 
         seller.setIsDeleted(true);
-        when(mongoTemplate.exists(any(org.springframework.data.mongodb.core.query.Query.class), eq(Order.class)))
-                .thenReturn(false);
-        when(mongoTemplate.exists(any(org.springframework.data.mongodb.core.query.Query.class), eq(Product.class)))
-                .thenReturn(false);
 
         service.permanentlyDelete("admin-id", "seller-id");
 
@@ -372,7 +368,6 @@ class AdminUserManagementServiceTest {
         customer.setId("customer-id");
         customer.setIsDeleted(true);
         when(users.findById("customer-id")).thenReturn(Optional.of(customer));
-        when(mongoTemplate.count(any(), eq(Order.class))).thenReturn(3L);
 
         var response = service.permanentlyDelete("admin-id", "customer-id");
 
@@ -386,7 +381,6 @@ class AdminUserManagementServiceTest {
         seller.setId("seller-with-products");
         seller.setIsDeleted(true);
         when(users.findById("seller-with-products")).thenReturn(Optional.of(seller));
-        when(mongoTemplate.count(any(), eq(Product.class))).thenReturn(5L);
 
         var response = service.permanentlyDelete("admin-id", "seller-with-products");
 
