@@ -25,7 +25,11 @@ import com.ebs.biocrop.service.RateLimitGuard;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import com.ebs.biocrop.exception.AppException;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories")
@@ -98,16 +102,37 @@ public class AdminCategoryController {
                 AdminCategoryResponse.from(categoryService.update(categoryId, request), imageStorage)));
     }
 
-    // Permanently delete one or more unused categories. Pass a one-item list for a single category.
-    @DeleteMapping("/permanent")
-    @Operation(summary = "Permanently delete one or more unused categories", description = "Pass one category ID to delete a single category or multiple IDs to delete in bulk. All categories are validated before deletion. Categories with child categories or assigned products are rejected.")
+    // Permanently delete one or more categories (unified single & bulk endpoint)
+    @DeleteMapping({"", "/permanent", "/{categoryId}", "/{categoryId}/permanent"})
+    @Operation(summary = "Permanently delete one or more categories",
+               description = "Delete a single category via path or body, or delete multiple categories via body with categoryIds. Cascades to nested child categories and detaches product assignments.")
     public ResponseEntity<ApiResponse<CountedListResponse<String>>> permanentlyDeleteCategories(
             @AuthenticationPrincipal CustomUserDetails admin,
-            @Valid @RequestBody DeleteCategoriesRequest request) {
-        rateLimitGuard.enforce("admin-category-write", admin.getId(), 10, Duration.ofMinutes(1));
-        List<String> deleted = categoryService.permanentlyDeleteMany(request.categoryIds());
+            @PathVariable(required = false) String categoryId,
+            @Valid @RequestBody(required = false) DeleteCategoriesRequest request) {
+        rateLimitGuard.enforce("admin-category-write", admin.getId(), 30, Duration.ofMinutes(1));
+        List<String> targetIds = resolveCategoryIds(categoryId, request != null ? request.categoryIds() : null);
+        if (targetIds.isEmpty()) {
+            throw new AppException("At least one category ID is required for permanent deletion", HttpStatus.BAD_REQUEST);
+        }
+        List<String> deleted = categoryService.permanentlyDeleteMany(targetIds);
         String message = deleted.size() == 1 ? "Category permanently deleted" : "Categories permanently deleted";
         return ResponseEntity.ok(ApiResponse.ok(message, CountedListResponse.from(deleted)));
+    }
+
+    private List<String> resolveCategoryIds(String pathCategoryId, List<String> bodyCategoryIds) {
+        Set<String> ids = new LinkedHashSet<>();
+        if (pathCategoryId != null && !pathCategoryId.isBlank()) {
+            ids.add(pathCategoryId.trim());
+        }
+        if (bodyCategoryIds != null) {
+            for (String id : bodyCategoryIds) {
+                if (id != null && !id.isBlank()) {
+                    ids.add(id.trim());
+                }
+            }
+        }
+        return new ArrayList<>(ids);
     }
 
 

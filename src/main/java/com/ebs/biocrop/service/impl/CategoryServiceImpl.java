@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -142,38 +143,65 @@ public class CategoryServiceImpl implements CategoryService {
             }
         }
 
+        // Collect requested categories and all their child/descendant categories recursively
+        Set<String> allIdsToDelete = collectDescendantIds(requestedIds);
+
         List<Category> selected = new ArrayList<>();
-        for (String id : requestedIds) selected.add(findCategory(id));
-
-        boolean hasExternalChildren = mongoTemplate.exists(
-                Query.query(Criteria.where("parentId").in(requestedIds).and("_id").nin(requestedIds)),
-                Category.class);
-        if (hasExternalChildren) {
-            throw new AppException("Categories with child categories cannot be permanently deleted", HttpStatus.CONFLICT);
-        }
-        boolean hasProducts = mongoTemplate.exists(
-                Query.query(Criteria.where("categoryId").in(requestedIds)), Product.class);
-        if (hasProducts) {
-            throw new AppException("Categories assigned to products cannot be permanently deleted", HttpStatus.CONFLICT);
+        for (String id : allIdsToDelete) {
+            categories.findById(id).ifPresent(selected::add);
         }
 
-        var deletion = mongoTemplate.remove(Query.query(Criteria.where("_id").in(requestedIds)), Category.class);
-        if (deletion.getDeletedCount() != selected.size()) {
-            throw new AppException("One or more categories changed during deletion; reload and retry", HttpStatus.CONFLICT);
+        if (selected.isEmpty()) {
+            throw new ResourceNotFoundException("Category", "id", requestedIds.iterator().next());
         }
+
+        // Unset categoryId on any products assigned to these categories
+        mongoTemplate.updateMulti(
+                Query.query(Criteria.where("categoryId").in(allIdsToDelete)),
+                new Update().unset("categoryId"),
+                Product.class);
+
+        // Permanently delete category documents
+        mongoTemplate.remove(Query.query(Criteria.where("_id").in(allIdsToDelete)), Category.class);
+
         selected.forEach(category -> {
             String categoryId = category.getId();
             String categoryImageUri = category.getCategoryImageUri();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
+            if (categoryImageUri != null && !categoryImageUri.isBlank()) {
+                if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            deleteStoredImage(categoryId, categoryImageUri);
+                        }
+                    });
+                } else {
                     deleteStoredImage(categoryId, categoryImageUri);
                 }
-            });
+            }
         });
         invalidatePublicCatalogCaches();
-        for (String deletedId : requestedIds) { broadcastCategoryDelete(deletedId); }
-        return List.copyOf(requestedIds);
+        for (String deletedId : allIdsToDelete) { broadcastCategoryDelete(deletedId); }
+        return List.copyOf(allIdsToDelete);
+    }
+
+    private Set<String> collectDescendantIds(Set<String> initialIds) {
+        Set<String> allIds = new LinkedHashSet<>(initialIds);
+        List<String> currentLevel = new ArrayList<>(initialIds);
+        while (!currentLevel.isEmpty()) {
+            List<Category> children = mongoTemplate.find(
+                    Query.query(Criteria.where("parentId").in(currentLevel)),
+                    Category.class);
+            if (children.isEmpty()) break;
+            List<String> nextLevel = new ArrayList<>();
+            for (Category child : children) {
+                if (child.getId() != null && allIds.add(child.getId())) {
+                    nextLevel.add(child.getId());
+                }
+            }
+            currentLevel = nextLevel;
+        }
+        return allIds;
     }
 
     @Override

@@ -15,6 +15,7 @@ public interface ProductCollectionService {
     CollectionResponse create(CollectionWriteRequest request);
     CollectionResponse update(String id, CollectionPatchRequest request);
     CollectionResponse replace(String id, CollectionWriteRequest request);
+    CollectionResponse addSubCollection(String collectionId, CollectionWriteRequest.SubCollectionInput input);
     List<String> permanentlyDeleteMany(List<String> collectionIds);
     default void permanentlyDelete(String id) {
         permanentlyDeleteMany(List.of(id));

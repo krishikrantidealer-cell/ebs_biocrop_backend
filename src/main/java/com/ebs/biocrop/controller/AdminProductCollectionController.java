@@ -111,6 +111,18 @@ public class AdminProductCollectionController {
         return ResponseEntity.ok(ApiResponse.ok("Collection updated", collections.update(collectionId, request)));
     }
 
+    // Add a subcollection to an existing collection
+    @PostMapping("/{collectionId}/subcollections")
+    @Operation(summary = "Add a subcollection to an existing collection")
+    public ResponseEntity<ApiResponse<CollectionResponse>> addSubCollection(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId,
+            @Valid @RequestBody CollectionWriteRequest.SubCollectionInput request) {
+        rateLimitGuard.enforce("admin-collection-write", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Subcollection added", collections.addSubCollection(collectionId, request)));
+    }
+
     // Permanently delete a single collection or multiple collections (unified single & bulk endpoint)
     @DeleteMapping({"", "/permanent", "/{collectionId}", "/{collectionId}/permanent"})
     @Operation(summary = "Permanently delete one or more collections",

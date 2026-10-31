@@ -201,6 +201,39 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     }
     @Override
     @Transactional
+    public CollectionResponse addSubCollection(String collectionId, CollectionWriteRequest.SubCollectionInput input) {
+        if (input == null) throw badRequest("Subcollection payload is required");
+        ProductCollection collection = find(collectionId);
+        List<ProductCollection.SubCollection> existing = collection.getSubCollections() == null
+                ? new ArrayList<>() : new ArrayList<>(collection.getSubCollections());
+
+        String name = input.getName() == null ? "" : input.getName().trim();
+        if (name.isBlank()) throw badRequest("Subcollection name cannot be blank");
+
+        String slug = slugify(input.getSlug() == null || input.getSlug().isBlank() ? name : input.getSlug());
+        if (slug.isBlank()) throw badRequest("Subcollection slug cannot be blank");
+
+        boolean slugExists = existing.stream()
+                .anyMatch(sub -> sub.getSlug() != null && sub.getSlug().equalsIgnoreCase(slug));
+        if (slugExists) {
+            throw new AppException("Subcollection slug must be unique within a collection", HttpStatus.CONFLICT);
+        }
+
+        ProductCollection.SubCollection newSub = new ProductCollection.SubCollection();
+        newSub.setId(new ObjectId());
+        newSub.setName(name);
+        newSub.setSlug(slug);
+        newSub.setIsActive(input.getIsActive() == null || input.getIsActive());
+        newSub.setImage(trimToNull(input.getImage()));
+
+        existing.add(newSub);
+        collection.setSubCollections(existing);
+        collection.setUpdatedAt(Instant.now());
+        return save(collection);
+    }
+
+    @Override
+    @Transactional
     public List<String> deleteSubCollections(String collectionId, List<String> subCollectionIds) {
         if (subCollectionIds == null || subCollectionIds.isEmpty()) {
             throw badRequest("At least one subcollection ID is required");
@@ -287,15 +320,17 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         for (CollectionWriteRequest.SubCollectionInput input : inputs) {
             ProductCollection.SubCollection old = null;
             String id = input.getId() == null || input.getId().isBlank() ? null : input.getId().trim();
-            if (id != null) {
-                if (!ObjectId.isValid(id)) throw badRequest("Subcollection IDs must be valid MongoDB ObjectIds");
+            if (id != null && ObjectId.isValid(id)) {
                 String requestedId = id;
                 old = current == null || current.getSubCollections() == null ? null
                         : current.getSubCollections().stream()
                         .filter(value -> value.getId() != null && requestedId.equalsIgnoreCase(value.getId().toHexString()))
                         .findFirst().orElse(null);
-                if (old == null) throw badRequest("A subcollection ID must belong to the collection being updated");
-                id = old.getId().toHexString();
+                if (old != null) {
+                    id = old.getId().toHexString();
+                } else {
+                    id = new ObjectId().toHexString();
+                }
             } else {
                 id = new ObjectId().toHexString();
             }

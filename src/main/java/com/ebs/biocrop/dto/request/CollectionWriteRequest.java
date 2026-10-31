@@ -33,7 +33,7 @@ public class CollectionWriteRequest {
     public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 
     public static class SubCollectionInput {
-        @Size(max = 24) private String id;
+        @Size(max = 64) private String id;
         @NotBlank @Size(max = 120) private String name;
         @Size(max = 140) private String slug;
         private Boolean isActive;
