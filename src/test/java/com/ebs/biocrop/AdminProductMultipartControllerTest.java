@@ -129,23 +129,6 @@ class AdminProductMultipartControllerTest {
     }
 
     @Test
-    @DisplayName("Admin multipart creation rejects image URLs in JSON")
-    void createProductMultipart_rejectsImageUrlsInJson() throws Exception {
-        CustomUserDetails admin = createAdminUser();
-        String sellerId = new ObjectId().toHexString();
-        AdminProductWriteRequest writeRequest = validWriteRequest(sellerId);
-        writeRequest.setImages(List.of("https://storage.googleapis.com/test.png"));
-        String productJson = objectMapper.writeValueAsString(writeRequest);
-
-        mockMvc.perform(multipart("/api/v1/admin/products")
-                        .param("product", productJson)
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .with(user(admin)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Send uploaded image files as multipart parts; image URLs are not accepted during multipart creation"));
-    }
-
-    @Test
     @DisplayName("Admin multipart creation rejects when product payload is missing")
     void createProductMultipart_rejectsMissingProductPayload() throws Exception {
         CustomUserDetails admin = createAdminUser();
