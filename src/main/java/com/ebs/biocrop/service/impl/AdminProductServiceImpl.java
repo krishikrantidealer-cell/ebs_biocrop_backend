@@ -188,10 +188,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         // SKU uniqueness validation
         if (request.getSku() != null && !request.getSku().isBlank()) {
             String requestedSku = request.getSku().trim();
-            if (!requestedSku.equalsIgnoreCase(current.getSku()) && products.existsBySkuIgnoreCase(requestedSku)) {
-                throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
+            if (!requestedSku.equalsIgnoreCase(current.getSku())) {
+                throw new AppException("Product SKU is system-managed and cannot be changed", HttpStatus.CONFLICT);
             }
-            current.setSku(requestedSku);
         }
 
         // Apply provided non-null fields
@@ -201,22 +200,11 @@ public class AdminProductServiceImpl implements AdminProductService {
             current.setTitle(request.getTitle().trim());
         }
         if (request.getTechnicalName() != null) current.setTechnicalName(request.getTechnicalName().trim());
-        if (request.getDescription() != null) current.setDescription(request.getDescription().trim());
-        if (request.getImages() != null) current.setImages(request.getImages());
-        if (request.getTechnicalContent() != null) current.setTechnicalContent(request.getTechnicalContent().trim());
-        if (request.getFeatures() != null) current.setFeatures(sanitizeStringList(request.getFeatures()));
-        if (request.getBenefits() != null) current.setBenefits(sanitizeStringList(request.getBenefits()));
-        if (request.getModeOfAction() != null) current.setModeOfAction(request.getModeOfAction().trim());
-        if (request.getSuitableCrops() != null) current.setSuitableCrops(sanitizeStringList(request.getSuitableCrops()));
-        if (request.getTargetPests() != null) current.setTargetPests(sanitizeStringList(request.getTargetPests()));
-        if (request.getTargetDiseases() != null) current.setTargetDiseases(sanitizeStringList(request.getTargetDiseases()));
-        if (request.getDosage() != null) current.setDosage(request.getDosage().trim());
-        if (request.getApplicationMethod() != null) current.setApplicationMethod(request.getApplicationMethod().trim());
+        if (request.getDescription() != null) current.setDescription(request.getDescription());
         if (request.getCategoryId() != null) {
             if (request.getCategoryId().isBlank()) throw new AppException("Category ID cannot be blank", HttpStatus.BAD_REQUEST);
             current.setCategoryId(request.getCategoryId().trim());
         }
-        if (request.getDimensions() != null) current.setDimensions(normalizeDimensions(request.getDimensions()));
         if (request.getRefundPolicy() != null) current.setRefundPolicy(request.getRefundPolicy().trim());
         if (request.getProductWeight() != null) current.setProductWeight(request.getProductWeight());
         if (request.getProductWeightUnit() != null) {
@@ -244,9 +232,6 @@ public class AdminProductServiceImpl implements AdminProductService {
             removeWishlistReferences(removedVariantIds);
         }
 
-        if (current.getDimensions() == null) {
-            current.setDimensions(new ProductDimensions(20.0, 10.0, 10.0, "cm"));
-        }
         sellerProducts.validateProduct(current);
         if (current.getStatus() == null || current.getStatus().isBlank()) {
             current.setStatus("ACTIVE");
@@ -270,18 +255,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setTitle(request.getTitle());
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
-        updateRequest.setImages(request.getImages());
-        updateRequest.setTechnicalContent(request.getTechnicalContent());
-        updateRequest.setFeatures(request.getFeatures());
-        updateRequest.setBenefits(request.getBenefits());
-        updateRequest.setModeOfAction(request.getModeOfAction());
-        updateRequest.setSuitableCrops(request.getSuitableCrops());
-        updateRequest.setTargetPests(request.getTargetPests());
-        updateRequest.setTargetDiseases(request.getTargetDiseases());
-        updateRequest.setDosage(request.getDosage());
-        updateRequest.setApplicationMethod(request.getApplicationMethod());
         updateRequest.setCategoryId(request.getCategoryId());
-        updateRequest.setDimensions(request.getDimensions());
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
@@ -297,18 +271,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setTitle(request.getTitle());
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
-        updateRequest.setImages(request.getImages());
-        updateRequest.setTechnicalContent(request.getTechnicalContent());
-        updateRequest.setFeatures(request.getFeatures());
-        updateRequest.setBenefits(request.getBenefits());
-        updateRequest.setModeOfAction(request.getModeOfAction());
-        updateRequest.setSuitableCrops(request.getSuitableCrops());
-        updateRequest.setTargetPests(request.getTargetPests());
-        updateRequest.setTargetDiseases(request.getTargetDiseases());
-        updateRequest.setDosage(request.getDosage());
-        updateRequest.setApplicationMethod(request.getApplicationMethod());
         updateRequest.setCategoryId(request.getCategoryId());
-        updateRequest.setDimensions(request.getDimensions());
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
@@ -316,17 +279,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         return update(id, updateRequest);
     }
 
-    private List<String> sanitizeStringList(List<String> list) {
-        if (list == null) return List.of();
-        return list.stream()
-                .filter(java.util.Objects::nonNull)
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
+    private List<ProductDimensions> normalizeDimensions(List<ProductDimensions> values) {
+        if (values == null) return List.of();
+        return values.stream().filter(java.util.Objects::nonNull)
+                .map(value -> new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm"))
                 .toList();
-    }
-
-    private ProductDimensions normalizeDimensions(ProductDimensions value) {
-        return value == null ? null : new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm");
     }
 
     private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current) {
@@ -354,12 +311,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
             clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
-            clean.setSku(input.getSku() != null && !input.getSku().isBlank()
-                    ? input.getSku().trim()
-                    : (prior != null && prior.getSku() != null ? prior.getSku() : null));
+            clean.setSku(prior != null ? prior.getSku() : null);
             if (clean.getSku() == null || clean.getSku().isBlank()) {
-                String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
-                clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
+                clean.setSku(SellerSkuIdentityService.variantSku(productSku, nextVariantNumber(currentList, result)));
             }
             clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
             String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
@@ -367,12 +321,11 @@ public class AdminProductServiceImpl implements AdminProductService {
             clean.setPackSize(input.getPackSize() != null && input.getPackSize() > 0 ? input.getPackSize() : 1);
             clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
             clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
-            clean.setPackUnit(input.getPackUnit() == null || input.getPackUnit().isBlank() ? "bottle" : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
             clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
             clean.setSwg(input.getSwg());
-            clean.setTotalBaseQuantity(Math.multiplyExact(clean.getPackSize().longValue(), clean.getPackQuantity().longValue()));
-            clean.setTotalBaseUnit(clean.getPackSizeUnit());
-            clean.setDimensions(input.getDimensions() == null ? new ProductDimensions(20.0, 10.0, 10.0, "cm") : normalizeDimensions(input.getDimensions()));
+            clean.setDimensions(input.getDimensions() == null || input.getDimensions().isEmpty()
+                    ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
+                    : normalizeDimensions(input.getDimensions()));
 
             double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
             clean.setDisplayRate(dispRate);
@@ -395,11 +348,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (product.getVariants() == null) product.setVariants(new ArrayList<>());
         ProductVariant added = request.toProductVariant();
         added.setId(new ObjectId().toHexString());
-        if (added.getSku() == null || added.getSku().isBlank()) {
-            String baseSku = product.getSku() != null ? product.getSku().replaceAll("\\s*-\\s*", "-").trim() : "PROD";
-            int vIndex = product.getVariants().size() + 1;
-            added.setSku(String.format("%s-%02d", baseSku, vIndex));
-        }
+        added.setSku(SellerSkuIdentityService.variantSku(product.getSku(), nextVariantNumber(product.getVariants(), List.of())));
         if (Boolean.TRUE.equals(request.getIsDefault())) {
             for (ProductVariant v : product.getVariants()) {
                 v.setIsDefault(false);
@@ -418,11 +367,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product product = getEditableProduct(productId);
         ProductVariant existing = findVariant(product, variantId);
         ProductVariant replacement = request.toProductVariant();
+        if (request.getSku() != null && !request.getSku().isBlank()
+                && !request.getSku().trim().equalsIgnoreCase(existing.getSku())) {
+            throw new AppException("Variant SKU is system-managed and cannot be changed", HttpStatus.CONFLICT);
+        }
         replacement.setId(existing.getId());
         replacement.setDisplayOrder(existing.getDisplayOrder());
-        if (replacement.getSku() == null || replacement.getSku().isBlank()) {
-            replacement.setSku(existing.getSku());
-        }
+        replacement.setSku(existing.getSku());
         Boolean targetDefault = request.getIsDefault() != null ? request.getIsDefault() : existing.getIsDefault();
         if (Boolean.TRUE.equals(targetDefault)) {
             for (ProductVariant v : product.getVariants()) {
@@ -448,17 +399,19 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (!patch.hasChanges()) throw new AppException("At least one variant field must be provided", HttpStatus.BAD_REQUEST);
         Product product = getEditableProduct(productId);
         ProductVariant current = findVariant(product, variantId);
+        if (patch.getSku() != null && !patch.getSku().isBlank()
+                && !patch.getSku().trim().equalsIgnoreCase(current.getSku())) {
+            throw new AppException("Variant SKU is system-managed and cannot be changed", HttpStatus.CONFLICT);
+        }
         ProductVariant updated = copyVariant(current);
-        if (patch.getSku()!=null) updated.setSku(patch.getSku());
         if (patch.getLabel()!=null) updated.setLabel(patch.getLabel());
         if (patch.getUnit()!=null) updated.setUnit(patch.getUnit());
         if (patch.getPackSize()!=null) updated.setPackSize(patch.getPackSize());
         if (patch.getPackSizeUnit()!=null) updated.setPackSizeUnit(patch.getPackSizeUnit());
         if (patch.getPackQuantity()!=null) updated.setPackQuantity(patch.getPackQuantity());
-        if (patch.getPackUnit()!=null) updated.setPackUnit(patch.getPackUnit());
         if (patch.getShippedBy()!=null) updated.setShippedBy(patch.getShippedBy());
         if (patch.getSwg()!=null) updated.setSwg(patch.getSwg());
-        if (patch.getDimensions()!=null) updated.setDimensions(patch.getDimensions());
+        if (patch.getDimensions()!=null) updated.setDimensions(normalizeDimensions(patch.getDimensions()));
         if (patch.getDisplayRate()!=null) updated.setDisplayRate(patch.getDisplayRate());
         if (patch.getPrintedMrp()!=null) updated.setPrintedMrp(patch.getPrintedMrp());
         if (patch.getCostPrice()!=null) updated.setCostPrice(patch.getCostPrice());
@@ -486,6 +439,20 @@ public class AdminProductServiceImpl implements AdminProductService {
             ));
         }
         return saved;
+    }
+
+    private int nextVariantNumber(List<ProductVariant> existing, List<ProductVariant> assigned) {
+        int max = 0;
+        if (existing != null) for (ProductVariant variant : existing) max = Math.max(max, variantNumber(variant.getSku()));
+        if (assigned != null) for (ProductVariant variant : assigned) max = Math.max(max, variantNumber(variant.getSku()));
+        return max + 1;
+    }
+
+    private int variantNumber(String sku) {
+        if (sku == null) return 0;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("-V(\\d+)$").matcher(sku);
+        if (!matcher.find()) return 0;
+        try { return Integer.parseInt(matcher.group(1)); } catch (NumberFormatException ignored) { return 0; }
     }
 
     @Override public Product setDefaultVariant(String productId, String variantId, boolean isDefault) {
@@ -574,8 +541,8 @@ public class AdminProductServiceImpl implements AdminProductService {
         ProductVariant copy = new ProductVariant();
         copy.setId(source.getId()); copy.setSku(source.getSku()); copy.setDisplayOrder(source.getDisplayOrder()); copy.setIsDefault(source.getIsDefault());
         copy.setLabel(source.getLabel()); copy.setUnit(source.getUnit()); copy.setPackSize(source.getPackSize());
-        copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity()); copy.setPackUnit(source.getPackUnit());
-        copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(source.getDimensions());
+        copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity());
+        copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(normalizeDimensions(source.getDimensions()));
         copy.setDisplayRate(source.getDisplayRate()); copy.setPrintedMrp(source.getPrintedMrp()); copy.setCostPrice(source.getCostPrice());
         copy.setDiscountRs(source.getDiscountRs()); copy.setGstPercentage(source.getGstPercentage());
         copy.setDiscountPercentage(source.getDiscountPercentage()); copy.setStock(source.getStock());
@@ -741,9 +708,10 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (variant.getStock() == null || variant.getStock() < 0) {
                 throw new AppException("Every variant needs a confirmed stock quantity before approval", HttpStatus.CONFLICT);
             }
-            ProductDimensions dimensions = variant.getDimensions() == null ? product.getDimensions() : variant.getDimensions();
-            if (dimensions == null || !"cm".equalsIgnoreCase(dimensions.getUnit())
-                    || !positive(dimensions.getLength()) || !positive(dimensions.getWidth()) || !positive(dimensions.getHeight())) {
+            List<ProductDimensions> dimensions = variant.getDimensions();
+            if (dimensions == null || dimensions.isEmpty() || dimensions.stream().anyMatch(d -> d == null
+                    || !"cm".equalsIgnoreCase(d.getUnit()) || !positive(d.getLength())
+                    || !positive(d.getWidth()) || !positive(d.getHeight()))) {
                 throw new AppException("Every variant needs positive package dimensions in centimeters before approval", HttpStatus.CONFLICT);
             }
         }

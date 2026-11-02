@@ -1,6 +1,6 @@
 package com.ebs.biocrop.dto.request;
 
-import com.ebs.biocrop.entity.ProductDimensions;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -21,7 +21,7 @@ public class AdminProductUpdateRequest {
     @Pattern(regexp = "^[a-fA-F0-9]{24}$", message = "Seller ID must be a valid MongoDB ObjectId")
     private String sellerId;
 
-    @Size(max = 80)
+    @JsonIgnore @Size(max = 80)
     private String sku;
 
     @Size(max = 32)
@@ -33,44 +33,11 @@ public class AdminProductUpdateRequest {
     @Size(max = 300)
     private String technicalName;
 
-    @Size(max = 10000)
+    @Size(max = 100000)
     private String description;
-
-    @Size(max = 20)
-    private List<@NotBlank @Size(max = 2048) String> images;
-
-    @Size(max = 10000)
-    private String technicalContent;
-
-    @Size(max = 50)
-    private List<@Size(max = 300) String> features;
-
-    @Size(max = 50)
-    private List<@Size(max = 300) String> benefits;
-
-    @Size(max = 5000)
-    private String modeOfAction;
-
-    @Size(max = 50)
-    private List<@Size(max = 160) String> suitableCrops;
-
-    @Size(max = 50)
-    private List<@Size(max = 160) String> targetPests;
-
-    @Size(max = 50)
-    private List<@Size(max = 160) String> targetDiseases;
-
-    @Size(max = 2000)
-    private String dosage;
-
-    @Size(max = 2000)
-    private String applicationMethod;
 
     @Size(max = 24)
     private String categoryId;
-
-    @Valid
-    private ProductDimensions dimensions;
 
     @Size(max = 2000)
     private String refundPolicy;
@@ -92,18 +59,7 @@ public class AdminProductUpdateRequest {
                 || (title != null && !title.isBlank())
                 || technicalName != null
                 || description != null
-                || images != null
-                || technicalContent != null
-                || features != null
-                || benefits != null
-                || modeOfAction != null
-                || suitableCrops != null
-                || targetPests != null
-                || targetDiseases != null
-                || dosage != null
-                || applicationMethod != null
                 || (categoryId != null && !categoryId.isBlank())
-                || dimensions != null
                 || refundPolicy != null
                 || productWeight != null
                 || productWeightUnit != null
@@ -128,41 +84,8 @@ public class AdminProductUpdateRequest {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public List<String> getImages() { return images; }
-    public void setImages(List<String> images) { this.images = images; }
-
-    public String getTechnicalContent() { return technicalContent; }
-    public void setTechnicalContent(String technicalContent) { this.technicalContent = technicalContent; }
-
-    public List<String> getFeatures() { return features; }
-    public void setFeatures(List<String> features) { this.features = features; }
-
-    public List<String> getBenefits() { return benefits; }
-    public void setBenefits(List<String> benefits) { this.benefits = benefits; }
-
-    public String getModeOfAction() { return modeOfAction; }
-    public void setModeOfAction(String modeOfAction) { this.modeOfAction = modeOfAction; }
-
-    public List<String> getSuitableCrops() { return suitableCrops; }
-    public void setSuitableCrops(List<String> suitableCrops) { this.suitableCrops = suitableCrops; }
-
-    public List<String> getTargetPests() { return targetPests; }
-    public void setTargetPests(List<String> targetPests) { this.targetPests = targetPests; }
-
-    public List<String> getTargetDiseases() { return targetDiseases; }
-    public void setTargetDiseases(List<String> targetDiseases) { this.targetDiseases = targetDiseases; }
-
-    public String getDosage() { return dosage; }
-    public void setDosage(String dosage) { this.dosage = dosage; }
-
-    public String getApplicationMethod() { return applicationMethod; }
-    public void setApplicationMethod(String applicationMethod) { this.applicationMethod = applicationMethod; }
-
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
-
-    public ProductDimensions getDimensions() { return dimensions; }
-    public void setDimensions(ProductDimensions dimensions) { this.dimensions = dimensions; }
 
     public String getRefundPolicy() { return refundPolicy; }
     public void setRefundPolicy(String refundPolicy) { this.refundPolicy = refundPolicy; }

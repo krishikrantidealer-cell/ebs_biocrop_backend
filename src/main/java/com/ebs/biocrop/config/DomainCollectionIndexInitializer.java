@@ -73,6 +73,14 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
 
         ensure("products", "uniq_product_sku", Map.of("sku", 1), new Index().on("sku", Sort.Direction.ASC)
                 .unique().named("uniq_product_sku"));
+        ensure("products", "uniq_product_variant_sku", Map.of("variants.sku", 1),
+                new Index().on("variants.sku", Sort.Direction.ASC).unique()
+                        .partial(PartialIndexFilter.of(Criteria.where("variants.sku").type(2)))
+                        .named("uniq_product_variant_sku"));
+        ensure("seller_sku_identities", "uniq_seller_sku_number", Map.of("sellerNumber", 1),
+                new Index().on("sellerNumber", Sort.Direction.ASC).unique()
+                        .partial(PartialIndexFilter.of(Criteria.where("sellerNumber").gt(0)))
+                        .named("uniq_seller_sku_number"));
         ensure("products", "uniq_product_code", Map.of("productCode", 1), new Index().on("productCode", Sort.Direction.ASC)
                 .unique().partial(PartialIndexFilter.of(Criteria.where("productCode").type(2))).named("uniq_product_code"));
         ensure("products", "product_category_status_idx", Map.of("categoryId", 1, "status", 1), new Index().on("categoryId", Sort.Direction.ASC)

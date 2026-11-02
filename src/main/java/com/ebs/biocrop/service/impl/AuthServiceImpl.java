@@ -14,6 +14,7 @@ import com.ebs.biocrop.service.EmailOtpService;
 import com.ebs.biocrop.service.EmailDeliveryService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.security.MessageDigest;
@@ -38,22 +39,34 @@ public class AuthServiceImpl implements AuthService {
     private final EmailOtpService emailOtpService;
     private final EmailDeliveryService emailDeliveryService;
     private final PasswordEncoder passwordEncoder;
+    private final SellerSkuIdentityService sellerSkuIdentityService;
     @Value("${app.password-reset.url:http://localhost:3000/reset-password}") private String resetUrl;
     @Value("${app.password-reset.expiration-minutes:30}") private int resetExpirationMinutes;
 
+    @Autowired
     public AuthServiceImpl(
             OtpService otpService,
             UserRepository userRepository,
             JwtTokenProvider jwtTokenProvider,
             EmailOtpService emailOtpService,
             EmailDeliveryService emailDeliveryService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            SellerSkuIdentityService sellerSkuIdentityService) {
         this.otpService = otpService;
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.emailOtpService = emailOtpService;
         this.emailDeliveryService = emailDeliveryService;
         this.passwordEncoder = passwordEncoder;
+        this.sellerSkuIdentityService = sellerSkuIdentityService;
+    }
+
+    /** Keeps direct construction in existing unit tests source-compatible. */
+    public AuthServiceImpl(OtpService otpService, UserRepository userRepository,
+                           JwtTokenProvider jwtTokenProvider, EmailOtpService emailOtpService,
+                           EmailDeliveryService emailDeliveryService, PasswordEncoder passwordEncoder) {
+        this(otpService, userRepository, jwtTokenProvider, emailOtpService, emailDeliveryService,
+                passwordEncoder, null);
     }
 
     @Override
@@ -93,6 +106,9 @@ public class AuthServiceImpl implements AuthService {
         if (isNewUser || wasProfileComplete != Boolean.TRUE.equals(user.getIsProfileComplete()) || !wasVerified) {
             user.setUpdatedAt(LocalDateTime.now());
             user = userRepository.save(user);
+            if (isNewUser && user.getRole() == UserRole.ROLE_SELLER && sellerSkuIdentityService != null) {
+                sellerSkuIdentityService.ensureSellerCode(user.getId());
+            }
         }
 
         // 3. Issue JWT Access & Refresh Tokens
@@ -187,7 +203,9 @@ public class AuthServiceImpl implements AuthService {
         seller.setIsProfileComplete(false);
         seller.setUpdatedAt(LocalDateTime.now());
         try {
-            return issueTokens(userRepository.save(seller));
+            User saved = userRepository.save(seller);
+            if (sellerSkuIdentityService != null) sellerSkuIdentityService.ensureSellerCode(saved.getId());
+            return issueTokens(saved);
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
         }

@@ -1,6 +1,6 @@
 package com.ebs.biocrop.dto.request;
 
-import com.ebs.biocrop.entity.ProductDimensions;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Pattern;
@@ -13,10 +13,9 @@ public class AdminProductVariantPatchRequest {
     @Positive private Integer packSize;
     @Pattern(regexp = ".*\\S.*", message = "Pack size unit cannot be blank") @Size(max = 20) private String packSizeUnit;
     @Positive private Integer packQuantity;
-    @Size(max = 20) private String packUnit;
     @Size(max = 120) private String shippedBy;
     @PositiveOrZero private Double swg;
-    private ProductDimensions dimensions;
+    @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @PositiveOrZero private Double displayRate;
     @PositiveOrZero private Double printedMrp;
     @PositiveOrZero private Double costPrice;
@@ -25,11 +24,11 @@ public class AdminProductVariantPatchRequest {
     @PositiveOrZero private Double discountPercentage;
     @PositiveOrZero private Integer stock;
     private Boolean isDefault;
-    @Size(max = 80) private String sku;
+    @JsonIgnore @Size(max = 80) private String sku;
 
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packSizeUnit != null || packQuantity != null
-                || packUnit != null || shippedBy != null || swg != null || dimensions != null || displayRate != null
+                || shippedBy != null || swg != null || dimensions != null || displayRate != null
                 || printedMrp != null || costPrice != null || discountRs != null || gstPercentage != null
                 || discountPercentage != null || stock != null || isDefault != null || sku != null;
     }
@@ -38,10 +37,9 @@ public class AdminProductVariantPatchRequest {
     public Integer getPackSize() { return packSize; } public void setPackSize(Integer v) { packSize=v; }
     public String getPackSizeUnit() { return packSizeUnit; } public void setPackSizeUnit(String v) { packSizeUnit=v; }
     public Integer getPackQuantity() { return packQuantity; } public void setPackQuantity(Integer v) { packQuantity=v; }
-    public String getPackUnit() { return packUnit; } public void setPackUnit(String v) { packUnit=v; }
     public String getShippedBy() { return shippedBy; } public void setShippedBy(String v) { shippedBy=v; }
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
-    public ProductDimensions getDimensions() { return dimensions; } public void setDimensions(ProductDimensions v) { dimensions=v; }
+    public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
     public Double getPrintedMrp() { return printedMrp; } public void setPrintedMrp(Double v) { printedMrp=v; }
     public Double getCostPrice() { return costPrice; } public void setCostPrice(Double v) { costPrice=v; }

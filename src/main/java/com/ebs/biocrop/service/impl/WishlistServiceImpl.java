@@ -219,8 +219,8 @@ public class WishlistServiceImpl implements WishlistService {
                         selection.variant().getId(),
                         selection.product().getTitle(),
                         currentSellerNames.get(selection.product().getSellerId()),
-                        selection.product().getImages() == null || selection.product().getImages().isEmpty()
-                                ? null : selection.product().getImages().getFirst(),
+                        selection.product().getProductImages() == null || selection.product().getProductImages().isEmpty()
+                                ? null : selection.product().getProductImages().getFirst().getMidObjectName(),
                         com.ebs.biocrop.dto.response.PublicProductResponse.PublicVariant.from(selection.variant())))
                 .toList();
         return new WishlistResponse(items, wishlist.getCreatedAt(), wishlist.getUpdatedAt());

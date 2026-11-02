@@ -1,7 +1,6 @@
 package com.ebs.biocrop;
 
 import com.ebs.biocrop.entity.Product;
-import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.repository.ProductRepository;
@@ -69,7 +68,6 @@ class SellerProductControllerTest {
         p.setCategoryId("cat123");
         p.setStatus("INACTIVE");
         p.setIsAvailable(false);
-        p.setDimensions(new ProductDimensions(10.0, 10.0, 10.0, "cm"));
         p.setAverageRating(4.5);
         p.setTotalReviews(10L);
         p.setProductImages(new ArrayList<>());

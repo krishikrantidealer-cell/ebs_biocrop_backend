@@ -80,14 +80,13 @@ class AdminProductMultipartControllerTest {
         req.setCategoryId(new ObjectId().toHexString());
         req.setTechnicalName("Trichoderma viride");
         req.setDescription("Bio fertilizer description");
-        req.setTechnicalContent("Active micro organisms 1.5%");
+        req.setDescription("<p><strong>Active micro organisms:</strong> 1.5%</p>");
         SellerProductWriteRequest.VariantWriteRequest variant = new SellerProductWriteRequest.VariantWriteRequest();
         variant.setLabel("1 Liter");
         variant.setUnit("liter");
         variant.setPackSize(1);
         variant.setPackSizeUnit("liter");
         variant.setPackQuantity(1);
-        variant.setPackUnit("bottle");
         variant.setDisplayRate(450.0);
         variant.setStock(100);
         req.setVariants(List.of(variant));

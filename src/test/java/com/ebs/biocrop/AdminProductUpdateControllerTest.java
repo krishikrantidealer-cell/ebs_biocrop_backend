@@ -109,7 +109,6 @@ class AdminProductUpdateControllerTest {
         request.setCategoryId(categoryId);
         request.setProductWeight(1000.0);
         request.setProductWeightUnit("g");
-        request.setDimensions(new ProductDimensions(20.0, 10.0, 10.0, "cm"));
 
         SellerProductWriteRequest.VariantWriteRequest variant = new SellerProductWriteRequest.VariantWriteRequest();
         variant.setLabel("1 Liter");
@@ -119,6 +118,7 @@ class AdminProductUpdateControllerTest {
         variant.setPackQuantity(1);
         variant.setDisplayRate(850.0);
         variant.setStock(80);
+        variant.setDimensions(List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm")));
         request.setVariants(List.of(variant));
 
         Product updatedProduct = mockProduct(productId, "Complete Updated Product");

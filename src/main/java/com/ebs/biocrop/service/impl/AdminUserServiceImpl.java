@@ -29,6 +29,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,16 +48,26 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final UserRepository users;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
+    private final SellerSkuIdentityService sellerSkuIdentityService;
 
+    @Autowired
     public AdminUserServiceImpl(
             MongoTemplate mongoTemplate,
             UserRepository users,
             RedisJsonCache redisCache,
-            WebSocketService webSocketService) {
+            WebSocketService webSocketService,
+            SellerSkuIdentityService sellerSkuIdentityService) {
         this.mongoTemplate = mongoTemplate;
         this.users = users;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
+        this.sellerSkuIdentityService = sellerSkuIdentityService;
+    }
+
+    /** Keeps direct construction in existing unit tests source-compatible. */
+    public AdminUserServiceImpl(MongoTemplate mongoTemplate, UserRepository users,
+                                RedisJsonCache redisCache, WebSocketService webSocketService) {
+        this(mongoTemplate, users, redisCache, webSocketService, null);
     }
 
     @Override
@@ -121,7 +132,11 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setIsProfileComplete(user.hasCompleteProfile());
         user.setUpdatedAt(LocalDateTime.now());
         try {
-            return AdminUserResponse.from(users.save(user));
+            User saved = users.save(user);
+            if (role == UserRole.ROLE_SELLER && sellerSkuIdentityService != null) {
+                sellerSkuIdentityService.ensureSellerCode(saved.getId());
+            }
+            return AdminUserResponse.from(saved);
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
         }

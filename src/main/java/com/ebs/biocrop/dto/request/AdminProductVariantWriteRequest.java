@@ -1,7 +1,7 @@
 package com.ebs.biocrop.dto.request;
 
-import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -15,10 +15,9 @@ public class AdminProductVariantWriteRequest {
     @NotNull @Positive private Integer packSize;
     @NotBlank @Size(max = 20) private String packSizeUnit;
     @NotNull @Positive private Integer packQuantity;
-    @Size(max = 20) private String packUnit;
     @Size(max = 120) private String shippedBy;
     @PositiveOrZero private Double swg;
-    private ProductDimensions dimensions;
+    @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @NotNull @PositiveOrZero private Double displayRate;
     @PositiveOrZero private Double printedMrp;
     @PositiveOrZero private Double costPrice;
@@ -27,13 +26,13 @@ public class AdminProductVariantWriteRequest {
     @PositiveOrZero private Double discountPercentage;
     @NotNull @PositiveOrZero private Integer stock;
     private Boolean isDefault;
-    @Size(max = 80) private String sku;
+    @JsonIgnore @Size(max = 80) private String sku;
 
     public ProductVariant toProductVariant() {
         ProductVariant value = new ProductVariant();
         value.setSku(sku);
         value.setLabel(label); value.setUnit(unit); value.setPackSize(packSize);
-        value.setPackSizeUnit(packSizeUnit); value.setPackQuantity(packQuantity); value.setPackUnit(packUnit);
+        value.setPackSizeUnit(packSizeUnit); value.setPackQuantity(packQuantity);
         value.setShippedBy(shippedBy); value.setSwg(swg); value.setDimensions(dimensions);
         value.setDisplayRate(displayRate); value.setPrintedMrp(printedMrp); value.setCostPrice(costPrice);
         value.setDiscountRs(discountRs); value.setGstPercentage(gstPercentage);
@@ -47,10 +46,9 @@ public class AdminProductVariantWriteRequest {
     public Integer getPackSize() { return packSize; } public void setPackSize(Integer v) { packSize=v; }
     public String getPackSizeUnit() { return packSizeUnit; } public void setPackSizeUnit(String v) { packSizeUnit=v; }
     public Integer getPackQuantity() { return packQuantity; } public void setPackQuantity(Integer v) { packQuantity=v; }
-    public String getPackUnit() { return packUnit; } public void setPackUnit(String v) { packUnit=v; }
     public String getShippedBy() { return shippedBy; } public void setShippedBy(String v) { shippedBy=v; }
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
-    public ProductDimensions getDimensions() { return dimensions; } public void setDimensions(ProductDimensions v) { dimensions=v; }
+    public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
     public Double getPrintedMrp() { return printedMrp; } public void setPrintedMrp(Double v) { printedMrp=v; }
     public Double getCostPrice() { return costPrice; } public void setCostPrice(Double v) { costPrice=v; }

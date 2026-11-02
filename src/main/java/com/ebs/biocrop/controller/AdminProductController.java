@@ -118,11 +118,6 @@ public class AdminProductController {
             MultipartHttpServletRequest request) {
         rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
         AdminProductWriteRequest productRequest = parseAndValidateProductRequest(request);
-        if (productRequest.getImages() != null && !productRequest.getImages().isEmpty()) {
-            throw new AppException(
-                    "Send uploaded image files as multipart parts; image URLs are not accepted during multipart creation",
-                    HttpStatus.BAD_REQUEST);
-        }
         List<MultipartFile> files = extractImageFiles(request);
         if (!files.isEmpty()) {
             rateLimitGuard.enforce("admin-product-image-upload", admin.getId(), 10, Duration.ofMinutes(1));

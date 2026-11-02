@@ -44,7 +44,6 @@ class WishlistSellerNameTest {
         product.setTitle("Test product");
         product.setStatus("ACTIVE");
         product.setIsAvailable(true);
-        product.setImages(List.of());
         product.setVariants(List.of(variant));
 
         Wishlist wishlist = new Wishlist();

@@ -1,7 +1,6 @@
 package com.ebs.biocrop.dto.response;
 
 import com.ebs.biocrop.entity.Product;
-import com.ebs.biocrop.entity.ProductDimensions;
 import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.service.GcsImageStorageService;
 
@@ -18,20 +17,9 @@ public record PublicProductResponse(
         String technicalName,
         String sellerName,
         String description,
-        List<String> images,
         List<ProductImageUrls> productImages,
-        String technicalContent,
-        List<String> features,
-        List<String> benefits,
-        String modeOfAction,
-        List<String> suitableCrops,
-        List<String> targetPests,
-        List<String> targetDiseases,
-        String dosage,
-        String applicationMethod,
         String categoryId,
         List<String> assignedCollections,
-        ProductDimensions dimensions,
         Boolean isAvailable,
         Boolean isFeatured,
         List<PublicVariant> variants,
@@ -45,7 +33,7 @@ public record PublicProductResponse(
                                              GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
                 product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
-                currentSellerName, product.getDescription(), product.getImages(),
+                currentSellerName, product.getDescription(),
                 product.getProductImages() == null
                         ? List.of()
                         : product.getProductImages().stream()
@@ -61,11 +49,8 @@ public record PublicProductResponse(
                                                 product.getId(),
                                                 image.getLowObjectName())))
                                 .toList(),
-                product.getTechnicalContent(),
-                product.getFeatures(), product.getBenefits(), product.getModeOfAction(), product.getSuitableCrops(),
-                product.getTargetPests(), product.getTargetDiseases(), product.getDosage(),
-                product.getApplicationMethod(), product.getCategoryId(), product.getAssignedCollections(),
-                product.getDimensions(), product.getIsAvailable(), product.getIsFeatured(),
+                product.getCategoryId(), product.getAssignedCollections(),
+                product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(PublicVariant::from).toList(),
                 product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,
                 product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit());
@@ -86,12 +71,9 @@ public record PublicProductResponse(
             Integer packSize,
             String packSizeUnit,
             Integer packQuantity,
-            String packUnit,
             String shippedBy,
             Double swg,
-            Long totalBaseQuantity,
-            String totalBaseUnit,
-            ProductDimensions dimensions,
+            List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
             Double displayRate,
             Double printedMrp,
             Double discountRs,
@@ -103,9 +85,8 @@ public record PublicProductResponse(
             Boolean isDefault) {
         public static PublicVariant from(ProductVariant variant) {
             return new PublicVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(), variant.getPackSize(),
-                    variant.getPackSizeUnit(), variant.getPackQuantity(), variant.getPackUnit(),
-                    variant.getShippedBy(), variant.getSwg(),
-                    variant.getTotalBaseQuantity(), variant.getTotalBaseUnit(), variant.getDimensions(),
+                    variant.getPackSizeUnit(), variant.getPackQuantity(),
+                    variant.getShippedBy(), variant.getSwg(), variant.getDimensions(),
                     variant.getDisplayRate(), variant.getPrintedMrp(), variant.getDiscountRs(),
                     variant.getGstPercentage(), variant.getDiscountPercentage(), variant.getStock(),
                     variant.getPricePerBaseUnit(), variant.getDisplayOrder(), variant.getIsDefault());

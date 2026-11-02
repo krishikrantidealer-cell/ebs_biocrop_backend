@@ -43,30 +43,31 @@ public class SellerProductServiceImpl implements SellerProductService {
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
+    private final SellerSkuIdentityService sellerSkuIdentityService;
 
     public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories,
                                     MongoTemplate mongoTemplate,
                                     RedisJsonCache redisCache,
-                                    WebSocketService webSocketService) {
+                                    WebSocketService webSocketService,
+                                    SellerSkuIdentityService sellerSkuIdentityService) {
         this.products = products;
         this.categories = categories;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
+        this.sellerSkuIdentityService = sellerSkuIdentityService;
     }
 
     @Override
     public Product create(String sellerId, SellerProductWriteRequest writeRequest) {
         Product request = writeRequest.toProduct();
         validate(request);
-        if (products.existsBySkuIgnoreCase(request.getSku().trim())) {
-            throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
-        }
         Product listing = new Product();
-        copySellerFields(request, listing, null);
         listing.setSellerId(sellerId);
-        listing.setSellerName(findSellerShopName(sellerId));
         listing.setProductCode(nextProductCode(sellerId));
+        listing.setSku(sellerSkuIdentityService.productSku(sellerId, listing.getProductCode()));
+        copySellerFields(request, listing, null);
+        listing.setSellerName(findSellerShopName(sellerId));
         listing.setStatus("ACTIVE");
         listing.setIsAvailable(true);
         listing.setIsFeatured(true);
@@ -99,13 +100,14 @@ public class SellerProductServiceImpl implements SellerProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Seller product", "id", id));
         if (Boolean.TRUE.equals(current.getIsDeleted())) throw new ResourceNotFoundException("Seller product", "id", id);
         validate(request);
-        String requestedSku = request.getSku().trim();
-        if (products.existsBySkuIgnoreCase(requestedSku) && !requestedSku.equalsIgnoreCase(current.getSku())) {
-            throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
+        if (request.getSku() != null && !request.getSku().isBlank()
+                && !request.getSku().trim().equalsIgnoreCase(current.getSku())) {
+            throw new AppException("Product SKU is system-managed and cannot be changed", HttpStatus.CONFLICT);
         }
         Product listing = new Product();
         copySellerFields(request, listing, current);
         listing.setId(current.getId());
+        listing.setSku(current.getSku());
         listing.setProductCode(current.getProductCode());
         listing.setSellerId(current.getSellerId());
         listing.setSellerName(findSellerShopName(current.getSellerId()));
@@ -151,7 +153,6 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     private void validate(Product product) {
         if (product.getTitle() == null || product.getTitle().isBlank()) throw badRequest("Product title is required");
-        if (product.getSku() == null || product.getSku().isBlank()) throw badRequest("SKU is required");
         if (product.getProductWeight() != null && !finiteNonnegative(product.getProductWeight())) throw badRequest("Product weight must be a finite nonnegative number");
         if (product.getProductWeightUnit() != null
                 && !Set.of("g", "kg").contains(product.getProductWeightUnit().trim().toLowerCase(Locale.ROOT))) {
@@ -170,20 +171,19 @@ public class SellerProductServiceImpl implements SellerProductService {
     @Override public void validateProduct(Product product) { validate(product); }
 
     private void validateVariant(Product product, ProductVariant variant) {
-        ProductDimensions dimensions = variant.getDimensions() == null ? product.getDimensions() : variant.getDimensions();
-        if (dimensions == null) {
-            dimensions = new ProductDimensions(20.0, 10.0, 10.0, "cm");
+        List<ProductDimensions> dimensions = variant.getDimensions();
+        if (dimensions == null || dimensions.isEmpty()) {
+            dimensions = List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"));
             variant.setDimensions(dimensions);
-            if (product.getDimensions() == null) product.setDimensions(dimensions);
         } else {
-            if (dimensions.getUnit() == null || dimensions.getUnit().isBlank()) dimensions.setUnit("cm");
-            if (!positive(dimensions.getLength())) dimensions.setLength(20.0);
-            if (!positive(dimensions.getWidth())) dimensions.setWidth(10.0);
-            if (!positive(dimensions.getHeight())) dimensions.setHeight(10.0);
+            dimensions = normalizeDimensions(dimensions);
+            variant.setDimensions(dimensions);
         }
-        if (!"cm".equalsIgnoreCase(dimensions.getUnit())) throw badRequest("Variant dimensions must use centimeters (cm)");
-        if (!positive(dimensions.getLength()) || !positive(dimensions.getWidth()) || !positive(dimensions.getHeight())) {
-            throw badRequest("Variant length, width, and height must be positive");
+        for (ProductDimensions dimension : dimensions) {
+            if (!"cm".equalsIgnoreCase(dimension.getUnit())) throw badRequest("Variant dimensions must use centimeters (cm)");
+            if (!positive(dimension.getLength()) || !positive(dimension.getWidth()) || !positive(dimension.getHeight())) {
+                throw badRequest("Variant length, width, and height must be positive");
+            }
         }
         if (variant.getPackSize() == null || variant.getPackSize() <= 0) {
             variant.setPackSize(1);
@@ -217,25 +217,21 @@ public class SellerProductServiceImpl implements SellerProductService {
     }
 
     private void copySellerFields(Product source, Product target, Product existing) {
-        target.setSku(source.getSku().trim());
+        target.setSku(existing != null ? existing.getSku()
+                : (target.getSku() != null ? target.getSku() : source.getSku()));
         target.setHsnCode(source.getHsnCode());
         target.setTitle(source.getTitle().trim()); target.setTechnicalName(source.getTechnicalName());
         target.setDescription(source.getDescription());
-        target.setImages(source.getImages()); target.setTechnicalContent(source.getTechnicalContent());
         target.setProductImages(
                 existing == null ? List.of() : existing.getProductImages());
-        target.setFeatures(sanitizeStringList(source.getFeatures())); target.setBenefits(sanitizeStringList(source.getBenefits()));
-        target.setModeOfAction(source.getModeOfAction()); target.setSuitableCrops(sanitizeStringList(source.getSuitableCrops()));
-        target.setTargetPests(sanitizeStringList(source.getTargetPests())); target.setTargetDiseases(sanitizeStringList(source.getTargetDiseases()));
-        target.setDosage(source.getDosage()); target.setApplicationMethod(source.getApplicationMethod());
         target.setCategoryId(source.getCategoryId());
         target.setAssignedCollections(existing == null ? List.of()
                 : normalizeAssignedCollections(existing.getAssignedCollections()));
-        target.setDimensions(normalizeDimensions(source.getDimensions()));
         target.setRefundPolicy(source.getRefundPolicy()); target.setProductWeight(source.getProductWeight());
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
-        target.setVariants(sanitizeVariants(source.getVariants(), oldVariants, source.getSku()));
+        String baseSku = existing == null ? target.getSku() : existing.getSku();
+        target.setVariants(sanitizeVariants(source.getVariants(), oldVariants, baseSku));
     }
 
     private String findSellerShopName(String sellerId) {
@@ -273,22 +269,12 @@ public class SellerProductServiceImpl implements SellerProductService {
                         .filter(v -> v.getId() != null && v.getId().equalsIgnoreCase(input.getId().trim()))
                         .findFirst().orElse(null);
             }
-            if (prior == null && input.getSku() != null && !input.getSku().isBlank()) {
-                prior = currentList.stream()
-                        .filter(v -> v.getSku() != null && v.getSku().equalsIgnoreCase(input.getSku().trim())
-                                && (v.getId() == null || !retainedIds.contains(v.getId().toLowerCase(Locale.ROOT))))
-                        .findFirst().orElse(null);
-            }
-
             boolean retain = prior != null && retainedIds.add(prior.getId().toLowerCase(Locale.ROOT));
             ProductVariant clean = new ProductVariant();
             clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
-            clean.setSku(input.getSku() != null && !input.getSku().isBlank()
-                    ? input.getSku().trim()
-                    : (prior != null && prior.getSku() != null ? prior.getSku() : null));
+            clean.setSku(prior != null ? prior.getSku() : null);
             if (clean.getSku() == null || clean.getSku().isBlank()) {
-                String baseSku = productSku != null ? productSku.replaceAll("\\s*-\\s*", "-").trim() : "PROD";
-                clean.setSku(String.format("%s-%02d", baseSku, result.size() + 1));
+                clean.setSku(SellerSkuIdentityService.variantSku(productSku, nextVariantNumber(currentList, result)));
             }
             clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
             String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
@@ -296,12 +282,11 @@ public class SellerProductServiceImpl implements SellerProductService {
             clean.setPackSize(input.getPackSize() != null && input.getPackSize() > 0 ? input.getPackSize() : 1);
             clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
             clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
-            clean.setPackUnit(input.getPackUnit() == null || input.getPackUnit().isBlank() ? "bottle" : input.getPackUnit().trim().toLowerCase(Locale.ROOT));
             clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
             clean.setSwg(input.getSwg());
-            clean.setTotalBaseQuantity(Math.multiplyExact(clean.getPackSize().longValue(), clean.getPackQuantity().longValue()));
-            clean.setTotalBaseUnit(clean.getPackSizeUnit());
-            clean.setDimensions(input.getDimensions() == null ? new ProductDimensions(20.0, 10.0, 10.0, "cm") : normalizeDimensions(input.getDimensions()));
+            clean.setDimensions(input.getDimensions() == null || input.getDimensions().isEmpty()
+                    ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
+                    : normalizeDimensions(input.getDimensions()));
 
             double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
             clean.setDisplayRate(dispRate);
@@ -319,11 +304,28 @@ public class SellerProductServiceImpl implements SellerProductService {
         return List.copyOf(result);
     }
 
+    private int nextVariantNumber(List<ProductVariant> existing, List<ProductVariant> assigned) {
+        int max = 0;
+        for (ProductVariant variant : existing) max = Math.max(max, variantNumber(variant.getSku()));
+        for (ProductVariant variant : assigned) max = Math.max(max, variantNumber(variant.getSku()));
+        return max + 1;
+    }
+
+    private int variantNumber(String sku) {
+        if (sku == null) return 0;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("-V(\\d+)$").matcher(sku);
+        if (!matcher.find()) return 0;
+        try { return Integer.parseInt(matcher.group(1)); } catch (NumberFormatException ignored) { return 0; }
+    }
+
     private AppException badRequest(String message) { return new AppException(message, HttpStatus.BAD_REQUEST); }
     private boolean positive(Double value) { return value != null && Double.isFinite(value) && value > 0; }
     private boolean finiteNonnegative(Double value) { return value != null && Double.isFinite(value) && value >= 0; }
-    private ProductDimensions normalizeDimensions(ProductDimensions value) {
-        return value == null ? null : new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm");
+    private List<ProductDimensions> normalizeDimensions(List<ProductDimensions> values) {
+        if (values == null) return List.of();
+        return values.stream().filter(java.util.Objects::nonNull)
+                .map(value -> new ProductDimensions(value.getLength(), value.getWidth(), value.getHeight(), "cm"))
+                .toList();
     }
 
     private static class UserSequence {

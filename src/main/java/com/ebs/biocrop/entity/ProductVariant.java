@@ -33,18 +33,12 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Integer packQuantity;
     @Field(write = Field.Write.ALWAYS)
-    private String packUnit;
-    @Field(write = Field.Write.ALWAYS)
     private String shippedBy;
     /** SWG is stored as provided; interpreted as shipping weight grams, without rate calculation. */
     @Field(write = Field.Write.ALWAYS)
     private Double swg;
     @Field(write = Field.Write.ALWAYS)
-    private Long totalBaseQuantity;
-    @Field(write = Field.Write.ALWAYS)
-    private String totalBaseUnit;
-    @Field(write = Field.Write.ALWAYS)
-    private ProductDimensions dimensions;
+    private java.util.List<ProductDimensions> dimensions = new java.util.ArrayList<>();
 
     // Approved schema commercial fields, in currency units and percentage points.
     @Field(write = Field.Write.ALWAYS)
@@ -82,18 +76,14 @@ public class ProductVariant {
     public void setPackSizeUnit(String packSizeUnit) { this.packSizeUnit = packSizeUnit; }
     public Integer getPackQuantity() { return packQuantity; }
     public void setPackQuantity(Integer packQuantity) { this.packQuantity = packQuantity; }
-    public String getPackUnit() { return packUnit; }
-    public void setPackUnit(String packUnit) { this.packUnit = packUnit; }
     public String getShippedBy() { return shippedBy; }
     public void setShippedBy(String shippedBy) { this.shippedBy = shippedBy; }
     public Double getSwg() { return swg; }
     public void setSwg(Double swg) { this.swg = swg; }
-    public Long getTotalBaseQuantity() { return totalBaseQuantity; }
-    public void setTotalBaseQuantity(Long totalBaseQuantity) { this.totalBaseQuantity = totalBaseQuantity; }
-    public String getTotalBaseUnit() { return totalBaseUnit; }
-    public void setTotalBaseUnit(String totalBaseUnit) { this.totalBaseUnit = totalBaseUnit; }
-    public ProductDimensions getDimensions() { return dimensions; }
-    public void setDimensions(ProductDimensions dimensions) { this.dimensions = dimensions; }
+    public java.util.List<ProductDimensions> getDimensions() { return dimensions; }
+    public void setDimensions(java.util.List<ProductDimensions> dimensions) {
+        this.dimensions = dimensions != null ? dimensions : new java.util.ArrayList<>();
+    }
     public Double getDisplayRate() { return displayRate; }
     public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
     public Double getPrintedMrp() { return printedMrp; }
@@ -151,9 +141,9 @@ public class ProductVariant {
 
     /** Selling price divided by normalized total ml or g. */
     public Double getPricePerBaseUnit() {
-        Long quantity = totalBaseQuantity == null ? null : totalBaseQuantity.longValue();
-        String unitName = totalBaseUnit;
-        if ((quantity == null || quantity <= 0) && packSize != null && packSize > 0) {
+        Long quantity = null;
+        String unitName = packSizeUnit;
+        if (packSize != null && packSize > 0) {
             try {
                 quantity = Math.multiplyExact(packSize.longValue(),
                         (long) (packQuantity == null || packQuantity <= 0 ? 1 : packQuantity));
