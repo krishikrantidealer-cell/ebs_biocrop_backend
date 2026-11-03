@@ -97,7 +97,7 @@ class AdminUserControllerTest {
         when(adminUserService.reviewSellerKyc("seller-id", true))
                 .thenReturn(new AdminUserResponse("seller-id", "9876543210", "seller@example.com", "First", "Last",
                         "Shop", "ROLE_SELLER", null, true, false, "APPROVED", true, "GST-123",
-                        "licence.pdf", "shop.jpg", List.of(), false, false, null, null, "ACTIVE", null,
+                        List.of("licence.pdf"), List.of(), false, false, null, null, "ACTIVE", null,
                         List.of(), null, null, 0L, 0L));
 
         mockMvc.perform(patch("/api/v1/admin/users/seller-id/block")
@@ -251,7 +251,7 @@ class AdminUserControllerTest {
     private AdminUserResponse response(String id, String role, boolean blocked, boolean deleted) {
         return new AdminUserResponse(id, "9876543210", "user@example.com", "First", "Last",
                 role.equals("ROLE_SELLER") ? "Shop" : null, role, null, true, false,
-                null, false, null, null, null, List.of(), blocked, deleted,
+                null, false, null, null, List.of(), blocked, deleted,
                 null, null, "ACTIVE", null, List.of(), null, null,
                 role.equals("ROLE_SELLER") ? 0L : null, role.equals("ROLE_SELLER") ? 0L : null);
     }

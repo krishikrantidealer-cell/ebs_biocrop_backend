@@ -3,7 +3,6 @@ package com.ebs.biocrop.service;
 import com.ebs.biocrop.dto.request.OtpVerifyRequest;
 import com.ebs.biocrop.dto.response.AuthResponse;
 import com.ebs.biocrop.entity.User;
-import com.ebs.biocrop.dto.request.SellerEmailRegistrationRequest;
 
 public interface AuthService {
 
@@ -16,10 +15,6 @@ public interface AuthService {
     AuthResponse verifyEmailOtpAndLogin(String email, String otp);
 
     void sendEmailOtp(String email);
-
-    void sendSellerRegistrationEmailOtp(String email, String phoneNumber);
-
-    AuthResponse registerSellerWithEmailOtp(SellerEmailRegistrationRequest request);
 
     AuthResponse loginWithPassword(String email, String password);
 

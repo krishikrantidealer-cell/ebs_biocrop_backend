@@ -1,7 +1,6 @@
 package com.ebs.biocrop;
 
 import com.ebs.biocrop.dto.request.OtpVerifyRequest;
-import com.ebs.biocrop.dto.request.SellerEmailRegistrationRequest;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
@@ -49,25 +48,14 @@ class AuthRoleLifecycleTest {
     }
 
     @Test
-    void firstPhoneOtpCanRegisterSellerAndMarksPhoneVerified() {
+    void firstPhoneOtpCannotSelfRegisterSeller() {
         when(userRepository.findByPhoneNumber("9876543210")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User saved = invocation.getArgument(0);
-            saved.setId("seller-id");
-            return saved;
-        });
         OtpVerifyRequest request = new OtpVerifyRequest("9876543210", "123456");
         request.setRole("SELLER");
 
-        var response = service.verifyOtpAndLogin(request);
-
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(saved.capture());
-        assertEquals(UserRole.ROLE_SELLER, saved.getValue().getRole());
-        assertEquals("ACTIVE", saved.getValue().getStatus());
-        assertTrue(saved.getValue().getIsVerified());
-        assertFalse(saved.getValue().getIsProfileComplete());
-        assertEquals("ROLE_SELLER", response.getRole());
+        AppException error = assertThrows(AppException.class, () -> service.verifyOtpAndLogin(request));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatus());
+        verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
@@ -90,28 +78,18 @@ class AuthRoleLifecycleTest {
     }
 
     @Test
-    void sellerCanRegisterWithEmailOtpAndIsMarkedVerified() {
-        when(userRepository.existsByPhoneNumber("9876543211")).thenReturn(false);
-        when(userRepository.findByEmailIgnoreCase("seller@example.com")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User saved = invocation.getArgument(0);
-            saved.setId("seller-id");
-            return saved;
-        });
-        SellerEmailRegistrationRequest request = new SellerEmailRegistrationRequest();
-        request.setEmail("SELLER@example.com");
-        request.setPhoneNumber("9876543211");
-        request.setOtp("123456");
+    void provisionedSellerCanStillLoginWithPhoneOtp() {
+        User seller = User.newSeller("9876543211", "seller@example.com");
+        seller.setId("seller-id");
+        when(userRepository.findByPhoneNumber("9876543211")).thenReturn(Optional.of(seller));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        OtpVerifyRequest request = new OtpVerifyRequest("9876543211", "123456");
+        request.setRole("SELLER");
 
-        var response = service.registerSellerWithEmailOtp(request);
+        var response = service.verifyOtpAndLogin(request);
 
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(saved.capture());
-        assertEquals(UserRole.ROLE_SELLER, saved.getValue().getRole());
-        assertEquals("ACTIVE", saved.getValue().getStatus());
-        assertEquals("seller@example.com", saved.getValue().getEmail());
-        assertTrue(saved.getValue().getIsVerified());
         assertEquals("ROLE_SELLER", response.getRole());
+        verify(userRepository).save(seller);
     }
 
     @Test

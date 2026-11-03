@@ -17,8 +17,6 @@ public class AdminManagedUserUpdateRequest {
     @Valid private Address address;
     @Valid private List<Address> shippingAddresses;
     @Size(max = 32) private String gstNumber;
-    @Size(max = 2048) private String licenceImage;
-    @Size(max = 2048) private String shopImage;
     @Size(max = 100) private String status;
     @Size(max = 2000) private String notes;
     private Integer monthlyTarget;
@@ -45,10 +43,6 @@ public class AdminManagedUserUpdateRequest {
     public void setShippingAddresses(List<Address> value) { shippingAddresses = value; }
     public String getGstNumber() { return gstNumber; }
     public void setGstNumber(String value) { gstNumber = trim(value); }
-    public String getLicenceImage() { return licenceImage; }
-    public void setLicenceImage(String value) { licenceImage = trim(value); }
-    public String getShopImage() { return shopImage; }
-    public void setShopImage(String value) { shopImage = trim(value); }
     public String getStatus() { return status; }
     public void setStatus(String value) { status = trim(value); }
     public String getNotes() { return notes; }

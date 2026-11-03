@@ -313,7 +313,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
             clean.setSku(prior != null ? prior.getSku() : null);
             if (clean.getSku() == null || clean.getSku().isBlank()) {
-                clean.setSku(SellerSkuIdentityService.variantSku(productSku, nextVariantNumber(currentList, result)));
+                clean.setSku(SellerCodeService.variantSku(productSku, nextVariantNumber(currentList, result)));
             }
             clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
             String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
@@ -327,14 +327,20 @@ public class AdminProductServiceImpl implements AdminProductService {
                     ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
                     : normalizeDimensions(input.getDimensions()));
 
-            double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
-            clean.setDisplayRate(dispRate);
-            double printedMrp = (input.getPrintedMrp() != null && input.getPrintedMrp() >= dispRate) ? input.getPrintedMrp() : dispRate;
-            clean.setPrintedMrp(printedMrp);
-            clean.setCostPrice(input.getCostPrice() != null && input.getCostPrice() >= 0 ? input.getCostPrice() : 0.0);
-            clean.setDiscountRs(printedMrp > dispRate ? (printedMrp - dispRate) : 0.0);
-            clean.setGstPercentage(input.getGstPercentage() != null && input.getGstPercentage() >= 0 ? input.getGstPercentage() : 5.0);
-            clean.setDiscountPercentage(printedMrp > 0 ? ((printedMrp - dispRate) / printedMrp * 100) : 0.0);
+            clean.setDisplayRate(input.getDisplayRate());
+            clean.setPrintedMrp(input.getPrintedMrp());
+            clean.setCostPrice(input.getCostPrice());
+            clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
+            clean.setCommissionPercentage(input.getCommissionPercentage());
+            clean.setCourierCharges(input.getCourierCharges());
+            clean.setGstPercentage(input.getGstPercentage());
+            clean.setDiscountOnMrpRs(input.getDiscountOnMrpRs());
+            clean.setDiscountPercentage(input.getDiscountPercentage());
+            clean.setPaymentMethod(input.getPaymentMethod());
+            clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
+            clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            clean.setMinimumPartialPaymentPercentage(input.getMinimumPartialPaymentPercentage());
+            clean.setCodCharge(input.getCodCharge());
             clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
             clean.setDisplayOrder(input.getDisplayOrder() != null ? input.getDisplayOrder() : (result.size() + 1));
             clean.setIsDefault(input.getIsDefault());
@@ -348,7 +354,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (product.getVariants() == null) product.setVariants(new ArrayList<>());
         ProductVariant added = request.toProductVariant();
         added.setId(new ObjectId().toHexString());
-        added.setSku(SellerSkuIdentityService.variantSku(product.getSku(), nextVariantNumber(product.getVariants(), List.of())));
+        added.setSku(SellerCodeService.variantSku(product.getSku(), nextVariantNumber(product.getVariants(), List.of())));
         if (Boolean.TRUE.equals(request.getIsDefault())) {
             for (ProductVariant v : product.getVariants()) {
                 v.setIsDefault(false);
@@ -415,9 +421,17 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (patch.getDisplayRate()!=null) updated.setDisplayRate(patch.getDisplayRate());
         if (patch.getPrintedMrp()!=null) updated.setPrintedMrp(patch.getPrintedMrp());
         if (patch.getCostPrice()!=null) updated.setCostPrice(patch.getCostPrice());
-        if (patch.getDiscountRs()!=null) updated.setDiscountRs(patch.getDiscountRs());
+        if (patch.getAmountYouWillReceive()!=null) updated.setAmountYouWillReceive(patch.getAmountYouWillReceive());
+        if (patch.getCommissionPercentage()!=null) updated.setCommissionPercentage(patch.getCommissionPercentage());
+        if (patch.getCourierCharges()!=null) updated.setCourierCharges(patch.getCourierCharges());
         if (patch.getGstPercentage()!=null) updated.setGstPercentage(patch.getGstPercentage());
+        if (patch.getDiscountOnMrpRs()!=null) updated.setDiscountOnMrpRs(patch.getDiscountOnMrpRs());
         if (patch.getDiscountPercentage()!=null) updated.setDiscountPercentage(patch.getDiscountPercentage());
+        if (patch.getPaymentMethod()!=null) updated.setPaymentMethod(patch.getPaymentMethod());
+        if (patch.getIsPrepaidAllowed()!=null) updated.setIsPrepaidAllowed(patch.getIsPrepaidAllowed());
+        if (patch.getIsPartialPaymentAllowed()!=null) updated.setIsPartialPaymentAllowed(patch.getIsPartialPaymentAllowed());
+        if (patch.getMinimumPartialPaymentPercentage()!=null) updated.setMinimumPartialPaymentPercentage(patch.getMinimumPartialPaymentPercentage());
+        if (patch.getCodCharge()!=null) updated.setCodCharge(patch.getCodCharge());
         if (patch.getStock()!=null) updated.setStock(patch.getStock());
         if (patch.getIsDefault() != null) {
             if (Boolean.TRUE.equals(patch.getIsDefault())) {
@@ -544,9 +558,21 @@ public class AdminProductServiceImpl implements AdminProductService {
         copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity());
         copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(normalizeDimensions(source.getDimensions()));
         copy.setDisplayRate(source.getDisplayRate()); copy.setPrintedMrp(source.getPrintedMrp()); copy.setCostPrice(source.getCostPrice());
-        copy.setDiscountRs(source.getDiscountRs()); copy.setGstPercentage(source.getGstPercentage());
+        copy.setDiscountOnMrpRs(source.getDiscountOnMrpRs()); copy.setGstPercentage(source.getGstPercentage());
         copy.setDiscountPercentage(source.getDiscountPercentage()); copy.setStock(source.getStock());
+        copyVariantPricingSettings(source, copy);
         return copy;
+    }
+
+    private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
+        target.setAmountYouWillReceive(source.getAmountYouWillReceive());
+        target.setCommissionPercentage(source.getCommissionPercentage());
+        target.setCourierCharges(source.getCourierCharges());
+        target.setPaymentMethod(source.getPaymentMethod());
+        target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());
+        target.setIsPartialPaymentAllowed(source.getIsPartialPaymentAllowed());
+        target.setMinimumPartialPaymentPercentage(source.getMinimumPartialPaymentPercentage());
+        target.setCodCharge(source.getCodCharge());
     }
 
     @Override public Product softDelete(String id) {

@@ -48,7 +48,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final UserRepository users;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
-    private final SellerSkuIdentityService sellerSkuIdentityService;
+    private final SellerCodeService sellerCodeService;
 
     @Autowired
     public AdminUserServiceImpl(
@@ -56,12 +56,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             UserRepository users,
             RedisJsonCache redisCache,
             WebSocketService webSocketService,
-            SellerSkuIdentityService sellerSkuIdentityService) {
+            SellerCodeService sellerCodeService) {
         this.mongoTemplate = mongoTemplate;
         this.users = users;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
-        this.sellerSkuIdentityService = sellerSkuIdentityService;
+        this.sellerCodeService = sellerCodeService;
     }
 
     /** Keeps direct construction in existing unit tests source-compatible. */
@@ -107,7 +107,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         User user = role == UserRole.ROLE_SELLER ? User.newSeller(phone, email) : User.newCustomer(phone);
-        if (request.getPasswordHash() != null) user.setPasswordHash(request.getPasswordHash());
+        if (role == UserRole.ROLE_SELLER && (isBlank(request.getFirstName()) || isBlank(request.getLastName())
+                || isBlank(request.getShopName()) || isBlank(request.getGstNumber()) || isBlank(email))) {
+            throw new AppException("Seller first name, last name, phone, email, shop name, and GST number are required", HttpStatus.BAD_REQUEST);
+        }
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAddress(request.getAddress());
@@ -122,8 +125,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (role == UserRole.ROLE_SELLER) {
             user.setShopName(request.getShopName());
             user.setGstNumber(request.getGstNumber());
-            user.setLicenceImage(request.getLicenceImage());
-            user.setShopImage(request.getShopImage());
             user.setMonthlyTarget(request.getMonthlyTarget());
             user.setPreferredLanguage(request.getPreferredLanguage());
             if (request.getBankDetails() != null) user.setBankDetails(merge(user.getBankDetails(), request.getBankDetails()));
@@ -133,8 +134,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setUpdatedAt(LocalDateTime.now());
         try {
             User saved = users.save(user);
-            if (role == UserRole.ROLE_SELLER && sellerSkuIdentityService != null) {
-                sellerSkuIdentityService.ensureSellerCode(saved.getId());
+            if (role == UserRole.ROLE_SELLER && sellerCodeService != null) {
+                sellerCodeService.ensureSellerCode(saved.getId());
+                saved = users.findById(saved.getId()).orElse(saved);
             }
             return AdminUserResponse.from(saved);
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
@@ -192,8 +194,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (user.getRole() == UserRole.ROLE_SELLER) {
             if (replace || request.getShopName() != null) user.setShopName(request.getShopName());
             if (replace || request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
-            if (replace || request.getLicenceImage() != null) user.setLicenceImage(request.getLicenceImage());
-            if (replace || request.getShopImage() != null) user.setShopImage(request.getShopImage());
             if (replace || request.getMonthlyTarget() != null) {
                 if (request.getMonthlyTarget() != null && request.getMonthlyTarget() < 0)
                     throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
@@ -237,6 +237,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private String normalizeEmail(String email) {
         return email == null || email.isBlank() ? null : email.trim().toLowerCase(Locale.ROOT);
     }
+
+    private boolean isBlank(String value) { return value == null || value.isBlank(); }
 
     private Map<String, Object> merge(Map<String, Object> current, Map<String, Object> supplied) {
         Map<String, Object> merged = new java.util.LinkedHashMap<>();
@@ -408,7 +410,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException("KYC review is only available for seller accounts", HttpStatus.CONFLICT);
         }
         if (approved && !seller.hasRequiredSellerKycInformation()) {
-            throw new AppException("Seller must provide GST number, licence image, and shop image before approval",
+            throw new AppException("Seller must provide GST number, licence files, GST certificate, PAN card, and Aadhaar card before approval",
                     HttpStatus.CONFLICT);
         }
 

@@ -88,6 +88,7 @@ class AdminProductMultipartControllerTest {
         variant.setPackSizeUnit("liter");
         variant.setPackQuantity(1);
         variant.setDisplayRate(450.0);
+        variant.setPrintedMrp(450.0);
         variant.setStock(100);
         req.setVariants(List.of(variant));
         return req;

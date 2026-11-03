@@ -78,8 +78,6 @@ class AdminUserManagementServiceTest {
         request.setShopName("Farm Store");
         request.setAddress(completeAddress());
         request.setGstNumber("GST-123");
-        request.setLicenceImage("https://storage.example/licence.pdf");
-        request.setShopImage("https://storage.example/shop.jpg");
         request.setBankDetails(Map.of("accountHolderName", "Krishi Seva Kendra LLP", "bankName", "State Bank of India"));
         request.setSettlementTerms(Map.of("commissionPercentage", 5, "settlementCycle", "MONTHLY"));
         when(users.existsByPhoneNumber("9876543211")).thenReturn(false);
@@ -99,7 +97,7 @@ class AdminUserManagementServiceTest {
         assertEquals("seller@example.com", seller.getEmail());
         assertEquals(0L, seller.getProductCodeSequence());
         assertEquals(0L, seller.getOrderNumberSequence());
-        assertTrue(seller.hasRequiredSellerKycInformation());
+        assertFalse(seller.hasRequiredSellerKycInformation());
         assertFalse(seller.getIsKycComplete());
         assertNull(seller.getKycStatus());
         assertEquals("Krishi Seva Kendra LLP", seller.getBankDetails().get("accountHolderName"));
@@ -117,12 +115,14 @@ class AdminUserManagementServiceTest {
     void changingSellerKycDocumentsClearsPreviousApproval() {
         User seller = User.newSeller("9876543215", null);
         seller.setGstNumber("GST-123");
-        seller.setLicenceImage("https://storage.example/licence.pdf");
-        seller.setShopImage("https://storage.example/shop.jpg");
+        seller.setLicenceImage(List.of("gs://bucket/licence.pdf"));
+        seller.setGstCertificate("gs://bucket/gst.pdf");
+        seller.setPanCard("gs://bucket/pan.pdf");
+        seller.setAadhaarCard("gs://bucket/aadhaar.pdf");
         seller.setKycStatus("APPROVED");
         assertTrue(seller.getIsKycComplete());
 
-        seller.setLicenceImage("https://storage.example/new-licence.pdf");
+        seller.setLicenceImage(List.of("gs://bucket/new-licence.pdf"));
 
         assertNull(seller.getKycStatus());
         assertFalse(seller.getIsKycComplete());
@@ -151,8 +151,10 @@ class AdminUserManagementServiceTest {
         verify(users, never()).save(any(User.class));
 
         seller.setGstNumber("GST-123");
-        seller.setLicenceImage("https://storage.example/licence.pdf");
-        seller.setShopImage("https://storage.example/shop.jpg");
+        seller.setLicenceImage(List.of("gs://bucket/licence.pdf"));
+        seller.setGstCertificate("gs://bucket/gst.pdf");
+        seller.setPanCard("gs://bucket/pan.pdf");
+        seller.setAadhaarCard("gs://bucket/aadhaar.pdf");
         when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var approved = service.reviewSellerKyc("seller-id", true);

@@ -24,13 +24,20 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             putMissing(document, "firstName");
             putMissing(document, "lastName");
             putMissing(document, "shopName");
+            if (user.getSellerCode() != null) document.put("sellerCode", user.getSellerCode());
+            else document.remove("sellerCode");
             putMissing(document, "role");
             putMissing(document, "status");
             putMissing(document, "isBlocked");
             putMissing(document, "isDeleted");
             putMissing(document, "gstNumber");
-            putMissing(document, "licenceImage");
-            putMissing(document, "shopImage");
+            if (!(document.get("licenceImage") instanceof java.util.List<?>)) {
+                document.put("licenceImage", java.util.List.of());
+            }
+            putMissing(document, "gstCertificate");
+            putMissing(document, "panCard");
+            putMissing(document, "aadhaarCard");
+            document.remove("shopImage");
             putMissing(document, "kycStatus");
             putMissing(document, "isKycComplete");
             putMissing(document, "isVerified");
@@ -70,9 +77,21 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             putMissing(document, "updatedAt");
             document.remove("bankDetails");
             document.remove("settlementTerms");
+            document.remove("shopImage");
+            document.remove("licenceImage");
+            document.remove("gstCertificate");
+            document.remove("panCard");
+            document.remove("aadhaarCard");
+            document.remove("sellerCode");
         } else {
             document.remove("bankDetails");
             document.remove("settlementTerms");
+            document.remove("shopImage");
+            document.remove("licenceImage");
+            document.remove("gstCertificate");
+            document.remove("panCard");
+            document.remove("aadhaarCard");
+            document.remove("sellerCode");
         }
         return user;
     }

@@ -224,7 +224,8 @@ class AdminProductDefaultVariantTest {
         write.setPackSizeUnit("ltr");
         write.setPackQuantity(1);
         write.setUnit("ltr");
-        write.setDisplayRate(4000.0);
+        write.setDisplayRate(3900.0);
+        write.setPrintedMrp(4000.0);
         write.setStock(20);
         write.setIsDefault(true);
 

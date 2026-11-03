@@ -46,7 +46,7 @@ public class GcsReviewMediaService {
 
     public GcsReviewMediaService(
             Storage storage,
-            @Value("${app.gcs.review-bucket-name:sellerhub-prod-review-media-us}") String bucketName) {
+            @Value("${app.gcs.review-bucket-name:sellerhub-products-reviews-media-us}") String bucketName) {
         this.storage = storage;
         this.bucketName = bucketName;
     }

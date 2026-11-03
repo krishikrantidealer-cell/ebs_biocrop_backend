@@ -3,6 +3,7 @@ package com.ebs.biocrop.entity;
 import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 import org.springframework.data.mongodb.core.mapping.FieldType;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -48,13 +49,29 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Double costPrice;
     @Field(write = Field.Write.ALWAYS)
-    private Double discountRs;
+    private Double amountYouWillReceive;
+    @Field(write = Field.Write.ALWAYS)
+    private Double commissionPercentage;
+    @Field(write = Field.Write.ALWAYS)
+    private Double courierCharges;
+    @Field(value = "discountOnMrpRs", write = Field.Write.ALWAYS)
+    private Double discountOnMrpRs;
     @Field(write = Field.Write.ALWAYS)
     private Double gstPercentage;
     @Field(write = Field.Write.ALWAYS)
     private Double discountPercentage;
     @Field(write = Field.Write.ALWAYS)
     private Integer stock;
+    @Field(write = Field.Write.ALWAYS)
+    private PaymentMethod paymentMethod = PaymentMethod.ONLINE;
+    @Field(write = Field.Write.ALWAYS)
+    private Boolean isPrepaidAllowed = true;
+    @Field(write = Field.Write.ALWAYS)
+    private Boolean isPartialPaymentAllowed = true;
+    @Field(write = Field.Write.ALWAYS)
+    private Double minimumPartialPaymentPercentage = 10.0;
+    @Field(write = Field.Write.ALWAYS)
+    private Double codCharge = 30.0;
 
     public ProductVariant() { }
 
@@ -90,53 +107,34 @@ public class ProductVariant {
     public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
     public Double getCostPrice() { return costPrice; }
     public void setCostPrice(Double costPrice) { this.costPrice = costPrice; }
-    public Double getDiscountRs() { return getCalculatedDiscountAmount(); }
-    public void setDiscountRs(Double discountRs) { this.discountRs = discountRs; }
+    public Double getAmountYouWillReceive() { return amountYouWillReceive; }
+    public void setAmountYouWillReceive(Double amountYouWillReceive) { this.amountYouWillReceive = amountYouWillReceive; }
+    public Double getCommissionPercentage() { return commissionPercentage; }
+    public void setCommissionPercentage(Double commissionPercentage) { this.commissionPercentage = commissionPercentage; }
+    public Double getCourierCharges() { return courierCharges; }
+    public void setCourierCharges(Double courierCharges) { this.courierCharges = courierCharges; }
+    public Double getDiscountOnMrpRs() { return discountOnMrpRs; }
+    public void setDiscountOnMrpRs(Double discountOnMrpRs) { this.discountOnMrpRs = discountOnMrpRs; }
     public Double getGstPercentage() { return gstPercentage; }
     public void setGstPercentage(Double gstPercentage) { this.gstPercentage = gstPercentage; }
-    public Double getDiscountPercentage() { return getCalculatedDiscountPercent(); }
+    public Double getDiscountPercentage() { return discountPercentage; }
     public void setDiscountPercentage(Double discountPercentage) { this.discountPercentage = discountPercentage; }
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
+    public Boolean getIsPrepaidAllowed() { return isPrepaidAllowed; }
+    public void setIsPrepaidAllowed(Boolean prepaidAllowed) { isPrepaidAllowed = prepaidAllowed; }
+    public Boolean getIsPartialPaymentAllowed() { return isPartialPaymentAllowed; }
+    public void setIsPartialPaymentAllowed(Boolean partialPaymentAllowed) { isPartialPaymentAllowed = partialPaymentAllowed; }
+    public Double getMinimumPartialPaymentPercentage() { return minimumPartialPaymentPercentage; }
+    public void setMinimumPartialPaymentPercentage(Double value) { minimumPartialPaymentPercentage = value; }
+    public Double getCodCharge() { return codCharge; }
+    public void setCodCharge(Double codCharge) { this.codCharge = codCharge; }
 
-    /** Selling price; tax inclusion/exclusion is a platform pricing policy still to be set. */
+    /** Display price supplied by the authorized product writer. */
     public Double getEffectivePrice() {
         return displayRate;
-    }
-
-    public Double getCalculatedDiscountAmount() {
-        // An explicitly supplied amount (including zero) takes precedence over an
-        // inferred MRP/display-rate difference. This lets sellers opt out of a
-        // discount while retaining the printed MRP for display/compliance.
-        if (discountRs != null) {
-            return BigDecimal.valueOf(discountRs).max(BigDecimal.ZERO)
-                    .setScale(2, RoundingMode.HALF_UP).doubleValue();
-        }
-        if (discountPercentage != null && printedMrp != null) {
-            return BigDecimal.valueOf(printedMrp).multiply(BigDecimal.valueOf(discountPercentage))
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).doubleValue();
-        }
-        if (printedMrp != null && getEffectivePrice() != null) {
-            return BigDecimal.valueOf(printedMrp).subtract(BigDecimal.valueOf(getEffectivePrice())).max(BigDecimal.ZERO)
-                    .setScale(2, RoundingMode.HALF_UP).doubleValue();
-        }
-        if (displayRate != null && discountPercentage != null) {
-            return BigDecimal.valueOf(displayRate).multiply(BigDecimal.valueOf(discountPercentage))
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP).doubleValue();
-        }
-        return 0.0;
-    }
-
-    public Double getCalculatedDiscountPercent() {
-        if (discountPercentage != null) return Math.max(0.0, discountPercentage);
-        if (printedMrp == null) {
-            if (displayRate == null || displayRate <= 0 || discountRs == null) return null;
-            return BigDecimal.valueOf(discountRs).multiply(BigDecimal.valueOf(100))
-                    .divide(BigDecimal.valueOf(displayRate), 2, RoundingMode.HALF_UP).doubleValue();
-        }
-        if (printedMrp <= 0) return 0.0;
-        return BigDecimal.valueOf(getCalculatedDiscountAmount()).multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(printedMrp), 2, RoundingMode.HALF_UP).doubleValue();
     }
 
     /** Selling price divided by normalized total ml or g. */

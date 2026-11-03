@@ -116,7 +116,8 @@ class AdminProductUpdateControllerTest {
         variant.setPackSize(1);
         variant.setPackSizeUnit("l");
         variant.setPackQuantity(1);
-        variant.setDisplayRate(850.0);
+        variant.setDisplayRate(750.0);
+        variant.setPrintedMrp(850.0);
         variant.setStock(80);
         variant.setDimensions(List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm")));
         request.setVariants(List.of(variant));

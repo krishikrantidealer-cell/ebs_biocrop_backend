@@ -1,7 +1,6 @@
 package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.dto.request.OtpVerifyRequest;
-import com.ebs.biocrop.dto.request.SellerEmailRegistrationRequest;
 import com.ebs.biocrop.dto.response.AuthResponse;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
@@ -39,7 +38,6 @@ public class AuthServiceImpl implements AuthService {
     private final EmailOtpService emailOtpService;
     private final EmailDeliveryService emailDeliveryService;
     private final PasswordEncoder passwordEncoder;
-    private final SellerSkuIdentityService sellerSkuIdentityService;
     @Value("${app.password-reset.url:http://localhost:3000/reset-password}") private String resetUrl;
     @Value("${app.password-reset.expiration-minutes:30}") private int resetExpirationMinutes;
 
@@ -50,23 +48,13 @@ public class AuthServiceImpl implements AuthService {
             JwtTokenProvider jwtTokenProvider,
             EmailOtpService emailOtpService,
             EmailDeliveryService emailDeliveryService,
-            PasswordEncoder passwordEncoder,
-            SellerSkuIdentityService sellerSkuIdentityService) {
+            PasswordEncoder passwordEncoder) {
         this.otpService = otpService;
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.emailOtpService = emailOtpService;
         this.emailDeliveryService = emailDeliveryService;
         this.passwordEncoder = passwordEncoder;
-        this.sellerSkuIdentityService = sellerSkuIdentityService;
-    }
-
-    /** Keeps direct construction in existing unit tests source-compatible. */
-    public AuthServiceImpl(OtpService otpService, UserRepository userRepository,
-                           JwtTokenProvider jwtTokenProvider, EmailOtpService emailOtpService,
-                           EmailDeliveryService emailDeliveryService, PasswordEncoder passwordEncoder) {
-        this(otpService, userRepository, jwtTokenProvider, emailOtpService, emailDeliveryService,
-                passwordEncoder, null);
     }
 
     @Override
@@ -93,8 +81,11 @@ public class AuthServiceImpl implements AuthService {
             return existingUser;
         }).orElseGet(() -> {
             UserRole role = requestedRole == null ? UserRole.ROLE_CUSTOMER : requestedRole;
+            if (role == UserRole.ROLE_SELLER) {
+                throw new AppException("Seller accounts are created by an administrator", HttpStatus.FORBIDDEN);
+            }
             log.info("First-time login: Auto-registering user with phone [{}] and role [{}]", maskPhoneNumber(phoneNumber), role);
-            return role == UserRole.ROLE_SELLER ? User.newSeller(phoneNumber, null) : User.newCustomer(phoneNumber);
+            return User.newCustomer(phoneNumber);
         });
 
         boolean isNewUser = user.getId() == null;
@@ -106,9 +97,6 @@ public class AuthServiceImpl implements AuthService {
         if (isNewUser || wasProfileComplete != Boolean.TRUE.equals(user.getIsProfileComplete()) || !wasVerified) {
             user.setUpdatedAt(LocalDateTime.now());
             user = userRepository.save(user);
-            if (isNewUser && user.getRole() == UserRole.ROLE_SELLER && sellerSkuIdentityService != null) {
-                sellerSkuIdentityService.ensureSellerCode(user.getId());
-            }
         }
 
         // 3. Issue JWT Access & Refresh Tokens
@@ -177,38 +165,6 @@ public class AuthServiceImpl implements AuthService {
         userRepository.findByEmailIgnoreCase(email.trim().toLowerCase()).filter(this::isPrivileged)
                 .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()) && !Boolean.TRUE.equals(user.getIsBlocked()))
                 .ifPresent(user -> emailOtpService.send(user.getEmail()));
-    }
-
-    @Override
-    public void sendSellerRegistrationEmailOtp(String email, String phoneNumber) {
-        String normalizedEmail = email.trim().toLowerCase(java.util.Locale.ROOT);
-        String normalizedPhone = phoneNumber.trim();
-        // Keep the response generic; do not reveal whether either identifier is already registered.
-        if (!userRepository.existsByPhoneNumber(normalizedPhone)
-                && userRepository.findByEmailIgnoreCase(normalizedEmail).isEmpty()) {
-            emailOtpService.send(normalizedEmail);
-        }
-    }
-
-    @Override
-    public AuthResponse registerSellerWithEmailOtp(SellerEmailRegistrationRequest request) {
-        String email = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
-        String phone = request.getPhoneNumber().trim();
-        emailOtpService.verify(email, request.getOtp());
-        if (userRepository.existsByPhoneNumber(phone) || userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
-        }
-        User seller = User.newSeller(phone, email);
-        seller.setIsVerified(true); // Email ownership was verified by this registration flow.
-        seller.setIsProfileComplete(false);
-        seller.setUpdatedAt(LocalDateTime.now());
-        try {
-            User saved = userRepository.save(seller);
-            if (sellerSkuIdentityService != null) sellerSkuIdentityService.ensureSellerCode(saved.getId());
-            return issueTokens(saved);
-        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
-            throw new AppException("A user with this phone number or email already exists", HttpStatus.CONFLICT);
-        }
     }
 
     private UserRole requestedRegistrationRole(String role) {

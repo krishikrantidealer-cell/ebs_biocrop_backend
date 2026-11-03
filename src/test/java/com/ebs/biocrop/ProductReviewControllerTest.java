@@ -269,7 +269,7 @@ class ProductReviewControllerTest {
 
         when(reviewMediaService.uploadReviewMedia(eq("prod123"), eq("cust123"), any(), any()))
                 .thenReturn(com.ebs.biocrop.dto.response.ReviewMediaUploadResponse.of(
-                        List.of("https://storage.googleapis.com/sellerhub-prod-review-media-us/reviews/prod123/cust123/images/img1.jpg"),
+                        List.of("https://storage.googleapis.com/sellerhub-products-reviews-media-us/reviews/prod123/cust123/images/img1.jpg"),
                         null
                 ));
 
@@ -278,7 +278,7 @@ class ProductReviewControllerTest {
                         .with(user(customer)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Review media uploaded successfully"))
-                .andExpect(jsonPath("$.data.images[0]").value("https://storage.googleapis.com/sellerhub-prod-review-media-us/reviews/prod123/cust123/images/img1.jpg"));
+                .andExpect(jsonPath("$.data.images[0]").value("https://storage.googleapis.com/sellerhub-products-reviews-media-us/reviews/prod123/cust123/images/img1.jpg"));
     }
 
     @Test
@@ -293,7 +293,7 @@ class ProductReviewControllerTest {
 
         when(reviewMediaService.uploadReviewMedia(eq("prod123"), eq("cust123"), any(), any()))
                 .thenReturn(com.ebs.biocrop.dto.response.ReviewMediaUploadResponse.of(
-                        List.of("https://storage.googleapis.com/sellerhub-prod-review-media-us/reviews/prod123/cust123/images/img1.jpg"),
+                        List.of("https://storage.googleapis.com/sellerhub-products-reviews-media-us/reviews/prod123/cust123/images/img1.jpg"),
                         null
                 ));
 
@@ -313,7 +313,7 @@ class ProductReviewControllerTest {
 
         when(reviewMediaService.uploadReviewMedia(eq("prod123"), eq("cust123"), any(), any()))
                 .thenReturn(com.ebs.biocrop.dto.response.ReviewMediaUploadResponse.of(
-                        List.of("https://storage.googleapis.com/sellerhub-prod-review-media-us/reviews/prod123/cust123/images/farm.jpg"),
+                        List.of("https://storage.googleapis.com/sellerhub-products-reviews-media-us/reviews/prod123/cust123/images/farm.jpg"),
                         null
                 ));
 

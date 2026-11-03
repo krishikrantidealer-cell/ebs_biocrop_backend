@@ -38,6 +38,8 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 .unique().named("uniq_user_phone"));
         ensure("users", "uniq_user_email", Map.of("email", 1), new Index().on("email", Sort.Direction.ASC)
                 .unique().partial(PartialIndexFilter.of(Criteria.where("email").type(2))).named("uniq_user_email"));
+        ensure("users", "uniq_seller_code", Map.of("sellerCode", 1), new Index().on("sellerCode", Sort.Direction.ASC)
+                .unique().partial(PartialIndexFilter.of(Criteria.where("sellerCode").type(2))).named("uniq_seller_code"));
         ensure("users", "user_password_reset_token_hash_idx", Map.of("passwordResetTokenHash", 1),
                 new Index().on("passwordResetTokenHash", Sort.Direction.ASC).named("user_password_reset_token_hash_idx"));
         ensure("users", "user_role_created_idx", Map.of("role", 1, "createdAt", -1),
@@ -77,10 +79,6 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 new Index().on("variants.sku", Sort.Direction.ASC).unique()
                         .partial(PartialIndexFilter.of(Criteria.where("variants.sku").type(2)))
                         .named("uniq_product_variant_sku"));
-        ensure("seller_sku_identities", "uniq_seller_sku_number", Map.of("sellerNumber", 1),
-                new Index().on("sellerNumber", Sort.Direction.ASC).unique()
-                        .partial(PartialIndexFilter.of(Criteria.where("sellerNumber").gt(0)))
-                        .named("uniq_seller_sku_number"));
         ensure("products", "uniq_product_code", Map.of("productCode", 1), new Index().on("productCode", Sort.Direction.ASC)
                 .unique().partial(PartialIndexFilter.of(Criteria.where("productCode").type(2))).named("uniq_product_code"));
         ensure("products", "product_category_status_idx", Map.of("categoryId", 1, "status", 1), new Index().on("categoryId", Sort.Direction.ASC)

@@ -153,7 +153,7 @@ public class ProductReviewController {
             }
         }
 
-        // Upload media to GCS bucket sellerhub-prod-review-media-us if any file was attached
+        // Upload media to GCS bucket sellerhub-products-reviews-media-us if any file was attached
         List<String> uploadedImageUrls = new ArrayList<>();
         String uploadedVideoUrl = null;
 
@@ -179,7 +179,7 @@ public class ProductReviewController {
                 .body(ApiResponse.ok("Review submitted successfully", created));
     }
 
-    // Customer: Upload review images (up to 5) and/or video (up to 1) to GCS bucket sellerhub-prod-review-media-us
+    // Customer: Upload review images (up to 5) and/or video (up to 1) to GCS bucket sellerhub-products-reviews-media-us
     @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('CUSTOMER')")
     @SecurityRequirement(name = "bearerAuth")

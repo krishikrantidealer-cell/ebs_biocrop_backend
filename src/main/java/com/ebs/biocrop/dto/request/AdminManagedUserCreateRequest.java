@@ -24,8 +24,6 @@ public class AdminManagedUserCreateRequest {
     @Valid private Address address;
     @Valid private List<Address> shippingAddresses;
     @Size(max = 32) private String gstNumber;
-    @Size(max = 2048) private String licenceImage;
-    @Size(max = 2048) private String shopImage;
     @Size(max = 100) private String status;
     private Boolean isProfileComplete;
     private String kycStatus;
@@ -43,7 +41,6 @@ public class AdminManagedUserCreateRequest {
     @Min(0) private Long orderNumberSequence;
     private Map<String, Object> bankDetails;
     private Map<String, Object> settlementTerms;
-    @Size(max = 100) private String passwordHash;
 
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String value) { phoneNumber = value == null ? null : value.trim(); }
@@ -63,10 +60,6 @@ public class AdminManagedUserCreateRequest {
     public void setShippingAddresses(List<Address> value) { shippingAddresses = value; }
     public String getGstNumber() { return gstNumber; }
     public void setGstNumber(String value) { gstNumber = trim(value); }
-    public String getLicenceImage() { return licenceImage; }
-    public void setLicenceImage(String value) { licenceImage = trim(value); }
-    public String getShopImage() { return shopImage; }
-    public void setShopImage(String value) { shopImage = trim(value); }
     public String getStatus() { return status; }
     public void setStatus(String value) { status = trim(value); }
     /** Accepted for schema-shaped requests; profile completion is computed from the submitted profile. */
@@ -104,7 +97,5 @@ public class AdminManagedUserCreateRequest {
     public void setBankDetails(Map<String, Object> value) { bankDetails = value; }
     public Map<String, Object> getSettlementTerms() { return settlementTerms; }
     public void setSettlementTerms(Map<String, Object> value) { settlementTerms = value; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String value) { passwordHash = value == null || value.isBlank() ? null : value.trim(); }
     private static String trim(String value) { return value == null ? null : value.trim(); }
 }

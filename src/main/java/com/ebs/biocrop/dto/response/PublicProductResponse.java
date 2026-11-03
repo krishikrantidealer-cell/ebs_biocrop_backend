@@ -76,9 +76,14 @@ public record PublicProductResponse(
             List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
             Double displayRate,
             Double printedMrp,
-            Double discountRs,
+            Double discountOnMrpRs,
             Double gstPercentage,
             Double discountPercentage,
+            com.ebs.biocrop.entity.enums.PaymentMethod paymentMethod,
+            Boolean isPrepaidAllowed,
+            Boolean isPartialPaymentAllowed,
+            Double minimumPartialPaymentPercentage,
+            Double codCharge,
             Integer stock,
             Double pricePerBaseUnit,
             Integer displayOrder,
@@ -87,8 +92,10 @@ public record PublicProductResponse(
             return new PublicVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(), variant.getPackSize(),
                     variant.getPackSizeUnit(), variant.getPackQuantity(),
                     variant.getShippedBy(), variant.getSwg(), variant.getDimensions(),
-                    variant.getDisplayRate(), variant.getPrintedMrp(), variant.getDiscountRs(),
-                    variant.getGstPercentage(), variant.getDiscountPercentage(), variant.getStock(),
+                    variant.getDisplayRate(), variant.getPrintedMrp(), variant.getDiscountOnMrpRs(),
+                    variant.getGstPercentage(), variant.getDiscountPercentage(), variant.getPaymentMethod(),
+                    variant.getIsPrepaidAllowed(), variant.getIsPartialPaymentAllowed(),
+                    variant.getMinimumPartialPaymentPercentage(), variant.getCodCharge(), variant.getStock(),
                     variant.getPricePerBaseUnit(), variant.getDisplayOrder(), variant.getIsDefault());
         }
     }

@@ -28,6 +28,8 @@ public class User {
     private String firstName;
     private String lastName;
     private String shopName;
+    /** Stable, system-assigned readable code used as the seller prefix in product SKUs. */
+    private String sellerCode;
     /** Atomic per-seller counter used to issue stable seller product codes. */
     private Long productCodeSequence;
     /** Atomic per-seller counter used to issue seller order numbers. */
@@ -51,8 +53,10 @@ public class User {
     private Integer monthlyTarget;
     private String preferredLanguage;
     private String gstNumber;
-    private String licenceImage;
-    private String shopImage;
+    private List<String> licenceImage = new ArrayList<>();
+    private String gstCertificate;
+    private String panCard;
+    private String aadhaarCard;
     // Reserved seller-schema placeholders; payout data is intentionally not collected or exposed yet.
     private Map<String, Object> bankDetails;
     private Map<String, Object> settlementTerms;
@@ -150,6 +154,8 @@ public class User {
 
     public String getShopName() { return shopName; }
     public void setShopName(String shopName) { this.shopName = shopName; }
+    public String getSellerCode() { return sellerCode; }
+    public void setSellerCode(String sellerCode) { this.sellerCode = sellerCode; }
     public Long getProductCodeSequence() { return productCodeSequence; }
     public void setProductCodeSequence(Long productCodeSequence) { this.productCodeSequence = productCodeSequence; }
     public Long getOrderNumberSequence() { return orderNumberSequence; }
@@ -228,10 +234,11 @@ public class User {
 
     /** Seller KYC information is ready for review when all required details are present. */
     public boolean hasRequiredSellerKycInformation() {
-        return hasText(gstNumber) && hasText(licenceImage) && hasText(shopImage);
+        return hasText(gstNumber) && licenceImage != null && !licenceImage.isEmpty()
+                && hasText(gstCertificate) && hasText(panCard) && hasText(aadhaarCard);
     }
 
-    private void invalidateSellerKycApprovalIfChanged(String current, String replacement) {
+    private void invalidateSellerKycApprovalIfChanged(Object current, Object replacement) {
         if (role == UserRole.ROLE_SELLER && !java.util.Objects.equals(current, replacement)) {
             this.kycStatus = null;
             this.isKycComplete = false;
@@ -278,16 +285,25 @@ public class User {
         this.gstNumber = gstNumber;
     }
 
-    public String getLicenceImage() { return licenceImage; }
-    public void setLicenceImage(String licenceImage) {
+    public List<String> getLicenceImage() { return licenceImage; }
+    public void setLicenceImage(List<String> licenceImage) {
         invalidateSellerKycApprovalIfChanged(this.licenceImage, licenceImage);
-        this.licenceImage = licenceImage;
+        this.licenceImage = licenceImage == null ? new ArrayList<>() : new ArrayList<>(licenceImage);
     }
-
-    public String getShopImage() { return shopImage; }
-    public void setShopImage(String shopImage) {
-        invalidateSellerKycApprovalIfChanged(this.shopImage, shopImage);
-        this.shopImage = shopImage;
+    public String getGstCertificate() { return gstCertificate; }
+    public void setGstCertificate(String gstCertificate) {
+        invalidateSellerKycApprovalIfChanged(this.gstCertificate, gstCertificate);
+        this.gstCertificate = gstCertificate;
+    }
+    public String getPanCard() { return panCard; }
+    public void setPanCard(String panCard) {
+        invalidateSellerKycApprovalIfChanged(this.panCard, panCard);
+        this.panCard = panCard;
+    }
+    public String getAadhaarCard() { return aadhaarCard; }
+    public void setAadhaarCard(String aadhaarCard) {
+        invalidateSellerKycApprovalIfChanged(this.aadhaarCard, aadhaarCard);
+        this.aadhaarCard = aadhaarCard;
     }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

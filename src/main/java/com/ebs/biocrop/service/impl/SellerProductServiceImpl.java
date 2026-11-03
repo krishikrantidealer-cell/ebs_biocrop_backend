@@ -43,19 +43,19 @@ public class SellerProductServiceImpl implements SellerProductService {
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
-    private final SellerSkuIdentityService sellerSkuIdentityService;
+    private final SellerCodeService sellerCodeService;
 
     public SellerProductServiceImpl(ProductRepository products, CategoryRepository categories,
                                     MongoTemplate mongoTemplate,
                                     RedisJsonCache redisCache,
                                     WebSocketService webSocketService,
-                                    SellerSkuIdentityService sellerSkuIdentityService) {
+                                    SellerCodeService sellerCodeService) {
         this.products = products;
         this.categories = categories;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
-        this.sellerSkuIdentityService = sellerSkuIdentityService;
+        this.sellerCodeService = sellerCodeService;
     }
 
     @Override
@@ -65,7 +65,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product listing = new Product();
         listing.setSellerId(sellerId);
         listing.setProductCode(nextProductCode(sellerId));
-        listing.setSku(sellerSkuIdentityService.productSku(sellerId, listing.getProductCode()));
+        listing.setSku(sellerCodeService.productSku(sellerId, listing.getProductCode()));
         copySellerFields(request, listing, null);
         listing.setSellerName(findSellerShopName(sellerId));
         listing.setStatus("ACTIVE");
@@ -198,17 +198,23 @@ public class SellerProductServiceImpl implements SellerProductService {
             variant.setUnit("unit");
         }
         if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) variant.setSwg(null);
-        if (!finiteNonnegative(variant.getDisplayRate())) variant.setDisplayRate(0.0);
         if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
-        if (variant.getPrintedMrp() == null || !finiteNonnegative(variant.getPrintedMrp()) || variant.getPrintedMrp() < variant.getDisplayRate()) {
-            variant.setPrintedMrp(variant.getDisplayRate());
+        validateMoneyField(variant.getDisplayRate(), "Display rate");
+        validateMoneyField(variant.getPrintedMrp(), "Printed MRP");
+        validateMoneyField(variant.getCostPrice(), "Cost price");
+        validateMoneyField(variant.getAmountYouWillReceive(), "Amount you will receive");
+        validateMoneyField(variant.getCourierCharges(), "Courier charges");
+        validateMoneyField(variant.getCodCharge(), "COD charge");
+        validatePercentageField(variant.getCommissionPercentage(), "Commission percentage");
+        validatePercentageField(variant.getGstPercentage(), "GST percentage");
+        validatePercentageField(variant.getDiscountPercentage(), "Discount percentage");
+        validateMoneyField(variant.getDiscountOnMrpRs(), "Discount amount");
+        if (variant.getMinimumPartialPaymentPercentage() != null
+                && (!Double.isFinite(variant.getMinimumPartialPaymentPercentage())
+                || variant.getMinimumPartialPaymentPercentage() < 10
+                || variant.getMinimumPartialPaymentPercentage() > 99)) {
+            throw badRequest("Minimum partial payment percentage must be from 10 through 99");
         }
-        if (variant.getGstPercentage() != null && (!Double.isFinite(variant.getGstPercentage())
-                || variant.getGstPercentage() < 0 || variant.getGstPercentage() > 100)) throw badRequest("GST percentage must be between 0 and 100");
-        if (variant.getCostPrice() != null && !finiteNonnegative(variant.getCostPrice())) throw badRequest("Cost price cannot be negative");
-        if (variant.getDiscountRs() != null && !finiteNonnegative(variant.getDiscountRs())) throw badRequest("Discount amount cannot be negative");
-        if (variant.getDiscountPercentage() != null && (!Double.isFinite(variant.getDiscountPercentage())
-                || variant.getDiscountPercentage() < 0 || variant.getDiscountPercentage() > 100)) throw badRequest("Discount percentage must be between 0 and 100");
         try {
             Math.multiplyExact(variant.getPackSize().longValue(), variant.getPackQuantity().longValue());
         } catch (ArithmeticException exception) {
@@ -274,7 +280,7 @@ public class SellerProductServiceImpl implements SellerProductService {
             clean.setId(retain ? prior.getId() : (input.getId() != null && ObjectId.isValid(input.getId()) ? input.getId() : new ObjectId().toHexString()));
             clean.setSku(prior != null ? prior.getSku() : null);
             if (clean.getSku() == null || clean.getSku().isBlank()) {
-                clean.setSku(SellerSkuIdentityService.variantSku(productSku, nextVariantNumber(currentList, result)));
+                clean.setSku(SellerCodeService.variantSku(productSku, nextVariantNumber(currentList, result)));
             }
             clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
             String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
@@ -288,14 +294,20 @@ public class SellerProductServiceImpl implements SellerProductService {
                     ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
                     : normalizeDimensions(input.getDimensions()));
 
-            double dispRate = input.getDisplayRate() != null && input.getDisplayRate() >= 0 ? input.getDisplayRate() : 0.0;
-            clean.setDisplayRate(dispRate);
-            double printedMrp = (input.getPrintedMrp() != null && input.getPrintedMrp() >= dispRate) ? input.getPrintedMrp() : dispRate;
-            clean.setPrintedMrp(printedMrp);
-            clean.setCostPrice(input.getCostPrice() != null && input.getCostPrice() >= 0 ? input.getCostPrice() : 0.0);
-            clean.setDiscountRs(printedMrp > dispRate ? (printedMrp - dispRate) : 0.0);
-            clean.setGstPercentage(input.getGstPercentage() != null && input.getGstPercentage() >= 0 ? input.getGstPercentage() : 5.0);
-            clean.setDiscountPercentage(printedMrp > 0 ? ((printedMrp - dispRate) / printedMrp * 100) : 0.0);
+            clean.setDisplayRate(input.getDisplayRate());
+            clean.setPrintedMrp(input.getPrintedMrp());
+            clean.setCostPrice(input.getCostPrice());
+            clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
+            clean.setCommissionPercentage(input.getCommissionPercentage());
+            clean.setCourierCharges(input.getCourierCharges());
+            clean.setGstPercentage(input.getGstPercentage());
+            clean.setDiscountOnMrpRs(input.getDiscountOnMrpRs());
+            clean.setDiscountPercentage(input.getDiscountPercentage());
+            clean.setPaymentMethod(input.getPaymentMethod());
+            clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
+            clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            clean.setMinimumPartialPaymentPercentage(input.getMinimumPartialPaymentPercentage());
+            clean.setCodCharge(input.getCodCharge());
             clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
             clean.setDisplayOrder(input.getDisplayOrder() != null ? input.getDisplayOrder() : (result.size() + 1));
             clean.setIsDefault(input.getIsDefault());
@@ -311,6 +323,17 @@ public class SellerProductServiceImpl implements SellerProductService {
         return max + 1;
     }
 
+    private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
+        target.setAmountYouWillReceive(source.getAmountYouWillReceive());
+        target.setCommissionPercentage(source.getCommissionPercentage());
+        target.setCourierCharges(source.getCourierCharges());
+        target.setPaymentMethod(source.getPaymentMethod());
+        target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());
+        target.setIsPartialPaymentAllowed(source.getIsPartialPaymentAllowed());
+        target.setMinimumPartialPaymentPercentage(source.getMinimumPartialPaymentPercentage());
+        target.setCodCharge(source.getCodCharge());
+    }
+
     private int variantNumber(String sku) {
         if (sku == null) return 0;
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("-V(\\d+)$").matcher(sku);
@@ -321,6 +344,14 @@ public class SellerProductServiceImpl implements SellerProductService {
     private AppException badRequest(String message) { return new AppException(message, HttpStatus.BAD_REQUEST); }
     private boolean positive(Double value) { return value != null && Double.isFinite(value) && value > 0; }
     private boolean finiteNonnegative(Double value) { return value != null && Double.isFinite(value) && value >= 0; }
+    private void validateMoneyField(Double value, String label) {
+        if (value != null && !finiteNonnegative(value)) throw badRequest(label + " must be a finite nonnegative number");
+    }
+    private void validatePercentageField(Double value, String label) {
+        if (value != null && (!Double.isFinite(value) || value < 0 || value > 100)) {
+            throw badRequest(label + " must be between 0 and 100");
+        }
+    }
     private List<ProductDimensions> normalizeDimensions(List<ProductDimensions> values) {
         if (values == null) return List.of();
         return values.stream().filter(java.util.Objects::nonNull)

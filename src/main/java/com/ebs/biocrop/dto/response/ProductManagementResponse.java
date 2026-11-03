@@ -65,7 +65,11 @@ public record ProductManagementResponse(
                                     String packSizeUnit, Integer packQuantity,
                                     String shippedBy, Double swg, List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
                                     Double displayRate, Double printedMrp, Double costPrice,
-                                    Double discountRs, Double gstPercentage, Double discountPercentage,
+                                    Double amountYouWillReceive, Double commissionPercentage, Double courierCharges,
+                                    Double discountOnMrpRs, Double gstPercentage, Double discountPercentage,
+                                    com.ebs.biocrop.entity.enums.PaymentMethod paymentMethod,
+                                    Boolean isPrepaidAllowed, Boolean isPartialPaymentAllowed,
+                                    Double minimumPartialPaymentPercentage, Double codCharge,
                                     Integer stock, Double pricePerBaseUnit, Integer displayOrder,
                                     Boolean isDefault) {
         static ManagementVariant from(ProductVariant variant) {
@@ -73,7 +77,10 @@ public record ProductManagementResponse(
                     variant.getPackSize(), variant.getPackSizeUnit(), variant.getPackQuantity(),
                     variant.getShippedBy(), variant.getSwg(), variant.getDimensions(),
                     variant.getDisplayRate(), variant.getPrintedMrp(), variant.getCostPrice(),
-                    variant.getDiscountRs(), variant.getGstPercentage(), variant.getDiscountPercentage(),
+                    variant.getAmountYouWillReceive(), variant.getCommissionPercentage(), variant.getCourierCharges(),
+                    variant.getDiscountOnMrpRs(), variant.getGstPercentage(), variant.getDiscountPercentage(),
+                    variant.getPaymentMethod(), variant.getIsPrepaidAllowed(), variant.getIsPartialPaymentAllowed(),
+                    variant.getMinimumPartialPaymentPercentage(), variant.getCodCharge(),
                     variant.getStock(), variant.getPricePerBaseUnit(), variant.getDisplayOrder(), variant.getIsDefault());
         }
     }
