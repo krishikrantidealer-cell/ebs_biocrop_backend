@@ -5,6 +5,8 @@ import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +34,7 @@ class GcsSellerKycDocumentServiceTest {
         seller = User.newSeller("9823012345", "seller@example.com");
         seller.setId("seller-123");
         seller.setGstNumber("27AAPFU0939F1ZV");
-        when(users.findById("seller-123")).thenReturn(Optional.of(seller));
+        lenient().when(users.findById("seller-123")).thenReturn(Optional.of(seller));
     }
 
     @Test
@@ -63,6 +65,42 @@ class GcsSellerKycDocumentServiceTest {
 
         assertThrows(RuntimeException.class, () -> service.upload("seller-123", List.of(pdf("licenceImage", "extra.pdf")), null, null, null, false));
         verify(storage, never()).create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
+    }
+
+    @Test
+    void updatingNonLicenceDocumentWithReplaceFlagPreservesExistingLicenceFiles() {
+        String existingLicence = "gs://sellerhub-prod-sellerdata-media-us/Sellers/seller-123/kyc/licence/existing.pdf";
+        seller.setLicenceImage(List.of(existingLicence));
+        when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User saved = service.upload("seller-123", null, null, pdf("panCard", "pan.pdf"), null, true);
+
+        assertEquals(List.of(existingLicence), saved.getLicenceImage());
+        assertTrue(saved.getPanCard().contains("/kyc/pan-card/"));
+        verify(storage).create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
+        verify(storage, never()).delete(anyString(), anyString());
+    }
+
+    @Test
+    void permanentlyDeletedSellerCleanupDeletesOnlyObjectsUnderItsKycPrefix() {
+        @SuppressWarnings("unchecked") Page<Blob> page = mock(Page.class);
+        Blob licence = mock(Blob.class);
+        Blob productImage = mock(Blob.class);
+        when(licence.getName()).thenReturn("Sellers/seller-123/kyc/licence/file.pdf");
+        when(productImage.getName()).thenReturn("Sellers/seller-123/products/p1/original/image.jpg");
+        when(page.iterateAll()).thenReturn(List.of(licence, productImage));
+        when(storage.list(eq("sellerhub-prod-sellerdata-media-us"), any(Storage.BlobListOption[].class)))
+                .thenReturn(page);
+        when(storage.delete("sellerhub-prod-sellerdata-media-us", "Sellers/seller-123/kyc/licence/file.pdf"))
+                .thenReturn(true);
+
+        int deletedCount = service.deleteAllForSeller("seller-123");
+
+        assertEquals(1, deletedCount);
+        verify(storage).list(eq("sellerhub-prod-sellerdata-media-us"), any(Storage.BlobListOption[].class));
+        verify(storage).delete("sellerhub-prod-sellerdata-media-us", "Sellers/seller-123/kyc/licence/file.pdf");
+        verify(storage, never()).delete("sellerhub-prod-sellerdata-media-us",
+                "Sellers/seller-123/products/p1/original/image.jpg");
     }
 
     @Test

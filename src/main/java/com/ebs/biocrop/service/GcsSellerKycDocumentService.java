@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -22,6 +24,7 @@ import java.util.UUID;
 /** Stores seller KYC files privately in the dedicated seller data bucket. */
 @Service
 public class GcsSellerKycDocumentService {
+    private static final Logger log = LoggerFactory.getLogger(GcsSellerKycDocumentService.class);
     private static final long MAX_FILE_SIZE = 8L * 1024 * 1024;
     private static final int MAX_LICENCE_FILES = 10;
 
@@ -43,7 +46,10 @@ public class GcsSellerKycDocumentService {
                        boolean replaceLicenceFiles) {
         User seller = findSeller(sellerId);
         List<MultipartFile> licenses = nonEmpty(licenceFiles);
-        int currentCount = replaceLicenceFiles || seller.getLicenceImage() == null ? 0 : seller.getLicenceImage().size();
+        // A replacement flag applies only when licence files are part of this request.
+        // Updating a GST/PAN/Aadhaar file alone must not clear the existing licence list.
+        boolean replaceLicences = replaceLicenceFiles && !licenses.isEmpty();
+        int currentCount = replaceLicences || seller.getLicenceImage() == null ? 0 : seller.getLicenceImage().size();
         if (currentCount + licenses.size() > MAX_LICENCE_FILES) {
             throw badRequest("A seller can have at most 10 licence or certificate files");
         }
@@ -63,9 +69,9 @@ public class GcsSellerKycDocumentService {
         List<String> uploaded = new ArrayList<>();
         List<String> replaced = new ArrayList<>();
         try {
-            List<String> updatedLicences = new ArrayList<>(replaceLicenceFiles || seller.getLicenceImage() == null
+            List<String> updatedLicences = new ArrayList<>(replaceLicences || seller.getLicenceImage() == null
                     ? List.of() : seller.getLicenceImage());
-            if (replaceLicenceFiles && seller.getLicenceImage() != null) {
+            if (replaceLicences && seller.getLicenceImage() != null) {
                 seller.getLicenceImage().forEach(uri -> rememberOld(replaced, uri, sellerId));
             }
             for (UploadFile file : files) {
@@ -124,6 +130,31 @@ public class GcsSellerKycDocumentService {
         String extension = objectName.substring(objectName.lastIndexOf('.') + 1);
         return new StoredDocument(blob.getContent(), contentType,
                 "seller-" + documentType + "-" + index + "." + extension);
+    }
+
+    /** Deletes only this seller's KYC objects; product media uses a separate prefix. */
+    public int deleteAllForSeller(String sellerId) {
+        if (sellerId == null || !sellerId.matches("[A-Za-z0-9_-]{1,128}")) {
+            throw badRequest("Seller ID is invalid");
+        }
+        String prefix = "Sellers/" + sellerId + "/kyc/";
+        int deleted = 0;
+        try {
+            for (Blob blob : storage.list(bucketName, Storage.BlobListOption.prefix(prefix)).iterateAll()) {
+                String objectName = blob == null ? null : blob.getName();
+                if (objectName == null || !objectName.startsWith(prefix)) continue;
+                if (storage.delete(bucketName, objectName)) {
+                    deleted++;
+                } else {
+                    log.warn("GCS did not delete seller KYC object {} from bucket {}", objectName, bucketName);
+                }
+            }
+        } catch (RuntimeException exception) {
+            // User deletion has already committed when this method is called. Keep the
+            // API result stable and leave an actionable log if storage cleanup fails.
+            log.error("Could not finish GCS KYC cleanup for seller {} in bucket {}", sellerId, bucketName, exception);
+        }
+        return deleted;
     }
 
     private UploadFile validate(MultipartFile file, String type) {

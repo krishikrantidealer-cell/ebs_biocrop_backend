@@ -20,6 +20,7 @@ import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.service.AdminUserService;
+import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -33,6 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -49,6 +52,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
     private final SellerCodeService sellerCodeService;
+    private final GcsSellerKycDocumentService sellerKycDocumentService;
 
     @Autowired
     public AdminUserServiceImpl(
@@ -56,18 +60,27 @@ public class AdminUserServiceImpl implements AdminUserService {
             UserRepository users,
             RedisJsonCache redisCache,
             WebSocketService webSocketService,
-            SellerCodeService sellerCodeService) {
+            SellerCodeService sellerCodeService,
+            GcsSellerKycDocumentService sellerKycDocumentService) {
         this.mongoTemplate = mongoTemplate;
         this.users = users;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
         this.sellerCodeService = sellerCodeService;
+        this.sellerKycDocumentService = sellerKycDocumentService;
+    }
+
+    /** Keeps existing direct construction source-compatible. */
+    public AdminUserServiceImpl(MongoTemplate mongoTemplate, UserRepository users,
+                                RedisJsonCache redisCache, WebSocketService webSocketService,
+                                SellerCodeService sellerCodeService) {
+        this(mongoTemplate, users, redisCache, webSocketService, sellerCodeService, null);
     }
 
     /** Keeps direct construction in existing unit tests source-compatible. */
     public AdminUserServiceImpl(MongoTemplate mongoTemplate, UserRepository users,
                                 RedisJsonCache redisCache, WebSocketService webSocketService) {
-        this(mongoTemplate, users, redisCache, webSocketService, null);
+        this(mongoTemplate, users, redisCache, webSocketService, null, null);
     }
 
     @Override
@@ -486,6 +499,9 @@ public class AdminUserServiceImpl implements AdminUserService {
             mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
 
             users.delete(user);
+            if (user.getRole() == UserRole.ROLE_SELLER) {
+                deleteSellerKycDocumentsAfterCommit(id);
+            }
             webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
                     "userId", id,
                     "reason", "Account has been permanently deleted"
@@ -494,6 +510,21 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         return PermanentDeleteUsersResponse.of(deletedIds);
+    }
+
+    private void deleteSellerKycDocumentsAfterCommit(String sellerId) {
+        if (sellerKycDocumentService == null) return;
+        Runnable cleanup = () -> sellerKycDocumentService.deleteAllForSeller(sellerId);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cleanup.run();
+                }
+            });
+        } else {
+            cleanup.run();
+        }
     }
 
     private void addRoleFilter(List<Criteria> filters, String role) {

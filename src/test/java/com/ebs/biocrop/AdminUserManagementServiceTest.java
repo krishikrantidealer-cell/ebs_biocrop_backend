@@ -12,6 +12,7 @@ import com.ebs.biocrop.entity.Wishlist;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.repository.UserRepository;
+import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import com.ebs.biocrop.service.impl.AdminUserServiceImpl;
 import com.ebs.biocrop.websocket.WebSocketService;
@@ -24,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,11 +42,13 @@ class AdminUserManagementServiceTest {
     @Mock private UserRepository users;
     @Mock private RedisJsonCache redisCache;
     @Mock private WebSocketService webSocketService;
+    @Mock private GcsSellerKycDocumentService sellerKycDocumentService;
     private AdminUserServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new AdminUserServiceImpl(mongoTemplate, users, redisCache, webSocketService);
+        service = new AdminUserServiceImpl(mongoTemplate, users, redisCache, webSocketService, null,
+                sellerKycDocumentService);
     }
 
     @Test
@@ -384,10 +389,20 @@ class AdminUserManagementServiceTest {
         seller.setIsDeleted(true);
         when(users.findById("seller-with-products")).thenReturn(Optional.of(seller));
 
-        var response = service.permanentlyDelete("admin-id", "seller-with-products");
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            var response = service.permanentlyDelete("admin-id", "seller-with-products");
 
-        verify(users).delete(seller);
-        assertEquals(1, response.count());
+            verify(users).delete(seller);
+            verify(sellerKycDocumentService, never()).deleteAllForSeller("seller-with-products");
+            assertEquals(1, response.count());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+            verify(sellerKycDocumentService).deleteAllForSeller("seller-with-products");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test
