@@ -61,7 +61,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("UP"))
-                .andExpect(jsonPath("$.data.database").value("MongoDB Atlas (seller_hub)"));
+                .andExpect(jsonPath("$.data.service").value("ebs_biocrop_web"))
+                .andExpect(jsonPath("$.data.database").doesNotExist());
     }
 
     @Test

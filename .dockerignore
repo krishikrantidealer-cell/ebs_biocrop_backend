@@ -3,9 +3,16 @@
 .idea
 .vscode
 .mvn
+.m2
+.maven-home
 target
 docs
 .env
 *.js
 *.json
 README.md
+resources/
+resourcesData/
+scratch/
+scripts/
+

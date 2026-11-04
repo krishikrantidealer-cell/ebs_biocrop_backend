@@ -21,10 +21,7 @@ public class HealthCheckController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> healthCheck() {
         Map<String, Object> status = Map.of(
                 "status", "UP",
-                "service", "ebs_biocrop_web",
-                "database", "MongoDB Atlas (seller_hub)",
-                "collections", "users, products",
-                "security", "JWT + Spring Security 6"
+                "service", "ebs_biocrop_web"
         );
         return ResponseEntity.ok(ApiResponse.ok("EBS Biocrop Web API is healthy and operational", status));
     }
