@@ -11,14 +11,20 @@ import com.ebs.biocrop.dto.request.ResetPasswordRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.AuthResponse;
 import com.ebs.biocrop.dto.response.OtpResponse;
+import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.RateLimitExceededException;
 import com.ebs.biocrop.service.AuthService;
 import com.ebs.biocrop.service.OtpService;
 import com.ebs.biocrop.service.RateLimitService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,12 +39,15 @@ public class AuthController {
     private final OtpService otpService;
     private final AuthService authService;
     private final RateLimitService rateLimitService;
+    private final ObjectMapper objectMapper;
 
 
-    public AuthController(OtpService otpService, AuthService authService, RateLimitService rateLimitService) {
+    public AuthController(OtpService otpService, AuthService authService, RateLimitService rateLimitService,
+                          ObjectMapper objectMapper) {
         this.otpService = otpService;
         this.authService = authService;
         this.rateLimitService = rateLimitService;
+        this.objectMapper = objectMapper;
     }
 
 
@@ -85,9 +94,26 @@ public class AuthController {
     // Refresh access token endpoint with rate limiting
     @PostMapping("/token/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshAccessToken(
-            @RequestBody Map<String, String> request,
+            @RequestBody(required = false) byte[] requestBody,
             HttpServletRequest httpRequest) {
         checkLimit("token-refresh-ip", httpRequest.getRemoteAddr(), 10, 60);
+        if (requestBody == null || requestBody.length == 0) {
+            throw new AppException("Request body is required", HttpStatus.BAD_REQUEST);
+        }
+        String contentType = httpRequest.getContentType();
+        if (contentType == null || !MediaType.APPLICATION_JSON.isCompatibleWith(MediaType.parseMediaType(contentType))) {
+            throw new AppException("Content-Type must be application/json", HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        }
+        Map<String, String> request;
+        try {
+            request = objectMapper.readValue(requestBody, new TypeReference<>() {});
+        } catch (IOException ex) {
+            throw new AppException("Request body is malformed or contains a value with the wrong format.",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if (request == null) {
+            throw new AppException("Request body must be a JSON object", HttpStatus.BAD_REQUEST);
+        }
         AuthResponse authResponse = authService.refreshAccessToken(request.get("refreshToken"));
         return ResponseEntity.ok(ApiResponse.ok("Access token refreshed successfully", authResponse));
     }

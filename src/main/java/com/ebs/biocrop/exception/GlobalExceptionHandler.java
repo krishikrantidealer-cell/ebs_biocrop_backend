@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -75,6 +76,18 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase(),
+                "The request Content-Type is not supported for this endpoint.",
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(errorResponse);
     }
 
     @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})

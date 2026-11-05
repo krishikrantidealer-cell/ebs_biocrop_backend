@@ -39,5 +39,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized",
                 "Full authentication is required to access this resource. Please provide a valid Bearer token.",
                 request.getRequestURI()));
+        response.flushBuffer();
     }
 }

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +64,30 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.service").value("ebs_biocrop_web"))
                 .andExpect(jsonPath("$.data.database").doesNotExist());
+    }
+
+    @Test
+    void refreshWithoutRequestBodyShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/token/refresh"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Request body is required"));
+    }
+
+    @Test
+    void unsupportedContentTypeShouldReturn415() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/send")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not-json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415));
+    }
+
+    @Test
+    void unknownUnauthenticatedPathShouldReturnJson401() throws Exception {
+        mockMvc.perform(get("/api/v1/nonexistent"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(401));
     }
 
     @Test
