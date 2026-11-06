@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.dto.request.UpdateOrderStatusRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
@@ -58,9 +59,11 @@ public class AdminOrderController {
     @Operation(summary = "List all orders for admin with pagination, optionally filtered by seller ID")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getOrders(
             @RequestParam(required = false) String sellerId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Order> result = orderQueries.listForAdmin(sellerId, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
+        Page<Order> result = orderQueries.listForAdmin(sellerId, resolvedPage, resolvedSize);
         return ResponseEntity.ok(ApiResponse.ok("Admin orders retrieved",
                 PagedResponse.from(result, OrderResponse::forAdmin)));
     }

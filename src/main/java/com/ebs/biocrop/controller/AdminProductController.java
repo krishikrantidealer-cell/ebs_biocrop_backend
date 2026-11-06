@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.ProductManagementResponse;
@@ -90,9 +91,11 @@ public class AdminProductController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean deleted,
             @RequestParam(required = false) Boolean available,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, available, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
+        Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, available, resolvedPage, resolvedSize);
         Map<String, String> currentNames = sellerNames.findCurrentShopNames(result.getContent().stream()
                 .map(Product::getSellerId).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",

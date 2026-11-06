@@ -1,6 +1,7 @@
 package com.ebs.biocrop.controller;
 
 import com.ebs.biocrop.dto.request.CreateReviewRequest;
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.ProductReviewsResponse;
 import com.ebs.biocrop.dto.response.ReviewEligibilityResponse;
@@ -16,7 +17,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -53,12 +53,12 @@ public class ProductReviewController {
             @PathVariable String productId,
             @RequestParam(required = false) Integer rating,
             @RequestParam(required = false) Boolean hasMedia,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
 
-        int validPage = Math.max(0, page);
-        int validSize = Math.min(50, Math.max(1, size));
-        PageRequest pageRequest = PageRequest.of(validPage, validSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var pageRequest = PageRequestSupport.create(PageRequestSupport.resolvePageNumber(page),
+                PageRequestSupport.resolvePageSize(page, size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
 
         ProductReviewsResponse result = reviewService.listProductReviews(productId, rating, hasMedia, pageRequest);
         return ResponseEntity.ok(ApiResponse.ok("Reviews retrieved successfully", result));

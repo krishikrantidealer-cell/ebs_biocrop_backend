@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Order;
@@ -37,9 +38,11 @@ public class SellerOrderController {
     @Operation(summary = "List the authenticated seller's orders")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getSellerOrders(
             @AuthenticationPrincipal CustomUserDetails seller,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Order> result = orderQueries.listForSeller(seller.getId(), page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
+        Page<Order> result = orderQueries.listForSeller(seller.getId(), resolvedPage, resolvedSize);
         return ResponseEntity.ok(ApiResponse.ok("Seller orders retrieved",
                 PagedResponse.from(result, OrderResponse::forSeller)));
     }

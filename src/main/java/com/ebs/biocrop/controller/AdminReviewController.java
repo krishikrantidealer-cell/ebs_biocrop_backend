@@ -4,12 +4,12 @@ import com.ebs.biocrop.dto.response.AdminReviewResponse;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.dto.response.SellerReviewReportResponse;
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,12 +34,12 @@ public class AdminReviewController {
             @RequestParam(required = false) String productId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer rating,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
 
-        int validPage = Math.max(0, page);
-        int validSize = Math.min(50, Math.max(1, size));
-        PageRequest pageRequest = PageRequest.of(validPage, validSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var pageRequest = PageRequestSupport.create(PageRequestSupport.resolvePageNumber(page),
+                PageRequestSupport.resolvePageSize(page, size),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<AdminReviewResponse> result = reviewService.listAdminReviews(productId, search, rating, pageRequest);
         return ResponseEntity.ok(ApiResponse.ok("Admin reviews retrieved successfully", PagedResponse.from(result, r -> r)));

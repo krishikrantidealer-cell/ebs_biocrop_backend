@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.BlogFacetResponse;
 import com.ebs.biocrop.dto.response.BlogPublicResponse;
@@ -46,14 +47,16 @@ public class BlogController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String tag,
             @RequestParam(required = false) Boolean featured,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         String key = "category=" + category + "|tag=" + tag + "|featured=" + featured
-                + "|page=" + page + "|size=" + size;
+                + "|page=" + resolvedPage + "|size=" + resolvedSize;
         JavaType responseType = typeFactory.constructParametricType(PagedResponse.class, BlogPublicResponse.class);
         PagedResponse<BlogPublicResponse> response = redisCache.getOrLoad(
                 "public-blogs", key, responseType, Duration.ofMinutes(5),
-                () -> PagedResponse.from(blogService.listPublicBlogs(category, tag, featured, page, size), BlogPublicResponse::from));
+                () -> PagedResponse.from(blogService.listPublicBlogs(category, tag, featured, resolvedPage, resolvedSize), BlogPublicResponse::from));
         return ResponseEntity.ok(ApiResponse.ok("Published blogs retrieved successfully", response));
     }
 

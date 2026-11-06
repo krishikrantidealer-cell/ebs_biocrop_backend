@@ -52,8 +52,8 @@ public class ProductController {
     public ResponseEntity<ApiResponse<PagedResponse<PublicProductResponse>>> getProducts(
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        int resolvedPage = page != null ? Math.max(0, page) : 0;
-        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         return pageResponse("list|page=" + resolvedPage + "|size=" + resolvedSize,
                 () -> productCatalog.listPublic(resolvedPage, resolvedSize), "Products retrieved successfully");
     }
@@ -80,8 +80,8 @@ public class ProductController {
             @PathVariable String categoryId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        int resolvedPage = page != null ? Math.max(0, page) : 0;
-        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         return pageResponse("category=" + categoryId + "|page=" + resolvedPage + "|size=" + resolvedSize,
                 () -> productCatalog.listByCategory(categoryId, resolvedPage, resolvedSize), "Products retrieved successfully");
     }
@@ -93,8 +93,8 @@ public class ProductController {
             @RequestParam String q,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        int resolvedPage = page != null ? Math.max(0, page) : 0;
-        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         return pageResponse("search=" + q + "|page=" + resolvedPage + "|size=" + resolvedSize,
                 () -> productCatalog.search(q, resolvedPage, resolvedSize), "Products retrieved successfully");
     }
@@ -114,10 +114,7 @@ public class ProductController {
         List<PublicProductResponse> content = products.getContent().stream()
                 .map(product -> PublicProductResponse.from(product, currentSellerNames.get(product.getSellerId()), imageStorage))
                 .toList();
-        int reportedSize = (products.getSize() >= PageRequestSupport.MAX_SIZE && products.getTotalPages() <= 1)
-                ? content.size()
-                : products.getSize();
-        return new PagedResponse<>(content, products.getNumber(), reportedSize,
+        return new PagedResponse<>(content, products.getNumber(), products.getSize(),
                 products.getTotalElements(), products.getTotalPages(), products.isFirst(), products.isLast());
     }
 }

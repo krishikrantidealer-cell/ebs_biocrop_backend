@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.UpdateUserRoleRequest;
 import com.ebs.biocrop.dto.request.AdminManagedUserCreateRequest;
 import com.ebs.biocrop.dto.request.AdminManagedUserUpdateRequest;
@@ -97,8 +98,10 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<PagedResponse<AdminUserResponse>>> getUsers(
             @RequestParam(required = false) String role, @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean blocked, @RequestParam(required = false) Boolean deleted,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<AdminUserResponse> result = adminUsers.list(role, q, blocked, deleted, page, size);
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
+        Page<AdminUserResponse> result = adminUsers.list(role, q, blocked, deleted, resolvedPage, resolvedSize);
         return ResponseEntity.ok(ApiResponse.ok("Admin users retrieved", PagedResponse.from(result, user -> user)));
     }
 

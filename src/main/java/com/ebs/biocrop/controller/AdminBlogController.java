@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.CreateBlogDraftRequest;
 import com.ebs.biocrop.dto.request.ScheduleBlogRequest;
 import com.ebs.biocrop.dto.request.UpdateBlogRequest;
@@ -59,9 +60,11 @@ public class AdminBlogController {
     @Operation(summary = "List admin-managed blogs")
     public ResponseEntity<ApiResponse<PagedResponse<BlogAdminResponse>>> getBlogs(
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<Blog> blogs = blogService.listAdminBlogs(status, page, size);
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
+        Page<Blog> blogs = blogService.listAdminBlogs(status, resolvedPage, resolvedSize);
         return ResponseEntity.ok(ApiResponse.ok("Admin blogs retrieved successfully",
                 PagedResponse.from(blogs, BlogAdminResponse::from)));
     }

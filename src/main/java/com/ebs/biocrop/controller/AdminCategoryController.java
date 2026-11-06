@@ -57,17 +57,14 @@ public class AdminCategoryController {
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-        int resolvedPage = page != null ? Math.max(0, page) : 0;
-        int resolvedSize = size != null ? size : (page != null ? 20 : PageRequestSupport.MAX_SIZE);
+        int resolvedPage = PageRequestSupport.resolvePageNumber(page);
+        int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         Page<Category> result = categoryService.listAdmin(parentId, level, active, resolvedPage, resolvedSize);
         List<AdminCategoryResponse> content = result.getContent().stream()
                 .map(category -> AdminCategoryResponse.from(category, imageStorage))
                 .toList();
-        int reportedSize = (result.getSize() >= PageRequestSupport.MAX_SIZE && result.getTotalPages() <= 1)
-                ? content.size()
-                : result.getSize();
         return ResponseEntity.ok(ApiResponse.ok("Admin categories retrieved",
-                new PagedResponse<>(content, result.getNumber(), reportedSize,
+                new PagedResponse<>(content, result.getNumber(), result.getSize(),
                         result.getTotalElements(), result.getTotalPages(), result.isFirst(), result.isLast())));
     }
 
