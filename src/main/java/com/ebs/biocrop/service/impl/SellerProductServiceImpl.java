@@ -29,6 +29,8 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -207,8 +209,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         validateMoneyField(variant.getCodCharge(), "COD charge");
         validatePercentageField(variant.getCommissionPercentage(), "Commission percentage");
         validatePercentageField(variant.getGstPercentage(), "GST percentage");
-        validatePercentageField(variant.getDiscountPercentage(), "Discount percentage");
-        validateMoneyField(variant.getDiscountOnMrpRs(), "Discount amount");
+        synchronizeDiscountFromPrices(variant);
         if (variant.getMinimumPartialPaymentPercentage() != null
                 && (!Double.isFinite(variant.getMinimumPartialPaymentPercentage())
                 || variant.getMinimumPartialPaymentPercentage() < 10
@@ -220,6 +221,32 @@ public class SellerProductServiceImpl implements SellerProductService {
         } catch (ArithmeticException exception) {
             throw badRequest("Combined package quantity is too large");
         }
+    }
+
+    private void synchronizeDiscountFromPrices(ProductVariant variant) {
+        Double mrpValue = variant.getPrintedMrp();
+        Double displayValue = variant.getDisplayRate();
+        if (mrpValue == null || displayValue == null) {
+            variant.setDiscountOnMrpRs(null);
+            variant.setDiscountPercentage(null);
+            return;
+        }
+
+        BigDecimal mrp = BigDecimal.valueOf(mrpValue).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal displayRate = BigDecimal.valueOf(displayValue).setScale(2, RoundingMode.HALF_UP);
+        if (displayRate.compareTo(mrp) > 0) {
+            throw badRequest("Display rate cannot be greater than printed MRP");
+        }
+        variant.setPrintedMrp(mrp.doubleValue());
+        variant.setDisplayRate(displayRate.doubleValue());
+
+        BigDecimal discountAmount = mrp.subtract(displayRate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal discountPercentage = mrp.signum() == 0
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : discountAmount.multiply(BigDecimal.valueOf(100))
+                        .divide(mrp, 2, RoundingMode.HALF_UP);
+        variant.setDiscountOnMrpRs(discountAmount.doubleValue());
+        variant.setDiscountPercentage(discountPercentage.doubleValue());
     }
 
     private void copySellerFields(Product source, Product target, Product existing) {
