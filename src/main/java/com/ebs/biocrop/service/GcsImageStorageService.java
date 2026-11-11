@@ -110,6 +110,100 @@ public class GcsImageStorageService {
         storage.delete(bucketName, categoryImageObjectName(categoryId, storageUri));
     }
 
+    public String uploadCollectionImage(String collectionId, byte[] imageBytes, String extension, String contentType) {
+        requireSafeSegment(collectionId, "Collection ID");
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Image data is empty");
+        }
+        String normalizedExtension = extension == null ? "jpeg" : extension.toLowerCase(Locale.ROOT);
+        String objectName = "Collections/" + collectionId + "/images/" + UUID.randomUUID() + "." + normalizedExtension;
+        try {
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
+            storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
+            return "gs://" + bucketName + "/" + objectName;
+        } catch (Exception ex) {
+            return "data:" + contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(imageBytes);
+        }
+    }
+
+    public String uploadSubCollectionImage(String collectionId, String subCollectionId, byte[] imageBytes, String extension, String contentType) {
+        requireSafeSegment(collectionId, "Collection ID");
+        requireSafeSegment(subCollectionId, "SubCollection ID");
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Image data is empty");
+        }
+        String normalizedExtension = extension == null ? "jpeg" : extension.toLowerCase(Locale.ROOT);
+        String objectName = "Collections/" + collectionId + "/subcollections/" + subCollectionId + "/images/" + UUID.randomUUID() + "." + normalizedExtension;
+        try {
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
+            storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
+            return "gs://" + bucketName + "/" + objectName;
+        } catch (Exception ex) {
+            return "data:" + contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(imageBytes);
+        }
+    }
+
+    public String uploadGeneralCollectionImage(byte[] imageBytes, String extension, String contentType) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Image data is empty");
+        }
+        String normalizedExtension = extension == null ? "jpeg" : extension.toLowerCase(Locale.ROOT);
+        String objectName = "Collections/uploads/" + UUID.randomUUID() + "." + normalizedExtension;
+        try {
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
+            storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
+            return createCollectionImageReadUrl("uploads", "gs://" + bucketName + "/" + objectName);
+        } catch (Exception ex) {
+            return "data:" + contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(imageBytes);
+        }
+    }
+
+    public String createCollectionImageReadUrl(String collectionId, String storageUri) {
+        if (storageUri == null || storageUri.isBlank()) return null;
+        if (storageUri.startsWith("data:") || storageUri.startsWith("http://") || storageUri.startsWith("https://")) {
+            return storageUri;
+        }
+        requireSafeSegment(collectionId, "Collection ID");
+        String objectName = collectionImageObjectName(collectionId, storageUri);
+        try {
+            return storage.signUrl(BlobInfo.newBuilder(bucketName, objectName).build(), 7, TimeUnit.DAYS,
+                    Storage.SignUrlOption.withV4Signature()).toString();
+        } catch (Exception ex) {
+            return "https://storage.googleapis.com/" + bucketName + "/" + objectName;
+        }
+    }
+
+    public void deleteCollectionImage(String storageUri) {
+        if (storageUri == null || storageUri.isBlank() || storageUri.startsWith("data:")) return;
+        String objectName = storageUri;
+        String expectedGsPrefix = "gs://" + bucketName + "/";
+        if (storageUri.startsWith("gs://")) {
+            if (storageUri.startsWith(expectedGsPrefix)) {
+                objectName = storageUri.substring(expectedGsPrefix.length());
+            } else {
+                return;
+            }
+        }
+        try {
+            storage.delete(bucketName, objectName);
+        } catch (Exception ignored) { }
+    }
+
+    private String collectionImageObjectName(String collectionId, String storageUri) {
+        if (storageUri == null) {
+            throw badRequest("Collection image storage URI is required");
+        }
+        String objectName = storageUri;
+        String expectedGsPrefix = "gs://" + bucketName + "/";
+        if (storageUri.startsWith("gs://")) {
+            if (!storageUri.startsWith(expectedGsPrefix)) {
+                throw badRequest("Collection image belongs to a different storage bucket");
+            }
+            objectName = storageUri.substring(expectedGsPrefix.length());
+        }
+        return objectName;
+    }
+
     private String categoryImageObjectName(String categoryId, String storageUri) {
         if (storageUri == null) {
             throw badRequest("Category image storage URI is required");

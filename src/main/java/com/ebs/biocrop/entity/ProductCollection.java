@@ -20,6 +20,7 @@ public class ProductCollection {
     @Indexed(unique = true, name = "uniq_collection_slug")
     private String slug;
     private String description;
+    private String image;
     private Boolean isActive = true;
     private Integer priority = 0;
     private List<SubCollection> subCollections = new ArrayList<>();
@@ -43,6 +44,8 @@ public class ProductCollection {
     public void setSlug(String slug) { this.slug = slug; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
     public Integer getPriority() { return priority; }

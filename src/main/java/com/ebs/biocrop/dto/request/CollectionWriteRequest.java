@@ -12,6 +12,7 @@ public class CollectionWriteRequest {
     @NotBlank @Size(max = 120) private String name;
     @Size(max = 140) private String slug;
     @Size(max = 2000) private String description;
+    @Size(max = 2048) private String image;
     private Boolean isActive;
     @Min(0) private Integer priority;
     @Size(max = 100) @Valid private List<SubCollectionInput> subCollections;
@@ -23,6 +24,8 @@ public class CollectionWriteRequest {
     public void setSlug(String slug) { this.slug = slug; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
     public Integer getPriority() { return priority; }

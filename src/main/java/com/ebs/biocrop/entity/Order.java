@@ -59,6 +59,19 @@ public class Order {
     /** True while the order is holding quantities deducted from catalog stock. */
     private Boolean stockReserved = true;
 
+    // Razorpay Payment Gateway Integration
+    private String razorpayOrderId;
+    private String razorpayPaymentId;
+    private String razorpaySignature;
+
+    // Shiprocket Logistics & Courier Integration
+    private Long shiprocketOrderId;
+    private Long shiprocketShipmentId;
+    private String shiprocketAwbCode;
+    private String shiprocketCourierName;
+    private String shiprocketTrackingUrl;
+    private String shiprocketStatus;
+
     private LocalDateTime placedAt;
     private LocalDateTime cancelledAt;
     private LocalDateTime createdAt;
@@ -155,4 +168,24 @@ public class Order {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
+
+    public String getRazorpayOrderId() { return razorpayOrderId; }
+    public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
+    public String getRazorpayPaymentId() { return razorpayPaymentId; }
+    public void setRazorpayPaymentId(String razorpayPaymentId) { this.razorpayPaymentId = razorpayPaymentId; }
+    public String getRazorpaySignature() { return razorpaySignature; }
+    public void setRazorpaySignature(String razorpaySignature) { this.razorpaySignature = razorpaySignature; }
+
+    public Long getShiprocketOrderId() { return shiprocketOrderId; }
+    public void setShiprocketOrderId(Long shiprocketOrderId) { this.shiprocketOrderId = shiprocketOrderId; }
+    public Long getShiprocketShipmentId() { return shiprocketShipmentId; }
+    public void setShiprocketShipmentId(Long shiprocketShipmentId) { this.shiprocketShipmentId = shiprocketShipmentId; }
+    public String getShiprocketAwbCode() { return shiprocketAwbCode; }
+    public void setShiprocketAwbCode(String shiprocketAwbCode) { this.shiprocketAwbCode = shiprocketAwbCode; }
+    public String getShiprocketCourierName() { return shiprocketCourierName; }
+    public void setShiprocketCourierName(String shiprocketCourierName) { this.shiprocketCourierName = shiprocketCourierName; }
+    public String getShiprocketTrackingUrl() { return shiprocketTrackingUrl; }
+    public void setShiprocketTrackingUrl(String shiprocketTrackingUrl) { this.shiprocketTrackingUrl = shiprocketTrackingUrl; }
+    public String getShiprocketStatus() { return shiprocketStatus; }
+    public void setShiprocketStatus(String shiprocketStatus) { this.shiprocketStatus = shiprocketStatus; }
 }

@@ -31,7 +31,10 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -118,6 +121,61 @@ public class AdminProductCollectionController {
         rateLimitGuard.enforce("admin-collection-write", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Subcollection added", collections.addSubCollection(collectionId, request)));
+    }
+
+    // Upload an image for a collection
+    @PostMapping(value = "/{collectionId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload or replace a collection image")
+    public ResponseEntity<ApiResponse<CollectionResponse>> uploadCollectionImage(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId,
+            @RequestPart("file") MultipartFile file) {
+        rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Collection image uploaded", collections.uploadImage(collectionId, file)));
+    }
+
+    // Delete a collection image
+    @DeleteMapping("/{collectionId}/image")
+    @Operation(summary = "Delete a collection image")
+    public ResponseEntity<ApiResponse<CollectionResponse>> deleteCollectionImage(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId) {
+        rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Collection image deleted", collections.deleteImage(collectionId)));
+    }
+
+    // Upload an image for a subcollection
+    @PostMapping(value = "/{collectionId}/subcollections/{subCollectionId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload or replace a subcollection image")
+    public ResponseEntity<ApiResponse<CollectionResponse>> uploadSubCollectionImage(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId,
+            @PathVariable String subCollectionId,
+            @RequestPart("file") MultipartFile file) {
+        rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Subcollection image uploaded", collections.uploadSubCollectionImage(collectionId, subCollectionId, file)));
+    }
+
+    // Delete a subcollection image
+    @DeleteMapping("/{collectionId}/subcollections/{subCollectionId}/image")
+    @Operation(summary = "Delete a subcollection image")
+    public ResponseEntity<ApiResponse<CollectionResponse>> deleteSubCollectionImage(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId,
+            @PathVariable String subCollectionId) {
+        rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Subcollection image deleted", collections.deleteSubCollectionImage(collectionId, subCollectionId)));
+    }
+
+    // Upload a general image for collections (e.g. while creating)
+    @PostMapping(value = "/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload general collection/subcollection image returning URL")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadGeneralCollectionImage(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @RequestPart("file") MultipartFile file) {
+        rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
+        String url = collections.uploadGeneralImage(file);
+        return ResponseEntity.ok(ApiResponse.ok("Image uploaded successfully", java.util.Map.of("url", url, "imageUrl", url)));
     }
 
     // Permanently delete a single collection or multiple collections (unified single & bulk endpoint)

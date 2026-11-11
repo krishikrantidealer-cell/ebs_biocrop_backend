@@ -305,7 +305,10 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private OrderCustomerSnapshot customerSnapshot(User customer) {
         OrderCustomerSnapshot snapshot = new OrderCustomerSnapshot();
         snapshot.setName(fullName(customer));
+        snapshot.setFirstName(customer.getFirstName() != null && !customer.getFirstName().isBlank() ? customer.getFirstName() : "Customer");
+        snapshot.setLastName(customer.getLastName() != null && !customer.getLastName().isBlank() ? customer.getLastName() : "");
         snapshot.setPhoneNumber(customer.getPhoneNumber());
+        snapshot.setEmail(customer.getEmail() != null && !customer.getEmail().isBlank() ? customer.getEmail() : (customer.getPhoneNumber() + "@kisan.ebsbiocrop.com"));
         snapshot.setCompanyName(customer.getShopName());
         snapshot.setGstNumber(customer.getGstNumber());
         return snapshot;
@@ -330,10 +333,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         address.setName(input.getName().trim());
         address.setPhoneNumber(input.getPhoneNumber().trim());
         address.setVillageArea(input.getVillageArea().trim());
-          address.setAddress2(input.getAddress2() == null ? null : input.getAddress2().trim());
+        address.setAddress2(input.getAddress2() == null ? "" : input.getAddress2().trim());
         address.setCityTehsil(input.getCityTehsil().trim());
+        address.setDistrict(input.getDistrict() != null && !input.getDistrict().isBlank() ? input.getDistrict().trim() : input.getCityTehsil().trim());
         address.setState(input.getState().trim());
         address.setPincode(input.getPincode());
+        address.setCountry(input.getCountry() != null && !input.getCountry().isBlank() ? input.getCountry().trim() : "India");
         return address;
     }
 
@@ -342,10 +347,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         copy.setName(source.getName());
         copy.setPhoneNumber(source.getPhoneNumber());
         copy.setVillageArea(source.getVillageArea());
-          copy.setAddress2(source.getAddress2());
+        copy.setAddress2(source.getAddress2() != null ? source.getAddress2() : "");
         copy.setCityTehsil(source.getCityTehsil());
+        copy.setDistrict(source.getDistrict() != null ? source.getDistrict() : source.getCityTehsil());
         copy.setState(source.getState());
         copy.setPincode(source.getPincode());
+        copy.setCountry(source.getCountry() != null ? source.getCountry() : "India");
         return copy;
     }
 

@@ -41,13 +41,22 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     private final MongoTemplate mongoTemplate;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
+    private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
 
     public ProductCollectionServiceImpl(ProductCollectionRepository collections, MongoTemplate mongoTemplate,
                                         RedisJsonCache redisCache, WebSocketService webSocketService) {
+        this(collections, mongoTemplate, redisCache, webSocketService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProductCollectionServiceImpl(ProductCollectionRepository collections, MongoTemplate mongoTemplate,
+                                        RedisJsonCache redisCache, WebSocketService webSocketService,
+                                        com.ebs.biocrop.service.GcsImageStorageService imageStorage) {
         this.collections = collections;
         this.mongoTemplate = mongoTemplate;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
+        this.imageStorage = imageStorage;
     }
 
     @Override
@@ -111,6 +120,7 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
             current.setSlug(slug);
         }
         if (request.getDescription() != null) current.setDescription(trimToNull(request.getDescription()));
+        if (request.getImage() != null) current.setImage(trimToNull(request.getImage()));
         if (request.getIsActive() != null) current.setIsActive(request.getIsActive());
         if (request.getPriority() != null) current.setPriority(request.getPriority());
         if (request.getBannerTitle() != null) current.setBannerTitle(trimToNull(request.getBannerTitle()));
@@ -142,6 +152,7 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         }
         replacement.setSlug(slug);
         replacement.setDescription(trimToNull(request.getDescription()));
+        replacement.setImage(trimToNull(request.getImage()));
         replacement.setIsActive(request.getIsActive() == null || request.getIsActive());
         replacement.setPriority(request.getPriority() == null ? 0 : request.getPriority());
         replacement.setBannerTitle(trimToNull(request.getBannerTitle()));
@@ -302,6 +313,8 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         target.setSlug(slug);
         target.setDescription(request.getDescription() == null && current != null
                 ? current.getDescription() : trimToNull(request.getDescription()));
+        target.setImage(request.getImage() == null && current != null
+                ? current.getImage() : trimToNull(request.getImage()));
         target.setIsActive(request.getIsActive() == null
                 ? current == null || !Boolean.FALSE.equals(current.getIsActive()) : request.getIsActive());
         target.setPriority(request.getPriority() == null ? current == null ? 0 : current.getPriority() : request.getPriority());
@@ -365,7 +378,7 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         long count = countMatchingProducts(tokens(collection.getId(), collection.getName(), collection.getSlug(), collection.getSubCollections()));
         return CollectionResponse.from(collection, count, publicView, sub ->
                 countMatchingProducts(tokens(sub.getId() == null ? null : sub.getId().toHexString(),
-                        sub.getName(), sub.getSlug(), List.of())));
+                        sub.getName(), sub.getSlug(), List.of())), imageStorage);
     }
 
     private List<String> tokens(String id, String name, String slug, List<ProductCollection.SubCollection> children) {
@@ -398,6 +411,107 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     private ProductCollection find(String id) {
         if (!ObjectId.isValid(id)) throw new ResourceNotFoundException("Collection", "id", id);
         return collections.findById(id).orElseThrow(() -> new ResourceNotFoundException("Collection", "id", id));
+    }
+
+    @Override
+    @Transactional
+    public CollectionResponse uploadImage(String collectionId, org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) throw badRequest("An image file is required");
+        ProductCollection collection = find(collectionId);
+        byte[] bytes;
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
+        String ext = originalFilename.contains(".") ? originalFilename.substring(originalFilename.lastIndexOf(".") + 1) : "jpg";
+        try {
+            bytes = file.getBytes();
+        } catch (java.io.IOException e) {
+            throw badRequest("Could not read image file");
+        }
+        String oldImage = collection.getImage();
+        String newImage = imageStorage.uploadCollectionImage(collection.getId(), bytes, ext, contentType);
+        collection.setImage(newImage);
+        collection.setUpdatedAt(Instant.now());
+        CollectionResponse res = save(collection);
+        imageStorage.deleteCollectionImage(oldImage);
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public CollectionResponse deleteImage(String collectionId) {
+        ProductCollection collection = find(collectionId);
+        String oldImage = collection.getImage();
+        collection.setImage(null);
+        collection.setUpdatedAt(Instant.now());
+        CollectionResponse res = save(collection);
+        imageStorage.deleteCollectionImage(oldImage);
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public CollectionResponse uploadSubCollectionImage(String collectionId, String subCollectionId, org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) throw badRequest("An image file is required");
+        ProductCollection collection = find(collectionId);
+        List<ProductCollection.SubCollection> subs = collection.getSubCollections();
+        if (subs == null || subs.isEmpty()) throw new ResourceNotFoundException("Subcollection", "id", subCollectionId);
+
+        ProductCollection.SubCollection target = subs.stream()
+                .filter(s -> s.getId() != null && s.getId().toHexString().equalsIgnoreCase(subCollectionId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Subcollection", "id", subCollectionId));
+
+        byte[] bytes;
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
+        String ext = originalFilename.contains(".") ? originalFilename.substring(originalFilename.lastIndexOf(".") + 1) : "jpg";
+        try {
+            bytes = file.getBytes();
+        } catch (java.io.IOException e) {
+            throw badRequest("Could not read image file");
+        }
+        String oldImage = target.getImage();
+        String newImage = imageStorage.uploadSubCollectionImage(collection.getId(), subCollectionId, bytes, ext, contentType);
+        target.setImage(newImage);
+        collection.setUpdatedAt(Instant.now());
+        CollectionResponse res = save(collection);
+        imageStorage.deleteCollectionImage(oldImage);
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public CollectionResponse deleteSubCollectionImage(String collectionId, String subCollectionId) {
+        ProductCollection collection = find(collectionId);
+        List<ProductCollection.SubCollection> subs = collection.getSubCollections();
+        if (subs == null || subs.isEmpty()) throw new ResourceNotFoundException("Subcollection", "id", subCollectionId);
+
+        ProductCollection.SubCollection target = subs.stream()
+                .filter(s -> s.getId() != null && s.getId().toHexString().equalsIgnoreCase(subCollectionId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Subcollection", "id", subCollectionId));
+
+        String oldImage = target.getImage();
+        target.setImage(null);
+        collection.setUpdatedAt(Instant.now());
+        CollectionResponse res = save(collection);
+        imageStorage.deleteCollectionImage(oldImage);
+        return res;
+    }
+
+    @Override
+    public String uploadGeneralImage(org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) throw badRequest("An image file is required");
+        byte[] bytes;
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "image.jpg";
+        String ext = originalFilename.contains(".") ? originalFilename.substring(originalFilename.lastIndexOf(".") + 1) : "jpg";
+        try {
+            bytes = file.getBytes();
+        } catch (java.io.IOException e) {
+            throw badRequest("Could not read image file");
+        }
+        return imageStorage.uploadGeneralCollectionImage(bytes, ext, contentType);
     }
 
     private String slugify(String value) {

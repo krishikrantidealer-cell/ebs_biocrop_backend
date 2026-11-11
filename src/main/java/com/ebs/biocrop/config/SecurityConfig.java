@@ -75,8 +75,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/collections/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/checkout/serviceability").permitAll()
                         .requestMatchers("/api/v1/cart/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/wishlist/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/v1/checkout/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/products/*/reviews/eligibility", "/api/v1/products/*/reviews/my-review").hasRole("CUSTOMER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/products/*/reviews").hasRole("CUSTOMER")
 
@@ -88,6 +90,7 @@ public class SecurityConfig {
                                 "/api/v1/collections/**",
                                 "/api/v1/blogs",
                                 "/api/v1/blogs/**",
+                                "/api/v1/checkout/serviceability",
                                 "/api/v1/health")
                         .permitAll()
                         .requestMatchers(
@@ -110,9 +113,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        java.util.List<String> originPatterns = new java.util.ArrayList<>();
+        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+            originPatterns.addAll(allowedOrigins);
+        }
+        originPatterns.add("http://localhost:*");
+        originPatterns.add("http://127.0.0.1:*");
+        originPatterns.add("https://*.run.app");
+        originPatterns.add("https://*.firebaseapp.com");
+        originPatterns.add("https://*.web.app");
+        originPatterns.add("https://ebskrishidukaan.com");
+        originPatterns.add("https://*.ebskrishidukaan.com");
+        configuration.setAllowedOriginPatterns(originPatterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
 

@@ -21,4 +21,9 @@ public interface ProductCollectionService {
         permanentlyDeleteMany(List.of(id));
     }
     List<String> deleteSubCollections(String collectionId, List<String> subCollectionIds);
+    CollectionResponse uploadImage(String collectionId, org.springframework.web.multipart.MultipartFile file);
+    CollectionResponse deleteImage(String collectionId);
+    CollectionResponse uploadSubCollectionImage(String collectionId, String subCollectionId, org.springframework.web.multipart.MultipartFile file);
+    CollectionResponse deleteSubCollectionImage(String collectionId, String subCollectionId);
+    String uploadGeneralImage(org.springframework.web.multipart.MultipartFile file);
 }

@@ -43,7 +43,9 @@ public record OrderResponse(
         Boolean stockReserved,
         LocalDateTime cancelledAt,
         Integer version,
-        OrderPaymentDetails paymentDetails) {
+        OrderPaymentDetails paymentDetails,
+        ShippingDetails shippingDetails,
+        String razorpayPaymentId) {
 
     public static OrderResponse forCustomer(Order order) { return from(order, true, false, false); }
     public static OrderResponse forSeller(Order order) { return from(order, false, true, false); }
@@ -83,13 +85,33 @@ public record OrderResponse(
                 seller, customer, history, adminView ? order.getCustomerId() : null,
                 adminView ? order.getSellerId() : null, adminView ? order.getStockReserved() : null,
                 adminView ? order.getCancelledAt() : null, adminView ? order.getVersion() : null,
-                adminView ? details : null);
+                adminView ? details : null,
+                ShippingDetails.from(order),
+                order.getRazorpayPaymentId());
     }
 
     private static Double safe(Double value) { return value == null ? 0.0 : value; }
 
     public record PaymentSummary(Double amountPaid, Double advanceAmount, Double remainingAmount,
                                  Double paidPercentage, Double remainingPercentage) { }
+
+    public record ShippingDetails(
+            String awbCode,
+            String courierName,
+            String trackingUrl,
+            String status,
+            Long shipmentId) {
+        public static ShippingDetails from(Order order) {
+            if (order.getShiprocketAwbCode() == null && order.getShiprocketShipmentId() == null) return null;
+            return new ShippingDetails(
+                    order.getShiprocketAwbCode(),
+                    order.getShiprocketCourierName(),
+                    order.getShiprocketTrackingUrl(),
+                    order.getShiprocketStatus(),
+                    order.getShiprocketShipmentId()
+            );
+        }
+    }
 
     public record SellerSummary(String displayName, String phoneNumber, String email, String gstNumber) { }
 

@@ -13,6 +13,7 @@ public class CollectionPatchRequest {
     @Pattern(regexp = ".*\\S.*", message = "Collection name cannot be blank") @Size(max = 120) private String name;
     @Size(max = 140) private String slug;
     @Size(max = 2000) private String description;
+    @Size(max = 2048) private String image;
     private Boolean isActive;
     @Min(0) private Integer priority;
     @Size(max = 100) private List<@Valid SubCollectionInput> subCollections;
@@ -24,6 +25,8 @@ public class CollectionPatchRequest {
     public void setSlug(String slug) { this.slug = slug; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
     public Integer getPriority() { return priority; }
@@ -34,7 +37,7 @@ public class CollectionPatchRequest {
     public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 
     public boolean hasChanges() {
-        return name != null || slug != null || description != null || isActive != null
+        return name != null || slug != null || description != null || image != null || isActive != null
                 || priority != null || subCollections != null || bannerTitle != null;
     }
 }
