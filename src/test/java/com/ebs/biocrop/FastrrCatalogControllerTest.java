@@ -61,7 +61,7 @@ class FastrrCatalogControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/fastrr/products returns valid Fastrr catalog structure")
+    @DisplayName("GET /api/v1/fastrr/products returns valid Fastrr catalog structure with numeric IDs")
     void testGetProducts() throws Exception {
         Product p = new Product();
         p.setId("prod_1");
@@ -81,16 +81,20 @@ class FastrrCatalogControllerTest {
         when(mongoTemplate.count(any(Query.class), eq(Product.class))).thenReturn(1L);
         when(sellerNames.findCurrentShopNames(any())).thenReturn(Map.of("seller_1", "Organic Farm"));
 
+        long expectedProdId = FastrrCatalogController.toNumericId("prod_1");
+        long expectedVarId = FastrrCatalogController.toNumericId("var_1");
+
         mockMvc.perform(get("/api/v1/fastrr/products?page=1&limit=12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.products[0].id").value("prod_1"))
+                .andExpect(jsonPath("$.data.products[0].id").value(expectedProdId))
+                .andExpect(jsonPath("$.data.products[0].variants[0].id").value(expectedVarId))
                 .andExpect(jsonPath("$.data.products[0].title").value("Test Agri Product"))
                 .andExpect(jsonPath("$.data.products[0].variants[0].price").value("500.00"));
     }
 
     @Test
-    @DisplayName("GET /api/v1/fastrr/collections returns valid Fastrr collections structure")
+    @DisplayName("GET /api/v1/fastrr/collections returns valid Fastrr collections structure with numeric IDs")
     void testGetCollections() throws Exception {
         ProductCollection col = new ProductCollection();
         col.setId("col_1");
@@ -100,11 +104,43 @@ class FastrrCatalogControllerTest {
 
         when(collectionRepository.findByIsActiveTrueOrderByPriorityAscNameAsc()).thenReturn(List.of(col));
 
+        long expectedColId = FastrrCatalogController.toNumericId("col_1");
+
         mockMvc.perform(get("/api/v1/fastrr/collections?page=1&limit=12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.collections[0].id").value("col_1"))
+                .andExpect(jsonPath("$.data.collections[0].id").value(expectedColId))
                 .andExpect(jsonPath("$.data.collections[0].title").value("Shop by Crop"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/fastrr/collections/products resolves numeric collection_id and returns products")
+    void testGetProductsByCollectionNumericId() throws Exception {
+        ProductCollection col = new ProductCollection();
+        col.setId("col_1");
+        col.setName("Shop by Crop");
+        col.setSlug("shop-by-crop");
+
+        when(collectionRepository.findByIsActiveTrueOrderByPriorityAscNameAsc()).thenReturn(List.of(col));
+
+        Product p = new Product();
+        p.setId("prod_1");
+        p.setTitle("Crop Product");
+        p.setSku("SKU-CROP");
+        p.setSellerId("seller_1");
+        p.setAssignedCollections(List.of("Shop by Crop"));
+
+        when(mongoTemplate.find(any(Query.class), eq(Product.class))).thenReturn(List.of(p));
+        when(mongoTemplate.count(any(Query.class), eq(Product.class))).thenReturn(1L);
+        when(sellerNames.findCurrentShopNames(any())).thenReturn(Map.of("seller_1", "Farm Store"));
+
+        long numericColId = FastrrCatalogController.toNumericId("col_1");
+
+        mockMvc.perform(get("/api/v1/fastrr/collections/products?collection_id=" + numericColId + "&page=1&limit=12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.products[0].id").value(FastrrCatalogController.toNumericId("prod_1")))
+                .andExpect(jsonPath("$.data.products[0].title").value("Crop Product"));
     }
 
     @Test
