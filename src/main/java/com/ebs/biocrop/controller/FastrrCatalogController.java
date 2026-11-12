@@ -390,12 +390,19 @@ public class FastrrCatalogController {
         m.put("status", "active");
 
         String primaryImageUrl = null;
+        String sellerFolder = product.getSellerId() != null && !product.getSellerId().isBlank()
+                ? product.getSellerId()
+                : "platform";
         if (product.getProductImages() != null && !product.getProductImages().isEmpty()) {
             ProductImage primaryImg = product.getProductImages().get(0);
-            if (primaryImg.getMidObjectName() != null) {
-                primaryImageUrl = imageStorage.createReadUrl(product.getSellerId(), product.getId(), primaryImg.getMidObjectName());
-            } else if (primaryImg.getLowObjectName() != null) {
-                primaryImageUrl = imageStorage.createReadUrl(product.getSellerId(), product.getId(), primaryImg.getLowObjectName());
+            try {
+                if (primaryImg.getMidObjectName() != null) {
+                    primaryImageUrl = imageStorage.createReadUrl(sellerFolder, product.getId(), primaryImg.getMidObjectName());
+                } else if (primaryImg.getLowObjectName() != null) {
+                    primaryImageUrl = imageStorage.createReadUrl(sellerFolder, product.getId(), primaryImg.getLowObjectName());
+                }
+            } catch (Exception ex) {
+                log.warn("[FASTRR] Failed to resolve image URL for product {}: {}", product.getId(), ex.getMessage());
             }
         }
 
