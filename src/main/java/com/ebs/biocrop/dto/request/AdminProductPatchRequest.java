@@ -12,6 +12,7 @@ public class AdminProductPatchRequest {
     @JsonIgnore @Size(max = 80) private String sku;
     @Size(max = 32) private String hsnCode;
     @Size(max = 200) private String title;
+    @Size(max = 120) private String brandName;
     @Size(max = 300) private String technicalName;
     @Size(max = 100000) private String description;
     @Size(max = 24) private String categoryId;
@@ -23,6 +24,7 @@ public class AdminProductPatchRequest {
     public String getSku() { return sku; } public void setSku(String v) { sku=v; }
     public String getHsnCode() { return hsnCode; } public void setHsnCode(String v) { hsnCode=v; }
     public String getTitle() { return title; } public void setTitle(String v) { title=v; }
+    public String getBrandName() { return brandName; } public void setBrandName(String v) { brandName=v; }
     public String getTechnicalName() { return technicalName; } public void setTechnicalName(String v) { technicalName=v; }
     public String getDescription() { return description; } public void setDescription(String v) { description=v; }
     public String getCategoryId() { return categoryId; } public void setCategoryId(String v) { categoryId=v; }
@@ -32,7 +34,7 @@ public class AdminProductPatchRequest {
     public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; } public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> v) { variants=v; }
 
     public boolean hasChanges() {
-        return sku != null || hsnCode != null || title != null || technicalName != null
+        return sku != null || hsnCode != null || title != null || brandName != null || technicalName != null
                 || description != null || categoryId != null
                 || refundPolicy != null || productWeight != null || productWeightUnit != null
                 || (variants != null && !variants.isEmpty());

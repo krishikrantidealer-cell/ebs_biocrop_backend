@@ -14,6 +14,7 @@ public record PublicProductResponse(
         String productCode,
         String hsnCode,
         String title,
+        String brandName,
         String technicalName,
         String sellerName,
         String description,
@@ -32,7 +33,7 @@ public record PublicProductResponse(
     public static PublicProductResponse from(Product product, String currentSellerName,
                                              GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
-                product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getTechnicalName(),
+                product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
                 currentSellerName, product.getDescription(),
                 product.getProductImages() == null
                         ? List.of()

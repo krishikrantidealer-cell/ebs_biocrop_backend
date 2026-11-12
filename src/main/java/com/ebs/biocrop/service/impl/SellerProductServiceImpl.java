@@ -253,7 +253,9 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setSku(existing != null ? existing.getSku()
                 : (target.getSku() != null ? target.getSku() : source.getSku()));
         target.setHsnCode(source.getHsnCode());
-        target.setTitle(source.getTitle().trim()); target.setTechnicalName(source.getTechnicalName());
+        target.setTitle(source.getTitle().trim());
+        target.setBrandName(source.getBrandName() != null ? source.getBrandName().trim() : null);
+        target.setTechnicalName(source.getTechnicalName());
         target.setDescription(source.getDescription());
         target.setProductImages(
                 existing == null ? List.of() : existing.getProductImages());

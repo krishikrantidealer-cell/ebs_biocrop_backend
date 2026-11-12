@@ -12,7 +12,7 @@ import java.util.List;
 /** Management projection for admin and seller clients; omits persistence version metadata. */
 public record ProductManagementResponse(
         String id, String sku, String productCode, String hsnCode, String sellerId,
-        String title, String technicalName, String sellerName, String description,
+        String title, String brandName, String technicalName, String sellerName, String description,
         List<ManagementProductImage> productImages, String categoryId,
         List<String> assignedCollections,
         Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
@@ -32,7 +32,7 @@ public record ProductManagementResponse(
                         .toList();
 
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
-                product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getTechnicalName(),
+                product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
                 currentSellerName, product.getDescription(), managementImages, product.getCategoryId(), product.getAssignedCollections(),
                 product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),

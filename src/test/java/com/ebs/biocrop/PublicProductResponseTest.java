@@ -18,12 +18,14 @@ class PublicProductResponseTest {
         Product product = new Product();
         product.setId("product-id");
         product.setSellerId("seller-id");
+        product.setBrandName("Biocrop Agro");
         product.setSellerName("Stale Product Snapshot");
 
         PublicProductResponse response = PublicProductResponse.from(
                 product, "Current Seller Shop", mock(GcsImageStorageService.class));
 
         assertEquals("Current Seller Shop", response.sellerName());
+        assertEquals("Biocrop Agro", response.brandName());
     }
 
     @Test

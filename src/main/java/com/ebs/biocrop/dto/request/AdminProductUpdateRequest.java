@@ -30,6 +30,9 @@ public class AdminProductUpdateRequest {
     @Size(max = 200)
     private String title;
 
+    @Size(max = 120)
+    private String brandName;
+
     @Size(max = 300)
     private String technicalName;
 
@@ -57,6 +60,7 @@ public class AdminProductUpdateRequest {
                 || (sku != null && !sku.isBlank())
                 || hsnCode != null
                 || (title != null && !title.isBlank())
+                || brandName != null
                 || technicalName != null
                 || description != null
                 || (categoryId != null && !categoryId.isBlank())
@@ -77,6 +81,9 @@ public class AdminProductUpdateRequest {
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+
+    public String getBrandName() { return brandName; }
+    public void setBrandName(String brandName) { this.brandName = brandName; }
 
     public String getTechnicalName() { return technicalName; }
     public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }

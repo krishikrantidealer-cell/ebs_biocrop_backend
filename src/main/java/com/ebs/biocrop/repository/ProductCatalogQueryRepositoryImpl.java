@@ -39,6 +39,7 @@ public class ProductCatalogQueryRepositoryImpl implements ProductCatalogQueryRep
         String safePattern = Pattern.quote(searchText);
         Criteria text = new Criteria().orOperator(
                 Criteria.where("title").regex(safePattern, "i"),
+                Criteria.where("brandName").regex(safePattern, "i"),
                 Criteria.where("description").regex(safePattern, "i"),
                 Criteria.where("technicalName").regex(safePattern, "i"),
                 Criteria.where("sellerName").regex(safePattern, "i"));

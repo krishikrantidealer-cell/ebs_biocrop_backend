@@ -22,6 +22,7 @@ public class SellerProductWriteRequest {
     @JsonIgnore @Size(max = 80) private String sku;
     @Size(max = 32) private String hsnCode;
     @NotBlank @Size(max = 200) private String title;
+    @Size(max = 120) private String brandName;
     @Size(max = 300) private String technicalName;
     @Size(max = 100000) private String description;
     @NotBlank private String categoryId;
@@ -33,7 +34,7 @@ public class SellerProductWriteRequest {
     public Product toProduct() {
         Product product = new Product();
         product.setHsnCode(hsnCode);
-        product.setTitle(title); product.setTechnicalName(technicalName);
+        product.setTitle(title); product.setBrandName(brandName); product.setTechnicalName(technicalName);
         product.setDescription(description); product.setCategoryId(categoryId);
         product.setRefundPolicy(refundPolicy); product.setProductWeight(productWeight); product.setProductWeightUnit(productWeightUnit);
         product.setVariants(variants == null ? List.of() : variants.stream().map(VariantWriteRequest::toVariant).toList());
@@ -46,6 +47,8 @@ public class SellerProductWriteRequest {
     public void setHsnCode(String hsnCode) { this.hsnCode = hsnCode; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getBrandName() { return brandName; }
+    public void setBrandName(String brandName) { this.brandName = brandName; }
     public String getTechnicalName() { return technicalName; }
     public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
     public String getDescription() { return description; }

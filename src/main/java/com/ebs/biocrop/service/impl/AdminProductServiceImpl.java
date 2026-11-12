@@ -110,6 +110,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             String escaped = java.util.regex.Pattern.quote(query.trim());
             filters.add(new Criteria().orOperator(
                     Criteria.where("title").regex(escaped, "i"),
+                    Criteria.where("brandName").regex(escaped, "i"),
                     Criteria.where("sku").regex(escaped, "i"),
                     Criteria.where("productCode").regex(escaped, "i"),
                     Criteria.where("technicalName").regex(escaped, "i")
@@ -199,6 +200,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (request.getTitle().isBlank()) throw new AppException("Product title cannot be blank", HttpStatus.BAD_REQUEST);
             current.setTitle(request.getTitle().trim());
         }
+        if (request.getBrandName() != null) current.setBrandName(request.getBrandName().trim());
         if (request.getTechnicalName() != null) current.setTechnicalName(request.getTechnicalName().trim());
         if (request.getDescription() != null) current.setDescription(request.getDescription());
         if (request.getCategoryId() != null) {
@@ -253,6 +255,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setSku(request.getSku());
         updateRequest.setHsnCode(request.getHsnCode());
         updateRequest.setTitle(request.getTitle());
+        updateRequest.setBrandName(request.getBrandName());
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
         updateRequest.setCategoryId(request.getCategoryId());
@@ -269,6 +272,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setSku(request.getSku());
         updateRequest.setHsnCode(request.getHsnCode());
         updateRequest.setTitle(request.getTitle());
+        updateRequest.setBrandName(request.getBrandName());
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
         updateRequest.setCategoryId(request.getCategoryId());

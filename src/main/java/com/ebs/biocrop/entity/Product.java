@@ -32,6 +32,8 @@ public class Product {
     private String sellerId;
     private String title;
     @Field(write = Field.Write.ALWAYS)
+    private String brandName;
+    @Field(write = Field.Write.ALWAYS)
     private String technicalName;
     private String sellerName;
     @Field(write = Field.Write.ALWAYS)
@@ -85,6 +87,8 @@ public class Product {
     public void setSellerId(String sellerId) { this.sellerId = sellerId; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getBrandName() { return brandName; }
+    public void setBrandName(String brandName) { this.brandName = brandName; }
     public String getTechnicalName() { return technicalName; }
     public void setTechnicalName(String technicalName) { this.technicalName = technicalName; }
     public String getSellerName() { return sellerName; }
