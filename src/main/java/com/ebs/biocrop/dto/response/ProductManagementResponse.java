@@ -51,10 +51,12 @@ public record ProductManagementResponse(
             String midUrl,
             String lowUrl) {
         public static ManagementProductImage from(Product product, ProductImage image, GcsImageStorageService imageStorage) {
+            String sellerFolder = (product.getSellerId() != null && !product.getSellerId().isBlank())
+                    ? product.getSellerId() : "platform";
             String midUrl = imageStorage != null && image.getMidObjectName() != null
-                    ? imageStorage.createReadUrl(product.getSellerId(), product.getId(), image.getMidObjectName()) : null;
+                    ? imageStorage.createReadUrl(sellerFolder, product.getId(), image.getMidObjectName()) : null;
             String lowUrl = imageStorage != null && image.getLowObjectName() != null
-                    ? imageStorage.createReadUrl(product.getSellerId(), product.getId(), image.getLowObjectName()) : null;
+                    ? imageStorage.createReadUrl(sellerFolder, product.getId(), image.getLowObjectName()) : null;
             return new ManagementProductImage(image.getId(), image.getDisplayOrder(),
                     image.getOriginalObjectName(), image.getMidObjectName(), image.getLowObjectName(),
                     midUrl, lowUrl);

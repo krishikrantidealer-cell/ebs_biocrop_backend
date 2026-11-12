@@ -42,11 +42,13 @@ public record PublicProductResponse(
                                         image.getId(),
                                         image.getDisplayOrder(),
                                         imageStorage.createReadUrl(
-                                                product.getSellerId(),
+                                                (product.getSellerId() != null && !product.getSellerId().isBlank())
+                                                        ? product.getSellerId() : "platform",
                                                 product.getId(),
                                                 image.getMidObjectName()),
                                         imageStorage.createReadUrl(
-                                                product.getSellerId(),
+                                                (product.getSellerId() != null && !product.getSellerId().isBlank())
+                                                        ? product.getSellerId() : "platform",
                                                 product.getId(),
                                                 image.getLowObjectName())))
                                 .toList(),

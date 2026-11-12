@@ -66,8 +66,9 @@ public class ProductController {
                 typeFactory.constructType(PublicProductResponse.class), Duration.ofSeconds(30),
                 () -> {
                     Product product = productCatalog.getPublic(id);
-                    String shopName = sellerNames.findCurrentShopNames(List.of(product.getSellerId()))
-                            .get(product.getSellerId());
+                    String shopName = (product.getSellerId() != null && !product.getSellerId().isBlank())
+                            ? sellerNames.findCurrentShopNames(List.of(product.getSellerId())).get(product.getSellerId())
+                            : null;
                     return PublicProductResponse.from(product, shopName, imageStorage);
                 });
         return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully", response));
@@ -110,7 +111,7 @@ public class ProductController {
 
     private PagedResponse<PublicProductResponse> mapPage(Page<Product> products) {
         Map<String, String> currentSellerNames = sellerNames.findCurrentShopNames(products.getContent().stream()
-                .map(Product::getSellerId).distinct().toList());
+                .map(Product::getSellerId).filter(java.util.Objects::nonNull).distinct().toList());
         List<PublicProductResponse> content = products.getContent().stream()
                 .map(product -> PublicProductResponse.from(product, currentSellerNames.get(product.getSellerId()), imageStorage))
                 .toList();

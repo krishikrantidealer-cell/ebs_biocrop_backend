@@ -97,7 +97,7 @@ public class AdminProductController {
         int resolvedSize = PageRequestSupport.resolvePageSize(page, size);
         Page<Product> result = products.list(status, sellerId, categoryId, q, deleted, available, resolvedPage, resolvedSize);
         Map<String, String> currentNames = sellerNames.findCurrentShopNames(result.getContent().stream()
-                .map(Product::getSellerId).distinct().toList());
+                .map(Product::getSellerId).filter(java.util.Objects::nonNull).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",
                 PagedResponse.from(result, product -> ProductManagementResponse.from(
                         product, currentNames.get(product.getSellerId()), imageStorage))));
@@ -383,8 +383,9 @@ public class AdminProductController {
     }
 
     private ProductManagementResponse managementResponse(Product product) {
-        String currentName = sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId()))
-                .get(product.getSellerId());
+        String currentName = (product.getSellerId() != null && !product.getSellerId().isBlank())
+                ? sellerNames.findCurrentShopNames(java.util.Collections.singletonList(product.getSellerId())).get(product.getSellerId())
+                : null;
         return ProductManagementResponse.from(product, currentName, imageStorage);
     }
 }

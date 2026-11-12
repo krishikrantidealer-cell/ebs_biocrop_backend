@@ -132,10 +132,15 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     @Override
     public Product create(String adminId, AdminProductWriteRequest request, List<MultipartFile> files) {
-        User seller = mongoTemplate.findById(request.getSellerId(), User.class);
-        if (seller == null || seller.getRole() != com.ebs.biocrop.entity.enums.UserRole.ROLE_SELLER
-                || Boolean.TRUE.equals(seller.getIsDeleted())) throw new ResourceNotFoundException("Seller", "id", request.getSellerId());
-        if (Boolean.TRUE.equals(seller.getIsBlocked())) throw new AppException("A blocked seller cannot receive new product listings", HttpStatus.CONFLICT);
+        String safeSellerId = (request != null && request.getSellerId() != null && !request.getSellerId().isBlank())
+                ? request.getSellerId().trim()
+                : null;
+        if (safeSellerId != null) {
+            User seller = mongoTemplate.findById(safeSellerId, User.class);
+            if (seller == null || seller.getRole() != com.ebs.biocrop.entity.enums.UserRole.ROLE_SELLER
+                    || Boolean.TRUE.equals(seller.getIsDeleted())) throw new ResourceNotFoundException("Seller", "id", safeSellerId);
+            if (Boolean.TRUE.equals(seller.getIsBlocked())) throw new AppException("A blocked seller cannot receive new product listings", HttpStatus.CONFLICT);
+        }
 
         List<MultipartFile> activeFiles = files == null ? List.of()
                 : files.stream().filter(java.util.Objects::nonNull).toList();
@@ -151,7 +156,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             }
         }
 
-        Product created = sellerProducts.create(request.getSellerId(), request);
+        Product created = sellerProducts.create(safeSellerId, request);
 
         if (!activeFiles.isEmpty()) {
             try {
@@ -850,11 +855,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
 
-        if (product.getSellerId() == null || product.getSellerId().isBlank()) {
-            throw new AppException(
-                    "Product must have a seller before images can be uploaded",
-                    HttpStatus.CONFLICT);
-        }
+        String sellerFolder = (product.getSellerId() != null && !product.getSellerId().isBlank())
+                ? product.getSellerId().trim()
+                : "platform";
 
         if (files.stream().anyMatch(file -> file == null || file.isEmpty())) {
             throw new AppException("Uploaded image files must not be empty", HttpStatus.BAD_REQUEST);
@@ -872,7 +875,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 ProductImageVariantService.Variants variants =
                         imageVariants.createVariants(file.getBytes());
                 ProductImage image = imageStorage.uploadImage(
-                        product.getSellerId(),
+                        sellerFolder,
                         product.getId(),
                         variants,
                         currentImageCount + uploadedImages.size());

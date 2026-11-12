@@ -65,11 +65,18 @@ public class SellerProductServiceImpl implements SellerProductService {
         Product request = writeRequest.toProduct();
         validate(request);
         Product listing = new Product();
-        listing.setSellerId(sellerId);
-        listing.setProductCode(nextProductCode(sellerId));
-        listing.setSku(sellerCodeService.productSku(sellerId, listing.getProductCode()));
+        String safeSellerId = (sellerId != null && !sellerId.isBlank()) ? sellerId.trim() : null;
+        listing.setSellerId(safeSellerId);
+        if (safeSellerId != null) {
+            listing.setProductCode(nextProductCode(safeSellerId));
+            listing.setSku(sellerCodeService.productSku(safeSellerId, listing.getProductCode()));
+            listing.setSellerName(findSellerShopName(safeSellerId));
+        } else {
+            listing.setProductCode(nextPlatformProductCode());
+            listing.setSku(listing.getProductCode());
+            listing.setSellerName(null);
+        }
         copySellerFields(request, listing, null);
-        listing.setSellerName(findSellerShopName(sellerId));
         listing.setStatus("ACTIVE");
         listing.setIsAvailable(true);
         listing.setIsFeatured(true);
@@ -151,6 +158,20 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         return "PRD-" + sellerId.toUpperCase(Locale.ROOT) + "-"
                 + String.format(Locale.ROOT, "%06d", sequence.getProductCodeSequence());
+    }
+
+    private String nextPlatformProductCode() {
+        Query query = Query.query(Criteria.where("_id").is("platform_product_sequence"));
+        UserSequence sequence = mongoTemplate.findAndModify(
+                query,
+                new Update().inc("productCodeSequence", 1),
+                FindAndModifyOptions.options().upsert(true).returnNew(true),
+                UserSequence.class,
+                "system_sequences");
+        long seq = (sequence != null && sequence.getProductCodeSequence() != null)
+                ? sequence.getProductCodeSequence()
+                : 1L;
+        return "PRD-EBS-" + String.format(Locale.ROOT, "%06d", seq);
     }
 
     private void validate(Product product) {
