@@ -10,6 +10,7 @@ import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.AdminUserService;
+import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.ebs.biocrop.service.RateLimitGuard;
 import com.ebs.biocrop.service.RateLimitService;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ class AdminUserControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private AdminUserService adminUserService;
+    @MockitoBean private GcsSellerKycDocumentService sellerKycDocuments;
     @MockitoBean private RateLimitGuard rateLimitGuard;
     @MockitoBean private RateLimitService rateLimitService;
     @MockitoBean private UserRepository userRepository;
@@ -234,6 +236,34 @@ class AdminUserControllerTest {
                         .content("{\"role\":\"ROLE_SELLER\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Role changes are not permitted after account creation; create a new account instead."));
+    }
+
+    @Test
+    void onlyAdminCanDownloadSellerKycDocuments() throws Exception {
+        when(sellerKycDocuments.download("seller-id", "pan-card", 0))
+                .thenReturn(new GcsSellerKycDocumentService.StoredDocument(
+                        new byte[]{1, 2, 3}, "application/pdf", "seller-pan-card-0.pdf"));
+
+        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
+                        .with(user(admin())))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Disposition", "attachment; filename=\"seller-pan-card-0.pdf\""));
+
+        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
+                        .with(user(seller())))
+                .andExpect(status().isForbidden());
+
+        User customer = User.newCustomer("9876543002");
+        customer.setId("customer-id");
+        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
+                        .with(user(CustomUserDetails.build(customer))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0"))
+                .andExpect(status().isUnauthorized());
+
+        verify(sellerKycDocuments, times(1)).download("seller-id", "pan-card", 0);
     }
 
     private CustomUserDetails admin() {

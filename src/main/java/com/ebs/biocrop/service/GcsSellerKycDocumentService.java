@@ -9,6 +9,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
@@ -41,6 +42,7 @@ public class GcsSellerKycDocumentService {
         this.bucketName = bucketName;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public User upload(String sellerId, List<MultipartFile> licenceFiles,
                        MultipartFile gstCertificate, MultipartFile panCard, MultipartFile aadhaarCard,
                        boolean replaceLicenceFiles) {
@@ -110,6 +112,7 @@ public class GcsSellerKycDocumentService {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public StoredDocument download(String sellerId, String documentType, int index) {
         User seller = findSeller(sellerId);
         String storageUri = switch (documentType.toLowerCase(Locale.ROOT)) {
