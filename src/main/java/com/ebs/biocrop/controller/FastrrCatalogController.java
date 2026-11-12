@@ -283,7 +283,10 @@ public class FastrrCatalogController {
             prodOpt = productRepository.findById(lookupId);
         }
         if (prodOpt.isEmpty()) {
-            prodOpt = productRepository.findBySkuIgnoreCase(lookupId);
+            prodOpt = productRepository.findBySku(lookupId);
+        }
+        if (prodOpt.isEmpty()) {
+            prodOpt = productRepository.findByProductCode(lookupId);
         }
         if (prodOpt.isEmpty()) {
             return ResponseEntity.notFound().build();

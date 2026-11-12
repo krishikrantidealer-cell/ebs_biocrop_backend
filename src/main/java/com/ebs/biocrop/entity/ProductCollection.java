@@ -34,8 +34,7 @@ public class ProductCollection {
     public ProductCollection() {
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
-    }
-
+    } 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getName() { return name; }
