@@ -62,6 +62,21 @@ class WebSocketAuthInterceptorTest {
     }
 
     @Test
+    void beforeHandshake_shouldReject_whenBothQueryTokenAndValidHeaderPresent_inStrictMode() {
+        URI uri = URI.create("wss://localhost:8080/ws?userId=user-from-token&token=leakedToken");
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer validToken");
+
+        when(request.getURI()).thenReturn(uri);
+
+        Map<String, Object> attributes = new HashMap<>();
+        boolean result = strictInterceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertFalse(result);
+        verify(response).setStatusCode(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void beforeHandshake_shouldApprove_whenTokenInAuthorizationHeader_inStrictMode() {
         URI uri = URI.create("wss://localhost:8080/ws");
         HttpHeaders headers = new HttpHeaders();

@@ -25,6 +25,8 @@ import java.util.Optional;
  * Validates JWT access token, user identity, and account active status during WebSocket handshake.
  * Strict by default: requires token via HTTP header (Authorization: Bearer <jwt> or Sec-WebSocket-Protocol)
  * to completely eliminate token exposure in URL access logs.
+ * Any request containing a query-string token is strictly rejected by default to guarantee credentials
+ * are never recorded in URL logs.
  * URL query parameter token can optionally be allowed via app.websocket.allow-query-token=true.
  */
 @Component
@@ -61,19 +63,30 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
                 .build()
                 .getQueryParams();
 
+        // 1. Strictly reject any request containing a query-string token when query tokens are disabled
+        // even if a valid header token is supplied, guaranteeing credentials are never present in URL logs.
+        String queryToken = queryParams.getFirst("token");
+        if (queryToken != null && !queryToken.isBlank()) {
+            if (!allowQueryToken) {
+                log.warn("[WS Auth] Handshake rejected - URL query parameter token is prohibited for security. Path: {}. Use Authorization header or Sec-WebSocket-Protocol.", uri.getPath());
+                response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                return false;
+            }
+        }
+
         String userId = queryParams.getFirst("userId");
         String token = null;
         String selectedSubprotocol = null;
 
         HttpHeaders headers = request.getHeaders();
         if (headers != null) {
-            // 1. Check Authorization header (e.g. "Bearer eyJ...")
+            // 2. Check Authorization header (e.g. "Bearer eyJ...")
             String authHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 token = authHeader.substring(7).trim();
             }
 
-            // 2. Check Sec-WebSocket-Protocol header (browser WebSocket workaround for headers)
+            // 3. Check Sec-WebSocket-Protocol header (browser WebSocket workaround for headers)
             if (token == null || token.isBlank()) {
                 String protocolHeader = headers.getFirst("Sec-WebSocket-Protocol");
                 if (protocolHeader != null && !protocolHeader.isBlank()) {
@@ -89,17 +102,9 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             }
         }
 
-        // 3. Query parameter fallback (strictly disabled by default for URL security)
-        String queryToken = queryParams.getFirst("token");
-        if (queryToken != null && !queryToken.isBlank()) {
-            if (token == null || token.isBlank()) {
-                if (!allowQueryToken) {
-                    log.warn("[WS Auth] Handshake rejected - token in URL query parameter is disabled for security. Path: {}. Use Authorization header or Sec-WebSocket-Protocol.", uri.getPath());
-                    response.setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return false;
-                }
-                token = queryToken.trim();
-            }
+        // 4. Permissive query parameter fallback (only reachable when allowQueryToken == true)
+        if ((token == null || token.isBlank()) && queryToken != null && !queryToken.isBlank()) {
+            token = queryToken.trim();
         }
 
         if (token != null && token.startsWith("Bearer ")) {
