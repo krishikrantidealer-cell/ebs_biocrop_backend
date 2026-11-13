@@ -76,6 +76,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/checkout/serviceability").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/checkout/webhook").permitAll()
                         .requestMatchers("/api/v1/cart/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/wishlist/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/v1/checkout/**").hasRole("CUSTOMER")

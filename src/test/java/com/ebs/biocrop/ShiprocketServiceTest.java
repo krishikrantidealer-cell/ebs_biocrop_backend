@@ -3,6 +3,7 @@ package com.ebs.biocrop;
 import com.ebs.biocrop.dto.response.ShiprocketOrderResult;
 import com.ebs.biocrop.dto.response.ShiprocketServiceabilityResponse;
 import com.ebs.biocrop.entity.*;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.service.impl.ShiprocketServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -168,7 +169,7 @@ class ShiprocketServiceTest {
         order.setOrderNumber("S0001-2026-000001");
         order.setPlacedAt(LocalDateTime.now());
         order.setTotalAmount(1940.0);
-        order.setPaymentMethod(OrderPaymentMethod.PREPAID);
+        order.setPaymentMethod(PaymentMethod.PREPAID);
 
         OrderAddressSnapshot addr = new OrderAddressSnapshot();
         addr.setName("Kisan Farmer");

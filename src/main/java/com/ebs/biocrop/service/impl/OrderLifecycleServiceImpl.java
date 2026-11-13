@@ -1,11 +1,9 @@
 package com.ebs.biocrop.service.impl;
 
-import com.ebs.biocrop.entity.Order;
-import com.ebs.biocrop.entity.OrderItem;
-import com.ebs.biocrop.entity.OrderStatusEvent;
-import com.ebs.biocrop.entity.OrderPaymentTransaction;
-import com.ebs.biocrop.entity.Product;
-import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.entity.*;
+import com.ebs.biocrop.entity.enums.OrderStatus;
+import com.ebs.biocrop.entity.enums.PaymentStatus;
+import com.ebs.biocrop.entity.enums.ShipmentStatus;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.OrderRepository;
@@ -99,14 +97,14 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 Objects.equals(providerPaymentReference, tx.getProviderPaymentId())
                         && transactionType.equals(tx.getType()) && "CAPTURED".equals(tx.getStatus()));
         if (replay) return order;
-        if (!"AWAITING_ADVANCE_PAYMENT".equals(order.getOverallStatus())
-                || !"AWAITING_ADVANCE_PAYMENT".equals(order.getPayment().getStatus())) {
+        if ((!OrderStatus.PENDING_PAYMENT.name().equals(order.getOverallStatus()) && !"AWAITING_ADVANCE_PAYMENT".equals(order.getOverallStatus()))
+                || (!PaymentStatus.CREATED.name().equals(order.getPayment().getStatus()) && !PaymentStatus.AUTHORIZED.name().equals(order.getPayment().getStatus()) && !"AWAITING_ADVANCE_PAYMENT".equals(order.getPayment().getStatus()))) {
             throw new AppException("Order is not awaiting advance payment", HttpStatus.CONFLICT);
         }
         BigDecimal expected = order.getPayment().getAdvanceAmountDue().setScale(2, java.math.RoundingMode.HALF_UP);
         BigDecimal captured = capturedAmount.setScale(2, java.math.RoundingMode.HALF_UP);
         if (expected.signum() <= 0 || expected.compareTo(captured) != 0) {
-            throw new AppException("Captured amount does not match the required 10% advance", HttpStatus.CONFLICT);
+            throw new AppException("Captured amount does not match the required payment amount", HttpStatus.CONFLICT);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -120,7 +118,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         transaction.setOccurredAt(now);
         if (order.getPayment().getTransactions() == null) order.getPayment().setTransactions(new ArrayList<>());
         order.getPayment().getTransactions().add(transaction);
-        order.getPayment().setStatus(prepaid ? "PAID" : "PARTIALLY_PAID");
+        order.getPayment().setStatus(PaymentStatus.CAPTURED.name());
         order.getPayment().setAmountPaid(captured);
         order.getPayment().setAdvanceAmountPaid(captured);
         order.getPayment().setRemainingAmount(order.getFinancialSummary().getCodDue());
@@ -132,15 +130,15 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
 
         for (Order.SellerFulfillment fulfillment : order.getSellerFulfillments() == null
                 ? List.<Order.SellerFulfillment>of() : order.getSellerFulfillments()) {
-            fulfillment.setStatus("AWAITING_SELLER_RESPONSE");
+            fulfillment.setStatus(OrderStatus.CONFIRMED.name());
             fulfillment.setResponseDeadlineAt(now.plusHours(12));
             for (OrderItem item : order.getItems() == null ? List.<OrderItem>of() : order.getItems()) {
                 if (Objects.equals(fulfillment.getId(), item.getSellerFulfillmentId())) {
-                    item.setItemStatus("AWAITING_SELLER_RESPONSE");
+                    item.setItemStatus(OrderStatus.CONFIRMED.name());
                 }
             }
         }
-        order.setOverallStatus("AWAITING_SELLER_RESPONSE");
+        order.setOverallStatus(OrderStatus.CONFIRMED.name());
         order.setUpdatedAt(now);
         appendHistory(order, prepaid ? "PREPAID_PAYMENT_CAPTURED" : "ADVANCE_PAYMENT_CAPTURED", "SYSTEM",
                 prepaid ? "Full online payment confirmed" : "Required partial online payment confirmed");
@@ -149,10 +147,91 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
 
     @Override
     @Transactional
+    public Order recordPaymentAuthorized(String orderId, String providerPaymentReference) {
+        Order order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (order.getPayment() == null) {
+            order.setPayment(new OrderPaymentDetails());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        order.getPayment().setStatus(PaymentStatus.AUTHORIZED.name());
+        OrderPaymentTransaction tx = new OrderPaymentTransaction();
+        tx.setTransactionId(java.util.UUID.randomUUID().toString());
+        tx.setType("AUTHORIZATION");
+        tx.setStatus("AUTHORIZED");
+        tx.setProvider(order.getPayment().getProvider() != null ? order.getPayment().getProvider() : "RAZORPAY");
+        tx.setProviderPaymentId(providerPaymentReference);
+        tx.setOccurredAt(now);
+        if (order.getPayment().getTransactions() == null) order.getPayment().setTransactions(new ArrayList<>());
+        order.getPayment().getTransactions().add(tx);
+        order.setUpdatedAt(now);
+        appendHistory(order, "PAYMENT_AUTHORIZED", "SYSTEM", "Payment authorization received: " + providerPaymentReference);
+        return orders.save(order);
+    }
+
+    @Override
+    @Transactional
+    public Order recordPaymentFailed(String orderId, String providerPaymentReference, String failureReason) {
+        Order order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (order.getPayment() == null) {
+            order.setPayment(new OrderPaymentDetails());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        order.getPayment().setStatus(PaymentStatus.FAILED.name());
+        OrderPaymentTransaction tx = new OrderPaymentTransaction();
+        tx.setTransactionId(java.util.UUID.randomUUID().toString());
+        tx.setType("FAILURE");
+        tx.setStatus("FAILED");
+        tx.setProvider(order.getPayment().getProvider() != null ? order.getPayment().getProvider() : "RAZORPAY");
+        tx.setProviderPaymentId(providerPaymentReference);
+        tx.setOccurredAt(now);
+        if (order.getPayment().getTransactions() == null) order.getPayment().setTransactions(new ArrayList<>());
+        order.getPayment().getTransactions().add(tx);
+        order.setUpdatedAt(now);
+        appendHistory(order, "PAYMENT_FAILED", "SYSTEM", "Payment failed: " + (failureReason != null ? failureReason : "Gateway failure"));
+        return orders.save(order);
+    }
+
+    @Override
+    @Transactional
+    public Order recordPaymentRefunded(String orderId, String refundId, BigDecimal refundAmount, String reason) {
+        Order order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (order.getPayment() == null) {
+            order.setPayment(new OrderPaymentDetails());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        BigDecimal refund = refundAmount != null ? refundAmount : BigDecimal.ZERO;
+        Order.Refund refundRecord = new Order.Refund();
+        refundRecord.setRefundId(refundId != null ? refundId : java.util.UUID.randomUUID().toString());
+        refundRecord.setAmount(refund);
+        refundRecord.setReason(reason != null ? reason : "GATEWAY_REFUND");
+        refundRecord.setStatus("COMPLETED");
+        refundRecord.setOccurredAt(now);
+        if (order.getPayment().getRefunds() == null) order.getPayment().setRefunds(new ArrayList<>());
+        order.getPayment().getRefunds().add(refundRecord);
+
+        order.getPayment().setStatus(PaymentStatus.REFUNDED.name());
+        if (order.getFinancialSummary() != null) {
+            BigDecimal currentRefunded = order.getFinancialSummary().getRefundedTotal() != null
+                    ? order.getFinancialSummary().getRefundedTotal() : BigDecimal.ZERO;
+            order.getFinancialSummary().setRefundedTotal(currentRefunded.add(refund));
+            BigDecimal amountPaid = order.getPayment().getAmountPaid() != null ? order.getPayment().getAmountPaid() : BigDecimal.ZERO;
+            order.getFinancialSummary().setNetOnlineAmountRetained(amountPaid.subtract(order.getFinancialSummary().getRefundedTotal()).max(BigDecimal.ZERO));
+        }
+        order.setUpdatedAt(now);
+        appendHistory(order, "PAYMENT_REFUNDED", "SYSTEM", "Payment refund processed: " + refundId + " (amount " + refund + ")");
+        return orders.save(order);
+    }
+
+    @Override
+    @Transactional
     public Order respondToSellerFulfillment(String sellerId, String orderId, String fulfillmentId, String decision) {
         Order order = orders.findByIdAndSellerFulfillmentsSellerId(orderId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
-        if (!"AWAITING_SELLER_RESPONSE".equals(order.getOverallStatus())
+        if (!OrderStatus.CONFIRMED.name().equals(order.getOverallStatus())
+                && !"AWAITING_SELLER_RESPONSE".equals(order.getOverallStatus())
                 && !"PROCESSING".equals(order.getOverallStatus())) {
             throw new AppException("Order is not accepting seller responses", HttpStatus.CONFLICT);
         }
@@ -165,7 +244,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 .filter(value -> Objects.equals(value.getId(), fulfillmentId)
                         && Objects.equals(value.getSellerId(), sellerId))
                 .findFirst().orElseThrow(() -> new ResourceNotFoundException("Seller fulfillment", "id", fulfillmentId));
-        if (!"AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus())) {
+        if (!OrderStatus.CONFIRMED.name().equals(fulfillment.getStatus()) && !"AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus())) {
             throw new AppException("This seller fulfillment has already been answered", HttpStatus.CONFLICT);
         }
         LocalDateTime now = LocalDateTime.now();
@@ -181,23 +260,23 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         if (affectedItems.isEmpty()) throw new AppException("Seller fulfillment has no items", HttpStatus.CONFLICT);
 
         if ("ACCEPT".equals(normalized)) {
-            fulfillment.setStatus("ACCEPTED");
+            fulfillment.setStatus(OrderStatus.PROCESSING.name());
             fulfillment.setAcceptedAt(now);
             fulfillment.setDispatchSlaDeadlineAt(now.plusHours(48));
             for (OrderItem item : order.getItems()) {
-                if (affectedItems.contains(item.getItemOrderId())) item.setItemStatus("PROCESSING");
+                if (affectedItems.contains(item.getItemOrderId())) item.setItemStatus(OrderStatus.PROCESSING.name());
             }
             boolean sellerStillAwaiting = order.getSellerFulfillments().stream()
-                    .anyMatch(value -> value != fulfillment && "AWAITING_SELLER_RESPONSE".equals(value.getStatus()));
-            order.setOverallStatus(sellerStillAwaiting ? "AWAITING_SELLER_RESPONSE" : "PROCESSING");
+                    .anyMatch(value -> value != fulfillment && (OrderStatus.CONFIRMED.name().equals(value.getStatus()) || "AWAITING_SELLER_RESPONSE".equals(value.getStatus())));
+            order.setOverallStatus(sellerStillAwaiting ? OrderStatus.CONFIRMED.name() : OrderStatus.PROCESSING.name());
         } else {
-            fulfillment.setStatus("REJECTED");
+            fulfillment.setStatus(OrderStatus.CANCELLED.name());
             List<OrderItem> rejectedItems = order.getItems().stream()
                     .filter(item -> affectedItems.contains(item.getItemOrderId())).toList();
             releaseStock(rejectedItems);
             for (OrderItem item : order.getItems()) {
                 if (affectedItems.contains(item.getItemOrderId())) {
-                    item.setItemStatus("CANCELLED_BY_SELLER");
+                    item.setItemStatus(OrderStatus.CANCELLED.name());
                     markCancelled(item, sellerId, "SELLER_REJECTED");
                 }
             }
@@ -244,14 +323,14 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                         && Objects.equals(value.getSellerId(), sellerId))
                 .findFirst().orElseThrow(() -> new ResourceNotFoundException("Seller fulfillment", "id", fulfillmentId));
         if ("PACKED".equals(fulfillment.getStatus())) return order;
-        if (!"ACCEPTED".equals(fulfillment.getStatus())) {
+        if (!"ACCEPTED".equals(fulfillment.getStatus()) && !OrderStatus.PROCESSING.name().equals(fulfillment.getStatus())) {
             throw new AppException("Only an accepted fulfillment can be marked packed", HttpStatus.CONFLICT);
         }
         if (fulfillment.getDispatchSlaDeadlineAt() == null
                 || LocalDateTime.now().isAfter(fulfillment.getDispatchSlaDeadlineAt())) {
             throw new AppException("Dispatch SLA has expired; the fulfillment requires admin review", HttpStatus.CONFLICT);
         }
-        fulfillment.setStatus("PACKED");
+        fulfillment.setStatus(OrderStatus.PROCESSING.name());
         order.setUpdatedAt(LocalDateTime.now());
         appendHistory(order, "SELLER_FULFILLMENT_PACKED", sellerId, "Seller marked fulfillment packed; carrier handover is still pending");
         return orders.save(order);
@@ -278,7 +357,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                         && Objects.equals(value.getSellerId(), sellerId))
                 .findFirst().orElseThrow(() -> new ResourceNotFoundException("Seller fulfillment", "id", fulfillmentId));
 
-        if (!List.of("ACCEPTED", "PACKED").contains(fulfillment.getStatus())) {
+        if (!List.of("ACCEPTED", "PACKED", OrderStatus.PROCESSING.name()).contains(fulfillment.getStatus())) {
             throw new AppException("Only an accepted or packed fulfillment can be booked for shipment", HttpStatus.CONFLICT);
         }
 
@@ -339,7 +418,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         Set<String> allAssignedItemIds = new HashSet<>(assignedItemIds);
         allAssignedItemIds.addAll(packageItemIds);
         if (allAssignedItemIds.containsAll(activeItemIds)) {
-            fulfillment.setStatus("PACKED");
+            fulfillment.setStatus(OrderStatus.PROCESSING.name());
         }
 
         order.setUpdatedAt(now);
@@ -494,7 +573,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         } else if (allShipped) {
             order.setOverallStatus("DISPATCHED");
         } else if (anyShipped) {
-            order.setOverallStatus("PARTIALLY_SHIPPED");
+            order.setOverallStatus(OrderStatus.DISPATCHED.name());
         }
 
         order.setUpdatedAt(appliedAt);
@@ -655,8 +734,8 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         }
         if (!anyOpenWindows) {
             boolean awaitingSeller = order.getSellerFulfillments().stream()
-                    .anyMatch(fulfillment -> "AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus()));
-            order.setOverallStatus(anyActive ? (awaitingSeller ? "AWAITING_SELLER_RESPONSE" : "PROCESSING") : "CANCELLED");
+                    .anyMatch(fulfillment -> OrderStatus.CONFIRMED.name().equals(fulfillment.getStatus()) || "AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus()));
+            order.setOverallStatus(anyActive ? (awaitingSeller ? OrderStatus.CONFIRMED.name() : OrderStatus.PROCESSING.name()) : OrderStatus.CANCELLED.name());
         }
         if (!anyActive) {
             order.setStockReserved(false);
@@ -720,12 +799,12 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
     public void processExpiredSellerResponseWindows() {
         LocalDateTime now = LocalDateTime.now();
         Query query = Query.query(Criteria.where("sellerFulfillments").elemMatch(
-                Criteria.where("status").is("AWAITING_SELLER_RESPONSE").and("responseDeadlineAt").lte(now)))
+                Criteria.where("status").in("AWAITING_SELLER_RESPONSE", OrderStatus.CONFIRMED.name()).and("responseDeadlineAt").lte(now)))
                 .limit(100);
         for (Order order : mongoTemplate.find(query, Order.class)) {
             boolean changed = false;
             for (Order.SellerFulfillment fulfillment : order.getSellerFulfillments()) {
-                if (!"AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus())
+                if ((!OrderStatus.CONFIRMED.name().equals(fulfillment.getStatus()) && !"AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus()))
                         || fulfillment.getResponseDeadlineAt() == null || fulfillment.getResponseDeadlineAt().isAfter(now)) continue;
                 List<String> itemIds = fulfillment.getItemOrderIds() == null ? List.of() : fulfillment.getItemOrderIds();
                 List<OrderItem> expiredItems = order.getItems().stream().filter(item -> itemIds.contains(item.getItemOrderId())).toList();
@@ -791,8 +870,8 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 if (!hasOpen) {
                     boolean anyActive = order.getItems().stream().anyMatch(this::isStillActive);
                     boolean awaitingSeller = order.getSellerFulfillments().stream()
-                            .anyMatch(fulfillment -> "AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus()));
-                    order.setOverallStatus(anyActive ? (awaitingSeller ? "AWAITING_SELLER_RESPONSE" : "PROCESSING") : "CANCELLED");
+                            .anyMatch(fulfillment -> OrderStatus.CONFIRMED.name().equals(fulfillment.getStatus()) || "AWAITING_SELLER_RESPONSE".equals(fulfillment.getStatus()));
+                    order.setOverallStatus(anyActive ? (awaitingSeller ? OrderStatus.CONFIRMED.name() : OrderStatus.PROCESSING.name()) : OrderStatus.CANCELLED.name());
                 }
                 order.setUpdatedAt(now);
                 orders.save(order);
@@ -848,9 +927,9 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
 
     private Order cancel(Order order, String actor) {
         boolean unpaidCod = order.getPayment() != null && "COD".equalsIgnoreCase(order.getPayment().getPaymentType())
-                && "AWAITING_COD_COLLECTION".equals(order.getPayment().getStatus())
-                && "AWAITING_SELLER_RESPONSE".equals(order.getOverallStatus());
-        if (!"AWAITING_ADVANCE_PAYMENT".equals(order.getOverallStatus()) && !unpaidCod) {
+                && (PaymentStatus.CREATED.name().equals(order.getPayment().getStatus()) || "AWAITING_COD_COLLECTION".equals(order.getPayment().getStatus()))
+                && (OrderStatus.CONFIRMED.name().equals(order.getOverallStatus()) || "AWAITING_SELLER_RESPONSE".equals(order.getOverallStatus()));
+        if ((!OrderStatus.PENDING_PAYMENT.name().equals(order.getOverallStatus()) && !"AWAITING_ADVANCE_PAYMENT".equals(order.getOverallStatus())) && !unpaidCod) {
             throw new AppException("This order can only be cancelled before payment or seller processing begins", HttpStatus.CONFLICT);
         }
         if (order.getPayment() != null && order.getPayment().getAmountPaid().signum() > 0) {

@@ -6,7 +6,7 @@ import com.ebs.biocrop.dto.response.ProductReviewsResponse;
 import com.ebs.biocrop.dto.response.ReviewEligibilityResponse;
 import com.ebs.biocrop.dto.response.ReviewResponse;
 import com.ebs.biocrop.dto.response.ReviewSummaryResponse;
-import com.ebs.biocrop.entity.OrderStatus;
+import com.ebs.biocrop.entity.enums.OrderStatus;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.Review;
 import com.ebs.biocrop.entity.User;
@@ -82,7 +82,7 @@ class ReviewServiceTest {
     void createReview_Successful_ForVerifiedBuyer() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
         when(userRepository.findById("cust123")).thenReturn(Optional.of(sampleUser));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(true);
         when(reviewRepository.findByProductIdAndCustomerIdAndIsDeletedFalse("prod123", "cust123"))
                 .thenReturn(Optional.empty());
@@ -127,7 +127,7 @@ class ReviewServiceTest {
     @Test
     void createReview_Fails_WhenNotVerifiedBuyer() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(false);
 
         CreateReviewRequest request = new CreateReviewRequest();
@@ -146,7 +146,7 @@ class ReviewServiceTest {
     @Test
     void createReview_Fails_WhenMoreThan5Images() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(true);
 
         CreateReviewRequest request = new CreateReviewRequest();
@@ -164,7 +164,7 @@ class ReviewServiceTest {
     @Test
     void createReview_Fails_WhenAlreadyReviewed() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(true);
 
         Review existingReview = new Review();
@@ -186,7 +186,7 @@ class ReviewServiceTest {
     @Test
     void checkEligibility_ReturnsTrueForVerifiedBuyerWithoutReview() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(true);
         when(reviewRepository.findByProductIdAndCustomerIdAndIsDeletedFalse("prod123", "cust123"))
                 .thenReturn(Optional.empty());
@@ -202,7 +202,7 @@ class ReviewServiceTest {
     @Test
     void checkEligibility_ReturnsFalseForNonBuyer() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(false);
 
         ReviewEligibilityResponse response = reviewService.checkEligibility("cust123", "prod123");
@@ -215,7 +215,7 @@ class ReviewServiceTest {
     @Test
     void checkEligibility_ReturnsAlreadyReviewedWhenExists() {
         when(productRepository.findById("prod123")).thenReturn(Optional.of(sampleProduct));
-        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELED.name()))
+        when(orderRepository.existsByCustomerIdAndProductIdPurchased("cust123", "prod123", OrderStatus.CANCELLED.name()))
                 .thenReturn(true);
 
         Review rev = new Review();

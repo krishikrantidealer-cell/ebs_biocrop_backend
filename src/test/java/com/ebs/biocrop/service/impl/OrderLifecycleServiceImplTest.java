@@ -509,4 +509,43 @@ class OrderLifecycleServiceImplTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("recordPaymentAuthorized transitions payment to AUTHORIZED")
+    void testRecordPaymentAuthorized() {
+        when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
+        when(orders.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order result = lifecycleService.recordPaymentAuthorized(ORDER_ID, "pay_auth_123");
+
+        assertEquals(com.ebs.biocrop.entity.enums.PaymentStatus.AUTHORIZED.name(), result.getPayment().getStatus());
+        assertTrue(result.getPayment().getTransactions().stream()
+                .anyMatch(tx -> "pay_auth_123".equals(tx.getProviderPaymentId()) && "AUTHORIZED".equals(tx.getStatus())));
+    }
+
+    @Test
+    @DisplayName("recordPaymentFailed transitions payment to FAILED")
+    void testRecordPaymentFailed() {
+        when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
+        when(orders.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order result = lifecycleService.recordPaymentFailed(ORDER_ID, "pay_fail_123", "Bank server down");
+
+        assertEquals(com.ebs.biocrop.entity.enums.PaymentStatus.FAILED.name(), result.getPayment().getStatus());
+        assertTrue(result.getPayment().getTransactions().stream()
+                .anyMatch(tx -> "pay_fail_123".equals(tx.getProviderPaymentId()) && "FAILED".equals(tx.getStatus())));
+    }
+
+    @Test
+    @DisplayName("recordPaymentRefunded transitions payment to REFUNDED and updates financial summary")
+    void testRecordPaymentRefunded() {
+        when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
+        when(orders.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order result = lifecycleService.recordPaymentRefunded(ORDER_ID, "rfnd_123", new BigDecimal("100.00"), "Product damaged");
+
+        assertEquals(com.ebs.biocrop.entity.enums.PaymentStatus.REFUNDED.name(), result.getPayment().getStatus());
+        assertEquals(new BigDecimal("100.00"), result.getFinancialSummary().getRefundedTotal());
+        assertEquals(BigDecimal.ZERO, result.getFinancialSummary().getNetOnlineAmountRetained());
+    }
 }

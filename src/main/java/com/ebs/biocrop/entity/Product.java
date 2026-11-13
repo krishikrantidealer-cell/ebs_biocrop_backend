@@ -1,5 +1,6 @@
 package com.ebs.biocrop.entity;
 
+import com.ebs.biocrop.entity.enums.ProductStatus;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -64,7 +65,7 @@ public class Product {
     private String productWeightUnit;
 
     @Field(write = Field.Write.ALWAYS)
-    private String status;
+    private String status = ProductStatus.ACTIVE.name();
     @Field(write = Field.Write.ALWAYS)
     private Boolean isDeleted = false;
     @Field(write = Field.Write.ALWAYS)
@@ -125,6 +126,8 @@ public class Product {
     public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public ProductStatus getProductStatus() { return ProductStatus.fromString(status); }
+    public void setProductStatus(ProductStatus productStatus) { this.status = productStatus != null ? productStatus.name() : ProductStatus.ACTIVE.name(); }
     public Boolean getIsDeleted() { return isDeleted; }
     public void setIsDeleted(Boolean deleted) { this.isDeleted = deleted; }
     public LocalDateTime getDeletedAt() { return deletedAt; }

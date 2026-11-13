@@ -29,6 +29,7 @@ class RazorpayServiceTest {
         razorpayService = new RazorpayServiceImpl(environment, new ObjectMapper());
         ReflectionTestUtils.setField(razorpayService, "keyId", "rzp_test_ebs_biocrop_default");
         ReflectionTestUtils.setField(razorpayService, "keySecret", "ebs_test_secret_12345");
+        ReflectionTestUtils.setField(razorpayService, "webhookSecret", "ebs_webhook_secret_67890");
     }
 
     @Test
@@ -57,5 +58,19 @@ class RazorpayServiceTest {
 
         assertTrue(razorpayService.verifyPaymentSignature(orderId, paymentId, validSignature));
         assertFalse(razorpayService.verifyPaymentSignature(orderId, paymentId, "invalid_sig_abc"));
+    }
+
+    @Test
+    @DisplayName("verifyWebhookSignature validates correct HMAC-SHA256 webhook signature")
+    void testVerifyWebhookSignature() throws Exception {
+        String rawBody = "{\"event\":\"payment.captured\",\"payload\":{}}";
+        String secret = "ebs_webhook_secret_67890";
+
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String validSignature = HexFormat.of().formatHex(mac.doFinal(rawBody.getBytes(StandardCharsets.UTF_8)));
+
+        assertTrue(razorpayService.verifyWebhookSignature(rawBody, validSignature));
+        assertFalse(razorpayService.verifyWebhookSignature(rawBody, "invalid_webhook_sig"));
     }
 }

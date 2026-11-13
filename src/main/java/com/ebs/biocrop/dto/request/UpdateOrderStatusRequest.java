@@ -1,6 +1,6 @@
 package com.ebs.biocrop.dto.request;
 
-import com.ebs.biocrop.entity.OrderStatus;
+import com.ebs.biocrop.entity.enums.OrderStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 

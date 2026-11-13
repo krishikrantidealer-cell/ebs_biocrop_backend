@@ -1,5 +1,9 @@
 package com.ebs.biocrop.entity;
 
+import com.ebs.biocrop.entity.enums.OrderStatus;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
+import com.ebs.biocrop.entity.enums.PaymentStatus;
+import com.ebs.biocrop.entity.enums.ShipmentStatus;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -41,7 +45,7 @@ public class Order {
     @Field(write = Field.Write.ALWAYS)
     private List<CustomerDecisionWindow> customerDecisionWindows = new ArrayList<>();
     @Field(write = Field.Write.ALWAYS)
-    private String overallStatus = "AWAITING_ADVANCE_PAYMENT";
+    private String overallStatus = OrderStatus.PENDING_PAYMENT.name();
     @Field(write = Field.Write.ALWAYS)
     private List<OrderStatusEvent> statusHistory = new ArrayList<>();
     @Field(write = Field.Write.ALWAYS)
@@ -143,17 +147,17 @@ public class Order {
     public void setTotalAmount(Double value) { financialSummary.setCurrentOrderTotal(value == null ? null : java.math.BigDecimal.valueOf(value)); }
     @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public String getCurrency() { return financialSummary.getCurrency(); }
     public void setCurrency(String value) { financialSummary.setCurrency(value); }
-    @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public OrderPaymentMethod getPaymentMethod() {
-        if (payment == null || payment.getPaymentType() == null) return OrderPaymentMethod.PARTIAL;
-        if ("PREPAID".equalsIgnoreCase(payment.getPaymentType())) return OrderPaymentMethod.PREPAID;
-        if ("COD".equalsIgnoreCase(payment.getPaymentType())) return OrderPaymentMethod.COD;
-        return OrderPaymentMethod.PARTIAL;
+    @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public PaymentMethod getPaymentMethod() {
+        if (payment == null || payment.getPaymentType() == null) return PaymentMethod.PARTIAL;
+        if ("PREPAID".equalsIgnoreCase(payment.getPaymentType())) return PaymentMethod.PREPAID;
+        if ("COD".equalsIgnoreCase(payment.getPaymentType())) return PaymentMethod.COD;
+        return PaymentMethod.PARTIAL;
     }
-    public void setPaymentMethod(OrderPaymentMethod value) { }
-    @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public OrderPaymentState getPaymentState() {
-        return "AWAITING_ADVANCE_PAYMENT".equals(overallStatus) ? OrderPaymentState.AWAITING_PAYMENT : OrderPaymentState.PAYMENT_CONFIRMED;
+    public void setPaymentMethod(PaymentMethod value) { }
+    @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public PaymentStatus getPaymentState() {
+        return OrderStatus.PENDING_PAYMENT.name().equals(overallStatus) ? PaymentStatus.CREATED : PaymentStatus.CAPTURED;
     }
-    public void setPaymentState(OrderPaymentState value) { }
+    public void setPaymentState(PaymentStatus value) { }
     @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public Double getAdvancePercentage() { return payment.getAdvancePercentage().doubleValue(); }
     public void setAdvancePercentage(Double value) { payment.setAdvancePercentage(value == null ? null : java.math.BigDecimal.valueOf(value)); }
     @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public Double getAdvanceAmountDue() { return financialSummary.getAdvanceAmountDue().doubleValue(); }
@@ -165,7 +169,7 @@ public class Order {
         @Field(write = Field.Write.ALWAYS) private String sellerId;
         @Field(write = Field.Write.ALWAYS) private OrderSellerSnapshot sellerSnapshot = new OrderSellerSnapshot();
         @Field(write = Field.Write.ALWAYS) private List<String> itemOrderIds = new ArrayList<>();
-        @Field(write = Field.Write.ALWAYS) private String status = "AWAITING_SELLER_RESPONSE";
+        @Field(write = Field.Write.ALWAYS) private String status = OrderStatus.CONFIRMED.name();
         @Field(write = Field.Write.ALWAYS) private LocalDateTime responseDeadlineAt;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime acceptedAt;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime dispatchSlaDeadlineAt;
@@ -206,7 +210,7 @@ public class Order {
         @Field(write = Field.Write.ALWAYS) private Double lengthCm;
         @Field(write = Field.Write.ALWAYS) private Double breadthCm;
         @Field(write = Field.Write.ALWAYS) private Double heightCm;
-        @Field(write = Field.Write.ALWAYS) private String status = "NOT_CREATED";
+        @Field(write = Field.Write.ALWAYS) private String status = ShipmentStatus.PENDING.name();
         @Field(write = Field.Write.ALWAYS) private String carrier;
         @Field(write = Field.Write.ALWAYS) private String trackingNumber;
         @Field(write = Field.Write.ALWAYS) private String labelReference;

@@ -5,7 +5,7 @@ import com.ebs.biocrop.dto.response.ShiprocketServiceabilityResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderAddressSnapshot;
 import com.ebs.biocrop.entity.OrderItem;
-import com.ebs.biocrop.entity.OrderPaymentMethod;
+
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.service.ShiprocketService;
 import com.fasterxml.jackson.databind.JsonNode;

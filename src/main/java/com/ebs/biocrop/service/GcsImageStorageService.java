@@ -1,6 +1,7 @@
 package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.entity.ProductImage;
+import com.ebs.biocrop.entity.enums.ImageResolution;
 import com.ebs.biocrop.exception.AppException;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;

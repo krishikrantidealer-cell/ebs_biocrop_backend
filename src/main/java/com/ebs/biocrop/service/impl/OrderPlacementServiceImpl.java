@@ -2,7 +2,9 @@ package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.entity.*;
+import com.ebs.biocrop.entity.enums.OrderStatus;
 import com.ebs.biocrop.entity.enums.PaymentMethod;
+import com.ebs.biocrop.entity.enums.PaymentStatus;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
@@ -71,7 +73,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal calculateOnlinePaymentAmount(String customerId, PlaceOrderRequest request) {
-        if (request == null || request.getPaymentMethod() == null || request.getPaymentMethod() == OrderPaymentMethod.COD) {
+        if (request == null || request.getPaymentMethod() == null || request.getPaymentMethod() == PaymentMethod.COD) {
             throw new AppException("Select PREPAID or PARTIAL for online payment", HttpStatus.BAD_REQUEST);
         }
         Cart cart = carts.findByUser(customerId)
@@ -92,21 +94,21 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
         BigDecimal total = BigDecimal.ZERO;
         BigDecimal minimumRequired = ADVANCE_RATE;
-        BigDecimal percentage = request.getPaymentMethod() == OrderPaymentMethod.PREPAID
+        BigDecimal percentage = request.getPaymentMethod() == PaymentMethod.PREPAID
                 ? BigDecimal.valueOf(100) : request.getAdvancePercentage() == null ? ADVANCE_RATE : request.getAdvancePercentage();
         for (CartItem item : cart.getItems()) {
             ProductVariant variant = variants.get(normalizeId(item.getVariantId()));
             Product product = products.get(normalizeId(item.getVariantId()));
             if (variant == null || product == null) throw new AppException("A cart item is no longer available", HttpStatus.CONFLICT);
             validatePaymentOption(variant, request.getPaymentMethod(), percentage, product.getTitle());
-            if (request.getPaymentMethod() == OrderPaymentMethod.PARTIAL) {
+            if (request.getPaymentMethod() == PaymentMethod.PARTIAL) {
                 BigDecimal min = variant.getMinimumPartialPaymentPercentage() == null ? ADVANCE_RATE
                         : BigDecimal.valueOf(variant.getMinimumPartialPaymentPercentage());
                 minimumRequired = minimumRequired.max(min);
             }
             total = total.add(price(variant.getEffectivePrice(), product.getTitle()).multiply(BigDecimal.valueOf(item.getQuantity())));
         }
-        if (request.getPaymentMethod() == OrderPaymentMethod.PARTIAL
+        if (request.getPaymentMethod() == PaymentMethod.PARTIAL
                 && (percentage.compareTo(minimumRequired) < 0 || percentage.compareTo(BigDecimal.valueOf(99)) > 0)) {
             throw new AppException("Partial payment percentage must meet every item's minimum (" + minimumRequired.stripTrailingZeros().toPlainString() + "%) and be below 100%", HttpStatus.BAD_REQUEST);
         }
@@ -127,8 +129,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         if (request.getPaymentMethod() == null) {
             throw new AppException("A checkout payment method is required", HttpStatus.BAD_REQUEST);
         }
-        BigDecimal paymentPercentage = request.getPaymentMethod() == OrderPaymentMethod.PREPAID ? BigDecimal.valueOf(100)
-                : request.getPaymentMethod() == OrderPaymentMethod.COD ? BigDecimal.ZERO
+        BigDecimal paymentPercentage = request.getPaymentMethod() == PaymentMethod.PREPAID ? BigDecimal.valueOf(100)
+                : request.getPaymentMethod() == PaymentMethod.COD ? BigDecimal.ZERO
                 : request.getAdvancePercentage() == null ? ADVANCE_RATE : request.getAdvancePercentage();
 
         User customer = users.findById(customerId)
@@ -235,7 +237,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             totalList = totalList.add(line.listTotal());
             totalDiscount = totalDiscount.add(line.discountTotal());
             orderTotal = orderTotal.add(line.lineTotal());
-            if (request.getPaymentMethod() != OrderPaymentMethod.PREPAID && line.variant().getCodCharge() != null) {
+            if (request.getPaymentMethod() != PaymentMethod.PREPAID && line.variant().getCodCharge() != null) {
                 totalCodCharges = totalCodCharges.add(BigDecimal.valueOf(line.variant().getCodCharge())
                         .multiply(BigDecimal.valueOf(line.quantity())));
             }
@@ -251,7 +253,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                     : item.getLineTotal().multiply(paymentPercentage).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             allocated = allocated.add(itemAdvance);
             item.setAdvanceAllocatedAtCheckout(itemAdvance);
-            BigDecimal itemCodCharge = request.getPaymentMethod() == OrderPaymentMethod.PREPAID ? BigDecimal.ZERO
+            BigDecimal itemCodCharge = request.getPaymentMethod() == PaymentMethod.PREPAID ? BigDecimal.ZERO
                     : BigDecimal.valueOf(lines.get(i).variant().getCodCharge() == null ? 0.0 : lines.get(i).variant().getCodCharge())
                     .multiply(BigDecimal.valueOf(item.getQuantity()));
             item.setCodDueAtCheckout(item.getLineTotal().subtract(itemAdvance).add(itemCodCharge).setScale(2, RoundingMode.HALF_UP));
@@ -281,8 +283,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             case PREPAID -> "PREPAID";
             case PARTIAL -> "PARTIAL_ADVANCE_COD";
             case COD -> "COD";
+            default -> "PREPAID";
         });
-        payment.setStatus(request.getPaymentMethod() == OrderPaymentMethod.COD ? "AWAITING_COD_COLLECTION" : "AWAITING_ADVANCE_PAYMENT");
+        payment.setStatus(PaymentStatus.CREATED.name());
         payment.setAdvancePercentage(paymentPercentage);
         payment.setAdvanceAmountDue(advanceTotal);
         payment.setAdvanceAmountPaid(BigDecimal.ZERO);
@@ -295,8 +298,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         payment.setTransactions(new ArrayList<>());
         payment.setRefunds(new ArrayList<>());
         order.setPayment(payment);
-        boolean codOrder = request.getPaymentMethod() == OrderPaymentMethod.COD;
-        order.setOverallStatus(codOrder ? "AWAITING_SELLER_RESPONSE" : "AWAITING_ADVANCE_PAYMENT");
+        boolean codOrder = request.getPaymentMethod() == PaymentMethod.COD;
+        order.setOverallStatus(codOrder ? OrderStatus.CONFIRMED.name() : OrderStatus.PENDING_PAYMENT.name());
         order.setCustomerDecisionWindows(new ArrayList<>());
         order.setPlacedAt(now);
         order.setCreatedAt(now);
@@ -310,10 +313,10 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         order.setStatusHistory(List.of(initial));
         if (codOrder) {
             for (Order.SellerFulfillment fulfillment : order.getSellerFulfillments()) {
-                fulfillment.setStatus("AWAITING_SELLER_RESPONSE");
+                fulfillment.setStatus(OrderStatus.CONFIRMED.name());
                 fulfillment.setResponseDeadlineAt(now.plusHours(12));
             }
-            for (OrderItem item : order.getItems()) item.setItemStatus("AWAITING_SELLER_RESPONSE");
+            for (OrderItem item : order.getItems()) item.setItemStatus(OrderStatus.CONFIRMED.name());
         }
 
         try {
@@ -383,7 +386,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         snapshot.setDispatchPincode(seller.getAddress() == null ? null : seller.getAddress().getPincode());
         snapshot.setSellerCode(seller.getSellerCode());
         group.setSellerSnapshot(snapshot);
-        group.setStatus("AWAITING_ADVANCE_PAYMENT");
+        group.setStatus(OrderStatus.PENDING_PAYMENT.name());
         group.setResponseDeadlineAt(null);
         group.setAcceptedAt(null);
         group.setDispatchSlaDeadlineAt(null);
@@ -429,7 +432,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         item.setUnitPrice(line.unitPrice());
         item.setTaxAmount(null);
         item.setLineTotal(line.lineTotal());
-        item.setItemStatus("AWAITING_ADVANCE_PAYMENT");
+        item.setItemStatus(OrderStatus.PENDING_PAYMENT.name());
         item.setCancellation(null);
         return item;
     }
@@ -472,7 +475,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private void validatePaymentOption(ProductVariant variant, OrderPaymentMethod checkoutMethod,
+    private void validatePaymentOption(ProductVariant variant, PaymentMethod checkoutMethod,
                                        BigDecimal requestedPercentage, String productTitle) {
         PaymentMethod configured = variant.getPaymentMethod() == null ? PaymentMethod.ONLINE : variant.getPaymentMethod();
         boolean onlineSupported = configured == PaymentMethod.ONLINE || configured == PaymentMethod.BOTH;

@@ -29,4 +29,12 @@ public interface OrderLifecycleService {
                                       Integer statusId, String status, LocalDateTime eventTime);
     Order resolveCustomerDecisionWindow(String customerId, String orderId, String decisionWindowId,
                                         String decision, List<String> itemOrderIds);
+    /** Called when payment is authorized at the gateway. */
+    Order recordPaymentAuthorized(String orderId, String providerPaymentReference);
+
+    /** Called when payment fails at the gateway. */
+    Order recordPaymentFailed(String orderId, String providerPaymentReference, String failureReason);
+
+    /** Called when a refund is processed by the payment gateway. */
+    Order recordPaymentRefunded(String orderId, String refundId, java.math.BigDecimal refundAmount, String reason);
 }

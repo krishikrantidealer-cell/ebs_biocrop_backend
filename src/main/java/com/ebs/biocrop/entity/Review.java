@@ -174,6 +174,19 @@ public class Review {
         this.status = status;
     }
 
+    public ReviewStatus getReviewStatus() {
+        if (status == null || status.isBlank()) return ReviewStatus.APPROVED;
+        try {
+            return ReviewStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ReviewStatus.APPROVED;
+        }
+    }
+
+    public void setReviewStatus(ReviewStatus reviewStatus) {
+        this.status = reviewStatus != null ? reviewStatus.name() : ReviewStatus.APPROVED.name();
+    }
+
     public Boolean getIsDeleted() {
         return isDeleted;
     }

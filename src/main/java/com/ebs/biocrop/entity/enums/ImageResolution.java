@@ -1,4 +1,4 @@
-package com.ebs.biocrop.service;
+package com.ebs.biocrop.entity.enums;
 
 public enum ImageResolution {
     ORIGINAL("original"),

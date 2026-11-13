@@ -4,7 +4,7 @@ import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.entity.Cart;
 import com.ebs.biocrop.entity.CartItem;
 import com.ebs.biocrop.entity.Order;
-import com.ebs.biocrop.entity.OrderPaymentMethod;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.entity.User;
@@ -156,7 +156,7 @@ class OrderPlacementServiceImplTest {
         assertEquals(new BigDecimal("20.00"), service.calculateOnlinePaymentAmount(CUSTOMER_ID, partial));
 
         PlaceOrderRequest prepaid = validRequest();
-        prepaid.setPaymentMethod(OrderPaymentMethod.PREPAID);
+        prepaid.setPaymentMethod(PaymentMethod.PREPAID);
         prepaid.setAdvancePercentage(null);
         assertEquals(new BigDecimal("200.00"), service.calculateOnlinePaymentAmount(CUSTOMER_ID, prepaid));
 
@@ -173,7 +173,7 @@ class OrderPlacementServiceImplTest {
         when(mongoTemplate.findAndModify(any(Query.class), any(Update.class),
                 any(FindAndModifyOptions.class), eq(Product.class))).thenReturn(productWithStock(3));
         PlaceOrderRequest cod = validRequest();
-        cod.setPaymentMethod(OrderPaymentMethod.COD);
+        cod.setPaymentMethod(PaymentMethod.COD);
         cod.setAdvancePercentage(null);
         product.getVariants().getFirst().setPaymentMethod(PaymentMethod.BOTH);
 
@@ -194,7 +194,7 @@ class OrderPlacementServiceImplTest {
         when(mongoTemplate.findAndModify(any(Query.class), any(Update.class),
                 any(FindAndModifyOptions.class), eq(Product.class))).thenReturn(productWithStock(3));
         PlaceOrderRequest prepaid = validRequest();
-        prepaid.setPaymentMethod(OrderPaymentMethod.PREPAID);
+        prepaid.setPaymentMethod(PaymentMethod.PREPAID);
         prepaid.setAdvancePercentage(null);
         Order created = service.createOrders(CUSTOMER_ID, prepaid, "checkout-key");
         when(orders.findById("order-id")).thenReturn(Optional.of(created));
@@ -576,7 +576,7 @@ class OrderPlacementServiceImplTest {
 
     private PlaceOrderRequest validRequest() {
         PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setPaymentMethod(OrderPaymentMethod.PARTIAL);
+        request.setPaymentMethod(PaymentMethod.PARTIAL);
         request.setAdvancePercentage(new BigDecimal("10"));
         PlaceOrderRequest.AddressInput address = new PlaceOrderRequest.AddressInput();
         address.setName("Test Customer");

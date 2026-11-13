@@ -11,6 +11,7 @@ import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.dto.response.RazorpayOrderResult;
 import com.ebs.biocrop.dto.response.ShiprocketServiceabilityResponse;
 import com.ebs.biocrop.entity.*;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.CartRepository;
@@ -50,6 +51,7 @@ public class CheckoutController {
     private final ShiprocketService shiprocketService;
     private final OrderLifecycleService orderLifecycleService;
     private final RateLimitGuard rateLimitGuard;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public CheckoutController(
             CartService cartService,
@@ -59,7 +61,8 @@ public class CheckoutController {
             RazorpayService razorpayService,
             ShiprocketService shiprocketService,
             OrderLifecycleService orderLifecycleService,
-            RateLimitGuard rateLimitGuard) {
+            RateLimitGuard rateLimitGuard,
+            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.cartService = cartService;
         this.orderPlacementService = orderPlacementService;
         this.orderRepository = orderRepository;
@@ -68,6 +71,7 @@ public class CheckoutController {
         this.shiprocketService = shiprocketService;
         this.orderLifecycleService = orderLifecycleService;
         this.rateLimitGuard = rateLimitGuard;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -155,13 +159,13 @@ public class CheckoutController {
         if (orderRequest == null) {
             throw new AppException("Order details are required", HttpStatus.BAD_REQUEST);
         }
-        if (orderRequest.getPaymentMethod() == OrderPaymentMethod.COD) {
+        if (orderRequest.getPaymentMethod() == PaymentMethod.COD) {
             throw new AppException("COD orders are placed after customer confirmation without online payment", HttpStatus.BAD_REQUEST);
         }
         double totalAmount = cart.getFinalAmount() != null ? cart.getFinalAmount() : (cart.getTotalAmount() != null ? cart.getTotalAmount() : 0.0);
         BigDecimal amount = orderPlacementService.calculateOnlinePaymentAmount(customer.getId(), orderRequest);
         double amountToPay = amount.doubleValue();
-        double advancePct = orderRequest.getPaymentMethod() == OrderPaymentMethod.PREPAID ? 100.0
+        double advancePct = orderRequest.getPaymentMethod() == PaymentMethod.PREPAID ? 100.0
                 : (orderRequest.getAdvancePercentage() == null ? 10.0 : orderRequest.getAdvancePercentage().doubleValue());
 
         String receipt = "rcpt_" + System.currentTimeMillis();
@@ -308,5 +312,103 @@ public class CheckoutController {
         tracking.put("shipments", fulfillmentTracking);
 
         return ResponseEntity.ok(ApiResponse.ok("Tracking details retrieved", tracking));
+    }
+
+    /**
+     * Webhook listener for asynchronous Razorpay payment and refund lifecycle events.
+     */
+    @PostMapping(value = "/webhook", consumes = "application/json")
+    @Operation(summary = "Receive and process asynchronous Razorpay payment webhooks")
+    public ResponseEntity<Map<String, Object>> handleRazorpayWebhook(
+            @RequestBody String rawPayload,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
+
+        if (signature == null || signature.isBlank()) {
+            log.warn("Razorpay webhook received without X-Razorpay-Signature header");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("status", "error", "message", "Missing X-Razorpay-Signature"));
+        }
+
+        boolean isValid = razorpayService.verifyWebhookSignature(rawPayload, signature);
+        if (!isValid) {
+            log.error("Razorpay webhook signature verification failed");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("status", "error", "message", "Invalid webhook signature"));
+        }
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(rawPayload);
+            String event = root.path("event").asText("");
+            log.info("Received valid Razorpay webhook event [{}]", event);
+
+            com.fasterxml.jackson.databind.JsonNode payload = root.path("payload");
+            com.fasterxml.jackson.databind.JsonNode paymentEntity = payload.path("payment").path("entity");
+            String razorpayPaymentId = paymentEntity.path("id").asText(null);
+            String razorpayOrderId = paymentEntity.path("order_id").asText(null);
+            long amountPaise = paymentEntity.path("amount").asLong(0);
+
+            switch (event) {
+                case "payment.captured", "order.paid" -> {
+                    if (razorpayOrderId != null && !razorpayOrderId.isBlank()) {
+                        Optional<Order> orderOpt = orderRepository.findByPaymentProviderOrderId(razorpayOrderId);
+                        if (orderOpt.isPresent()) {
+                            Order order = orderOpt.get();
+                            boolean alreadyCaptured = order.getPayment() != null
+                                    && com.ebs.biocrop.entity.enums.PaymentStatus.CAPTURED.name().equals(order.getPayment().getStatus())
+                                    && order.getPayment().getTransactions() != null
+                                    && order.getPayment().getTransactions().stream()
+                                            .anyMatch(tx -> Objects.equals(tx.getProviderPaymentId(), razorpayPaymentId));
+                            if (!alreadyCaptured) {
+                                BigDecimal capturedAmount = BigDecimal.valueOf(amountPaise, 2);
+                                orderLifecycleService.recordAdvancePaymentCaptured(order.getId(), razorpayPaymentId, capturedAmount);
+                                log.info("Webhook successfully reconciled captured payment [{}] for order [{}]", razorpayPaymentId, order.getId());
+                            } else {
+                                log.info("Webhook duplicate/replay for already captured payment [{}]", razorpayPaymentId);
+                            }
+                        } else {
+                            log.info("Webhook payment.captured received for provider order [{}] before local order was confirmed", razorpayOrderId);
+                        }
+                    }
+                }
+                case "payment.authorized" -> {
+                    if (razorpayOrderId != null && !razorpayOrderId.isBlank()) {
+                        orderRepository.findByPaymentProviderOrderId(razorpayOrderId).ifPresent(order -> {
+                            if (com.ebs.biocrop.entity.enums.PaymentStatus.CREATED.name().equals(order.getPayment().getStatus())) {
+                                orderLifecycleService.recordPaymentAuthorized(order.getId(), razorpayPaymentId);
+                                log.info("Webhook recorded payment authorization for order [{}]", order.getId());
+                            }
+                        });
+                    }
+                }
+                case "payment.failed" -> {
+                    if (razorpayOrderId != null && !razorpayOrderId.isBlank()) {
+                        String errorDesc = paymentEntity.path("error_description").asText("Payment failed");
+                        orderRepository.findByPaymentProviderOrderId(razorpayOrderId).ifPresent(order -> {
+                            orderLifecycleService.recordPaymentFailed(order.getId(), razorpayPaymentId, errorDesc);
+                            log.warn("Webhook recorded payment failure for order [{}]: {}", order.getId(), errorDesc);
+                        });
+                    }
+                }
+                case "refund.processed", "refund.created" -> {
+                    com.fasterxml.jackson.databind.JsonNode refundEntity = payload.path("refund").path("entity");
+                    String refundId = refundEntity.path("id").asText(null);
+                    long refundPaise = refundEntity.path("amount").asLong(0);
+                    BigDecimal refundAmount = BigDecimal.valueOf(refundPaise, 2);
+
+                    if (razorpayOrderId != null && !razorpayOrderId.isBlank()) {
+                        orderRepository.findByPaymentProviderOrderId(razorpayOrderId).ifPresent(order -> {
+                            orderLifecycleService.recordPaymentRefunded(order.getId(), refundId, refundAmount, "Processed via Razorpay webhook");
+                            log.info("Webhook recorded refund [{}] of amount [{}] for order [{}]", refundId, refundAmount, order.getId());
+                        });
+                    }
+                }
+                default -> log.debug("Unhandled Razorpay webhook event [{}]", event);
+            }
+
+            return ResponseEntity.ok(Map.of("status", "ok"));
+        } catch (Exception e) {
+            log.error("Error processing Razorpay webhook payload: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Map.of("status", "error", "message", "Internal processing note logged"));
+        }
     }
 }

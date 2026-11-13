@@ -1,13 +1,13 @@
 package com.ebs.biocrop.dto.request;
 
-import com.ebs.biocrop.entity.OrderPaymentMethod;
+import com.ebs.biocrop.entity.enums.PaymentMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public class PlaceOrderRequest {
     @NotNull
-    private OrderPaymentMethod paymentMethod;
+    private PaymentMethod paymentMethod;
     private BigDecimal advancePercentage;
     @NotNull
     @Valid
@@ -15,8 +15,8 @@ public class PlaceOrderRequest {
     @Valid
     private AddressInput billingAddress;
 
-    public OrderPaymentMethod getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(OrderPaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     public BigDecimal getAdvancePercentage() { return advancePercentage; }
     public void setAdvancePercentage(BigDecimal advancePercentage) { this.advancePercentage = advancePercentage; }
     public AddressInput getShippingAddress() { return shippingAddress; }

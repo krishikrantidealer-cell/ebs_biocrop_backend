@@ -2,7 +2,7 @@ package com.ebs.biocrop.service.impl;
 
 import com.ebs.biocrop.dto.request.CreateReviewRequest;
 import com.ebs.biocrop.dto.response.*;
-import com.ebs.biocrop.entity.OrderStatus;
+import com.ebs.biocrop.entity.enums.OrderStatus;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.Review;
 import com.ebs.biocrop.entity.User;
@@ -377,7 +377,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     private boolean isVerifiedBuyer(String customerId, String productId) {
         if (customerId == null || productId == null) return false;
-        return orderRepository.existsByCustomerIdAndProductIdPurchased(customerId, productId, OrderStatus.CANCELED.name());
+        return orderRepository.existsByCustomerIdAndProductIdPurchased(customerId, productId, OrderStatus.CANCELLED.name());
     }
 
     private void validateMediaLimits(List<String> images) {

@@ -8,7 +8,7 @@ import java.util.List;
 /** Provider-neutral payment state. External gateway fields stay null until an integration is selected. */
 public class OrderPaymentDetails {
     @Field(write = Field.Write.ALWAYS) private String paymentType = "PARTIAL_ADVANCE_COD";
-    @Field(write = Field.Write.ALWAYS) private String status = "AWAITING_ADVANCE_PAYMENT";
+    @Field(write = Field.Write.ALWAYS) private String status = "CREATED";
     @Field(write = Field.Write.ALWAYS) private BigDecimal advancePercentage = new BigDecimal("10.00");
     @Field(write = Field.Write.ALWAYS) private BigDecimal amountPaid = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal advanceAmountDue = BigDecimal.ZERO;

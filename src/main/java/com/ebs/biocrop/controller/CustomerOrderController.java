@@ -59,7 +59,7 @@ public class CustomerOrderController {
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody PlaceOrderRequest request) {
         rateLimitGuard.enforce("order-create-customer", customer.getId(), 5, Duration.ofMinutes(1));
-        if (request.getPaymentMethod() != com.ebs.biocrop.entity.OrderPaymentMethod.COD) {
+        if (request.getPaymentMethod() != com.ebs.biocrop.entity.enums.PaymentMethod.COD) {
             throw new com.ebs.biocrop.exception.AppException(
                     "Online checkout must be completed through /api/v1/checkout before an order is created",
                     HttpStatus.CONFLICT);

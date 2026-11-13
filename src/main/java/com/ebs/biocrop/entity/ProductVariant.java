@@ -4,6 +4,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 import org.springframework.data.mongodb.core.mapping.FieldType;
 import com.ebs.biocrop.entity.enums.PaymentMethod;
+import com.ebs.biocrop.entity.enums.ProductUnit;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -88,6 +89,8 @@ public class ProductVariant {
     public void setLabel(String label) { this.label = label; }
     public String getUnit() { return unit != null ? unit : packSizeUnit; }
     public void setUnit(String unit) { this.unit = unit; }
+    public ProductUnit getProductUnit() { return ProductUnit.fromString(getUnit()); }
+    public void setProductUnit(ProductUnit productUnit) { this.unit = productUnit != null ? productUnit.getUnitName() : null; }
     public Integer getPackSize() { return packSize; }
     public void setPackSize(Integer packSize) { this.packSize = packSize; }
     public String getPackSizeUnit() { return packSizeUnit; }

@@ -25,7 +25,7 @@ public class OrderItem {
     @Field(write = Field.Write.ALWAYS) private BigDecimal lineTotal = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal advanceAllocatedAtCheckout = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal codDueAtCheckout = BigDecimal.ZERO;
-    @Field(write = Field.Write.ALWAYS) private String itemStatus = "AWAITING_ADVANCE_PAYMENT";
+    @Field(write = Field.Write.ALWAYS) private String itemStatus = "PENDING_PAYMENT";
     @Field(write = Field.Write.ALWAYS) private Order.ItemCancellation cancellation = new Order.ItemCancellation();
 
     public String getItemOrderId() { return itemOrderId; }
