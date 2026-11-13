@@ -1,16 +1,18 @@
 package com.ebs.biocrop.dto.request;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class CheckoutConfirmRequest {
-
     @NotNull(message = "Order details are required")
     @Valid
     private PlaceOrderRequest orderRequest;
-
+    @NotBlank(message = "Razorpay order ID is required")
     private String razorpayOrderId;
+    @NotBlank(message = "Razorpay payment ID is required")
     private String razorpayPaymentId;
+    @NotBlank(message = "Razorpay signature is required")
     private String razorpaySignature;
 
     public PlaceOrderRequest getOrderRequest() { return orderRequest; }

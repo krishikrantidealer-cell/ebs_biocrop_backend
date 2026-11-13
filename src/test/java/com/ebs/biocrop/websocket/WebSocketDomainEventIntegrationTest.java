@@ -4,7 +4,7 @@ import com.ebs.biocrop.dto.request.AdminProductVariantPatchRequest;
 import com.ebs.biocrop.dto.request.CategoryWriteRequest;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Order;
-import com.ebs.biocrop.entity.OrderStatus;
+import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.repository.CategoryRepository;
@@ -33,7 +33,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,19 +126,28 @@ class WebSocketDomainEventIntegrationTest {
     }
 
     @Test
-    void orderStatusUpdate_shouldBroadcastOrdersStatusChangeEvent() {
+    void unpaidOrderCancellation_shouldBroadcastOrdersStatusChangeEvent() {
         OrderLifecycleServiceImpl lifecycleService = new OrderLifecycleServiceImpl(
                 orderRepository, mongoTemplate, redisCache, webSocketService
         );
 
         Order existingOrder = new Order();
         existingOrder.setId("ord-999");
-        existingOrder.setOrderStatus(OrderStatus.ORDERED.name());
+        existingOrder.setOverallStatus("AWAITING_ADVANCE_PAYMENT");
 
         when(orderRepository.findById("ord-999")).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        lifecycleService.updateStatusForAdmin("admin-1", "ord-999", OrderStatus.CONFIRMED, "Payment verified");
+        lifecycleService.cancelForAdmin("admin-1", "ord-999");
+
+        ArgumentCaptor<Order> savedOrderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(savedOrderCaptor.capture());
+        Order cancelledOrder = savedOrderCaptor.getValue();
+        assertEquals("CANCELLED_UNPAID", cancelledOrder.getPayment().getStatus());
+        assertEquals(0, cancelledOrder.getPayment().getAdvanceAmountDue().compareTo(java.math.BigDecimal.ZERO));
+        assertEquals(0, cancelledOrder.getPayment().getRemainingAmount().compareTo(java.math.BigDecimal.ZERO));
+        assertEquals(0, cancelledOrder.getPayment().getRemainingPercentage().compareTo(java.math.BigDecimal.ZERO));
+        assertEquals(0, cancelledOrder.getFinancialSummary().getAdvanceAmountDue().compareTo(java.math.BigDecimal.ZERO));
 
         ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
@@ -146,8 +158,43 @@ class WebSocketDomainEventIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
         assertEquals("ord-999", data.get("orderId"));
-        assertEquals("ORDERED", data.get("oldStatus"));
-        assertEquals("CONFIRMED", data.get("newStatus"));
+        assertEquals("AWAITING_ADVANCE_PAYMENT", data.get("oldStatus"));
+        assertEquals("CANCELLED", data.get("newStatus"));
+    }
+
+    @Test
+    void cancellationOfReservedOrder_shouldRestoreStockAndClearReservation() {
+        OrderLifecycleServiceImpl lifecycleService = new OrderLifecycleServiceImpl(
+                orderRepository, mongoTemplate, redisCache, webSocketService
+        );
+        Order existingOrder = new Order();
+        existingOrder.setId("ord-reserved");
+        existingOrder.setOverallStatus("AWAITING_ADVANCE_PAYMENT");
+        existingOrder.setStockReserved(true);
+        OrderItem item = new OrderItem();
+        item.setItemOrderId("item-1");
+        item.setProductId("product-1");
+        item.setVariantId("variant-1");
+        item.setQuantity(2);
+        existingOrder.setItems(List.of(item));
+
+        Product updatedProduct = new Product();
+        updatedProduct.setId("product-1");
+        ProductVariant updatedVariant = new ProductVariant();
+        updatedVariant.setId("variant-1");
+        updatedVariant.setStock(12);
+        updatedProduct.setVariants(List.of(updatedVariant));
+        when(orderRepository.findById("ord-reserved")).thenReturn(Optional.of(existingOrder));
+        when(mongoTemplate.findAndModify(any(Query.class), any(Update.class),
+                any(FindAndModifyOptions.class), eq(Product.class))).thenReturn(updatedProduct);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order cancelled = lifecycleService.cancelForAdmin("admin-1", "ord-reserved");
+
+        assertEquals(false, cancelled.getStockReserved());
+        verify(mongoTemplate).findAndModify(any(Query.class), any(Update.class),
+                any(FindAndModifyOptions.class), eq(Product.class));
+        verify(webSocketService).broadcast(eq("inventory:stock_update"), any());
     }
 
     @Test

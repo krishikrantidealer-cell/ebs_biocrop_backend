@@ -32,9 +32,9 @@ public class PlaceOrderRequest {
         @jakarta.validation.constraints.NotBlank private String cityTehsil;
         private String district;
         @jakarta.validation.constraints.NotBlank private String state;
+        private String country = "India";
         @jakarta.validation.constraints.NotBlank
         @jakarta.validation.constraints.Pattern(regexp = "^[0-9]{6}$") private String pincode;
-        private String country = "India";
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -46,13 +46,13 @@ public class PlaceOrderRequest {
         public void setAddress2(String address2) { this.address2 = address2; }
         public String getCityTehsil() { return cityTehsil; }
         public void setCityTehsil(String cityTehsil) { this.cityTehsil = cityTehsil; }
-        public String getDistrict() { return district != null && !district.isBlank() ? district : cityTehsil; }
+        public String getDistrict() { return district; }
         public void setDistrict(String district) { this.district = district; }
         public String getState() { return state; }
         public void setState(String state) { this.state = state; }
+        public String getCountry() { return country; }
+        public void setCountry(String country) { this.country = country; }
         public String getPincode() { return pincode; }
         public void setPincode(String pincode) { this.pincode = pincode; }
-        public String getCountry() { return country != null && !country.isBlank() ? country : "India"; }
-        public void setCountry(String country) { this.country = country; }
     }
 }

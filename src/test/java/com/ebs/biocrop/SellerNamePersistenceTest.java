@@ -1,6 +1,8 @@
 package com.ebs.biocrop;
 
+import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderItem;
+import com.ebs.biocrop.entity.OrderSellerSnapshot;
 import com.ebs.biocrop.entity.Product;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -39,17 +41,40 @@ class SellerNamePersistenceTest {
     }
 
     @Test
-    void orderItemDoesNotMapVendorAndWritesOnlySellerName() throws Exception {
+    void orderStoresSellerNameInFulfillmentSnapshotNotLineItem() throws Exception {
         MappingMongoConverter converter = converter();
-        OrderItem itemWithObsoleteField = converter.read(OrderItem.class,
-                new Document("_id", "item-id").append("vendor", "Obsolete Shop"));
-        assertNull(itemWithObsoleteField.getSellerName());
-
+        Order order = new Order();
+        Order.SellerFulfillment fulfillment = new Order.SellerFulfillment();
+        OrderSellerSnapshot sellerSnapshot = new OrderSellerSnapshot();
+        sellerSnapshot.setTradeName("Historic Shop");
+        fulfillment.setSellerSnapshot(sellerSnapshot);
+        order.setSellerFulfillments(java.util.List.of(fulfillment));
         OrderItem current = new OrderItem();
-        current.setSellerName("Historic Shop");
+        current.setItemOrderId("item-1");
+        current.setSellerFulfillmentId(fulfillment.getId());
+        order.setItems(java.util.List.of(current));
         Document document = new Document();
-        converter.write(current, document);
-        assertEquals("Historic Shop", document.getString("sellerName"));
-        assertFalse(document.containsKey("vendor"));
+        converter.write(order, document);
+        Document storedFulfillment = document.getList("sellerFulfillments", Document.class).getFirst();
+        Document storedSnapshot = storedFulfillment.get("sellerSnapshot", Document.class);
+        Document storedItem = document.getList("items", Document.class).getFirst();
+        Document storedPayment = document.get("payment", Document.class);
+        Document storedFinancials = document.get("financialSummary", Document.class);
+        assertEquals("Historic Shop", storedSnapshot.getString("tradeName"));
+        assertEquals(2, document.getInteger("schemaVersion"));
+        assertTrue(document.containsKey("checkoutGroupId"));
+        assertTrue(document.containsKey("idempotencyKey"));
+        assertTrue(document.containsKey("customerDecisionWindows"));
+        assertTrue(storedFulfillment.containsKey("responseDeadlineAt"));
+        assertTrue(storedFulfillment.containsKey("dispatchSlaDeadlineAt"));
+        assertTrue(storedFulfillment.containsKey("shipments"));
+        assertTrue(storedFulfillment.containsKey("delayReview"));
+        assertTrue(storedItem.containsKey("itemOrderId"));
+        assertTrue(storedItem.containsKey("taxAmount"));
+        assertTrue(storedPayment.containsKey("transactions"));
+        assertTrue(storedPayment.containsKey("refunds"));
+        assertTrue(storedFinancials.containsKey("codDue"));
+        assertFalse(storedItem.containsKey("sellerName"));
+        assertFalse(storedItem.containsKey("vendor"));
     }
 }

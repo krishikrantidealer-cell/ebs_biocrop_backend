@@ -72,7 +72,11 @@ public class SellerProductServiceImpl implements SellerProductService {
             listing.setSku(sellerCodeService.productSku(safeSellerId, listing.getProductCode()));
             listing.setSellerName(findSellerShopName(safeSellerId));
         } else {
-            listing.setProductCode(nextPlatformProductCode());
+            // Derive platform product identity from the Mongo ObjectId; this avoids
+            // introducing a separate sequence collection for seller-less listings.
+            String productId = new ObjectId().toHexString();
+            listing.setId(productId);
+            listing.setProductCode("PRD-EBS-" + productId.toUpperCase(Locale.ROOT));
             listing.setSku(listing.getProductCode());
             listing.setSellerName(null);
         }
@@ -158,20 +162,6 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         return "PRD-" + sellerId.toUpperCase(Locale.ROOT) + "-"
                 + String.format(Locale.ROOT, "%06d", sequence.getProductCodeSequence());
-    }
-
-    private String nextPlatformProductCode() {
-        Query query = Query.query(Criteria.where("_id").is("platform_product_sequence"));
-        UserSequence sequence = mongoTemplate.findAndModify(
-                query,
-                new Update().inc("productCodeSequence", 1),
-                FindAndModifyOptions.options().upsert(true).returnNew(true),
-                UserSequence.class,
-                "system_sequences");
-        long seq = (sequence != null && sequence.getProductCodeSequence() != null)
-                ? sequence.getProductCodeSequence()
-                : 1L;
-        return "PRD-EBS-" + String.format(Locale.ROOT, "%06d", seq);
     }
 
     private void validate(Product product) {

@@ -1,54 +1,57 @@
 package com.ebs.biocrop.entity;
 
+import org.springframework.data.mongodb.core.mapping.Field;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 
-/** Amounts and reconciliation references for payments against one seller order. */
+/** Provider-neutral payment state. External gateway fields stay null until an integration is selected. */
 public class OrderPaymentDetails {
-    private Double amountPaid = 0.0;
-    private Double advanceAmount = 0.0;
-    private Double remainingAmount = 0.0;
-    private Double paidPercentage = 0.0;
-    private Double remainingPercentage = 0.0;
-    private List<OrderPaymentTransaction> transactions = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS) private String paymentType = "PARTIAL_ADVANCE_COD";
+    @Field(write = Field.Write.ALWAYS) private String status = "AWAITING_ADVANCE_PAYMENT";
+    @Field(write = Field.Write.ALWAYS) private BigDecimal advancePercentage = new BigDecimal("10.00");
+    @Field(write = Field.Write.ALWAYS) private BigDecimal amountPaid = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal advanceAmountDue = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal advanceAmountPaid = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal codDue = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal codCollected = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal remainingAmount = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal paidPercentage = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal remainingPercentage = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private String provider;
+    @Field(write = Field.Write.ALWAYS) private String providerOrderId;
+    @Field(write = Field.Write.ALWAYS) private List<OrderPaymentTransaction> transactions = new ArrayList<>();
+    @Field(write = Field.Write.ALWAYS) private List<Order.Refund> refunds = new ArrayList<>();
 
-    public OrderPaymentDetails() { }
-    public Double getAmountPaid() { return amountPaid; }
-    public void setAmountPaid(Double amountPaid) { this.amountPaid = amountPaid; }
-    public Double getAdvanceAmount() { return advanceAmount; }
-    public void setAdvanceAmount(Double advanceAmount) { this.advanceAmount = advanceAmount; }
-    public Double getRemainingAmount() { return remainingAmount; }
-    public void setRemainingAmount(Double remainingAmount) { this.remainingAmount = remainingAmount; }
-    public Double getPaidPercentage() { return paidPercentage; }
-    public void setPaidPercentage(Double paidPercentage) { this.paidPercentage = paidPercentage; }
-    public Double getRemainingPercentage() { return remainingPercentage; }
-    public void setRemainingPercentage(Double remainingPercentage) { this.remainingPercentage = remainingPercentage; }
-
-    /** Records server-confirmed payment totals and derives the remaining balance and UI percentages. */
-    public void recordAmounts(double orderTotal, double confirmedAmountPaid) {
-        if (!Double.isFinite(orderTotal) || orderTotal < 0 || !Double.isFinite(confirmedAmountPaid)
-                || confirmedAmountPaid < 0 || confirmedAmountPaid > orderTotal) {
-            throw new IllegalArgumentException("Confirmed payment amounts must be between zero and the order total");
-        }
-        BigDecimal total = BigDecimal.valueOf(orderTotal).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal paid = BigDecimal.valueOf(confirmedAmountPaid).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal remaining = total.subtract(paid).max(BigDecimal.ZERO);
-        double previousPaid = this.amountPaid == null ? 0.0 : this.amountPaid;
-        this.amountPaid = paid.doubleValue();
-        if (previousPaid == 0.0 && paid.signum() > 0) this.advanceAmount = paid.doubleValue();
-        this.remainingAmount = remaining.doubleValue();
-        this.paidPercentage = percentage(paid, total);
-        this.remainingPercentage = percentage(remaining, total);
-    }
-
-    private double percentage(BigDecimal amount, BigDecimal total) {
-        if (total.signum() == 0) return 0.0;
-        return amount.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP).doubleValue();
-    }
+    public String getPaymentType() { return paymentType; }
+    public void setPaymentType(String value) { paymentType = value; }
+    public String getStatus() { return status; }
+    public void setStatus(String value) { status = value; }
+    public BigDecimal getAdvancePercentage() { return advancePercentage; }
+    public void setAdvancePercentage(BigDecimal value) { advancePercentage = value == null ? BigDecimal.ZERO : value; }
+    public BigDecimal getAmountPaid() { return amountPaid; }
+    public void setAmountPaid(BigDecimal value) { amountPaid = zero(value); }
+    public BigDecimal getAdvanceAmountDue() { return advanceAmountDue; }
+    public void setAdvanceAmountDue(BigDecimal value) { advanceAmountDue = zero(value); }
+    public BigDecimal getAdvanceAmountPaid() { return advanceAmountPaid; }
+    public void setAdvanceAmountPaid(BigDecimal value) { advanceAmountPaid = zero(value); }
+    public BigDecimal getCodDue() { return codDue; }
+    public void setCodDue(BigDecimal value) { codDue = zero(value); }
+    public BigDecimal getCodCollected() { return codCollected; }
+    public void setCodCollected(BigDecimal value) { codCollected = zero(value); }
+    public BigDecimal getRemainingAmount() { return remainingAmount; }
+    public void setRemainingAmount(BigDecimal value) { remainingAmount = zero(value); }
+    public BigDecimal getPaidPercentage() { return paidPercentage; }
+    public void setPaidPercentage(BigDecimal value) { paidPercentage = zero(value); }
+    public BigDecimal getRemainingPercentage() { return remainingPercentage; }
+    public void setRemainingPercentage(BigDecimal value) { remainingPercentage = zero(value); }
+    public String getProvider() { return provider; }
+    public void setProvider(String value) { provider = value; }
+    public String getProviderOrderId() { return providerOrderId; }
+    public void setProviderOrderId(String value) { providerOrderId = value; }
     public List<OrderPaymentTransaction> getTransactions() { return transactions; }
-    public void setTransactions(List<OrderPaymentTransaction> transactions) {
-        this.transactions = transactions != null ? transactions : new ArrayList<>();
-    }
+    public void setTransactions(List<OrderPaymentTransaction> values) { transactions = values == null ? new ArrayList<>() : values; }
+    public List<Order.Refund> getRefunds() { return refunds; }
+    public void setRefunds(List<Order.Refund> values) { refunds = values == null ? new ArrayList<>() : values; }
+    private static BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 }

@@ -1,10 +1,27 @@
 package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.entity.Order;
-import com.ebs.biocrop.entity.OrderStatus;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 public interface OrderLifecycleService {
     Order cancelForCustomer(String customerId, String orderId);
     Order cancelForAdmin(String adminId, String orderId);
-    Order updateStatusForAdmin(String adminId, String orderId, OrderStatus status, String note);
+    /** Called only by a trusted payment-provider adapter after verifying capture. */
+    Order recordAdvancePaymentCaptured(String orderId, String providerPaymentReference, java.math.BigDecimal capturedAmount);
+    Order respondToSellerFulfillment(String sellerId, String orderId, String fulfillmentId, String decision);
+    Order markSellerFulfillmentPacked(String sellerId, String orderId, String fulfillmentId);
+    /**
+     * Books a Shiprocket courier shipment and generates AWB label for a packed seller fulfillment,
+     * embedding the shipment inside the seller's fulfillment without creating separate order documents.
+     */
+    Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId);
+    /**
+     * Records carrier pickup handover event for a booked fulfillment shipment,
+     * transitioning fulfillment and items to DISPATCHED.
+     */
+    Order recordCarrierHandover(String orderId, String fulfillmentId, String trackingNumber, LocalDateTime handoverTime);
+    Order resolveCustomerDecisionWindow(String customerId, String orderId, String decisionWindowId,
+                                        String decision, List<String> itemOrderIds);
 }

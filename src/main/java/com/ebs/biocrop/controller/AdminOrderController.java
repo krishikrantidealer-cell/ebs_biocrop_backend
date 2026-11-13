@@ -2,12 +2,9 @@ package com.ebs.biocrop.controller;
 
 import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
-import com.ebs.biocrop.dto.request.UpdateOrderStatusRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
-import com.ebs.biocrop.dto.response.CountedListResponse;
 import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
-import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.OrderQueryService;
@@ -26,10 +23,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -76,32 +73,18 @@ public class AdminOrderController {
                 OrderResponse.forAdmin(orderQueries.getForAdmin(orderId))));
     }
 
-    // List all seller orders in a checkout group for admin review
-    @GetMapping("/group/{checkoutGroupId}")
-    @Operation(summary = "List all seller orders from one checkout group for admin review")
-    public ResponseEntity<ApiResponse<CountedListResponse<OrderResponse>>> getOrdersByCheckoutGroup(
+    // Resolve one checkout identifier to its single order document.
+    @GetMapping("/checkout/{checkoutGroupId}")
+    @Operation(summary = "Get one checkout order by checkout ID for admin review")
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrdersByCheckoutGroup(
             @PathVariable String checkoutGroupId) {
-        return ResponseEntity.ok(ApiResponse.ok("Checkout orders retrieved",
-                CountedListResponse.from(orderQueries.getCheckoutGroupForAdmin(checkoutGroupId).stream()
-                        .map(OrderResponse::forAdmin).toList())));
+        return ResponseEntity.ok(ApiResponse.ok("Checkout order retrieved",
+                OrderResponse.forAdmin(orderQueries.getCheckoutGroupForAdmin(checkoutGroupId))));
     }
 
-    // Update the status of an order
-    @PatchMapping("/{orderId}/status")
-    @Operation(summary = "Advance an order through its fulfillment lifecycle")
-    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
-            @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String orderId,
-            @Valid @RequestBody UpdateOrderStatusRequest request) {
-        rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Order status updated",
-                OrderResponse.forAdmin(orderLifecycle.updateStatusForAdmin(
-                        admin.getId(), orderId, request.status(), request.note()))));
-    }
-
-    // Cancel an order and release its reserved stock
+    // Cancel an unpaid order; this initial flow does not reserve stock or handle refunds.
     @PostMapping("/{orderId}/cancel")
-    @Operation(summary = "Cancel an eligible order and release its reserved stock")
+    @Operation(summary = "Cancel an eligible unpaid order")
     public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String orderId) {
@@ -110,15 +93,16 @@ public class AdminOrderController {
                 OrderResponse.forAdmin(orderLifecycle.cancelForAdmin(admin.getId(), orderId))));
     }
 
-    // Create orders for a customer from their cart with an admin-approved advance percentage
+    // Create one checkout order for a customer from their cart.
     @PostMapping("/customers/{customerId}/create")
-    @Operation(summary = "Create orders from a customer's cart with an admin-approved advance percentage")
-    public ResponseEntity<ApiResponse<PlacedOrdersResponse>> createOrdersForCustomer(
+    @Operation(summary = "Create one order from a customer's cart using 10% advance and remaining COD")
+    public ResponseEntity<ApiResponse<OrderResponse>> createOrdersForCustomer(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String customerId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody PlaceOrderRequest request) {
         rateLimitGuard.enforce("order-create-admin", admin.getId(), 10, Duration.ofMinutes(1));
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Orders placed by admin",
-                orderPlacement.createOrdersForAdmin(customerId, request, admin.getId())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Order created by admin; awaiting advance payment",
+                OrderResponse.forAdmin(orderPlacement.createOrdersForAdmin(customerId, request, admin.getId(), idempotencyKey))));
     }
 }

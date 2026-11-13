@@ -1,141 +1,118 @@
 package com.ebs.biocrop.dto.response;
 
-import com.ebs.biocrop.entity.Order;
-import com.ebs.biocrop.entity.OrderAddressSnapshot;
-import com.ebs.biocrop.entity.OrderItem;
-import com.ebs.biocrop.entity.OrderPaymentDetails;
-import com.ebs.biocrop.entity.OrderStatusEvent;
-import com.ebs.biocrop.service.OrderStatusPresentation;
-
+import com.ebs.biocrop.entity.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/** Order view that excludes database ownership, stock reservation and reconciliation internals. */
+/** Role-aware view of the single checkout order document. */
 public record OrderResponse(
         String id,
+        Integer schemaVersion,
         String orderNumber,
         String checkoutGroupId,
-        String orderStatus,
-        String paymentMethod,
-        String paymentState,
-        Double advancePercentage,
-        Double advanceAmountDue,
-        String paymentStatus,
-        PaymentSummary payment,
-        List<Item> items,
-        Double subtotalAmount,
-        Double discountAmount,
-        Double shippingAmount,
-        Double totalAmount,
-        String currency,
+        String idempotencyKey,
+        String customerId,
+        OrderCustomerSnapshot customerSnapshot,
         OrderAddressSnapshot shippingAddress,
         OrderAddressSnapshot billingAddress,
+        List<Item> items,
+        List<SellerGroup> sellerFulfillments,
+        Order.FinancialSummary financialSummary,
+        OrderPaymentDetails payment,
+        List<Order.CustomerDecisionWindow> customerDecisionWindows,
+        String overallStatus,
+        List<StatusEvent> statusHistory,
         LocalDateTime placedAt,
+        LocalDateTime cancelledAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String customerName,
-        String customerPhoneNumber,
-        SellerSummary seller,
-        CustomerSummary customer,
-        List<StatusEvent> statusHistory,
-        String customerId,
-        String sellerId,
-        Boolean stockReserved,
-        LocalDateTime cancelledAt,
-        Integer version,
-        OrderPaymentDetails paymentDetails,
-        ShippingDetails shippingDetails,
-        String razorpayPaymentId) {
+        Integer version) {
 
-    public static OrderResponse forCustomer(Order order) { return from(order, true, false, false); }
-    public static OrderResponse forSeller(Order order) { return from(order, false, true, false); }
-    public static OrderResponse forAdmin(Order order) { return from(order, true, true, true); }
+    public static OrderResponse forCustomer(Order order) { return build(order, null, false); }
+    public static OrderResponse forAdmin(Order order) { return build(order, null, true); }
+    public static OrderResponse forSeller(Order order, String sellerId) { return build(order, sellerId, false); }
 
-    private static OrderResponse from(Order order, boolean includeSeller, boolean includeCustomer, boolean adminView) {
-        OrderPaymentDetails details = order.getPayment();
-        PaymentSummary summary = details == null ? null : new PaymentSummary(
-                safe(details.getAmountPaid()), safe(details.getAdvanceAmount()), safe(details.getRemainingAmount()),
-                safe(details.getPaidPercentage()), safe(details.getRemainingPercentage()));
-        String displayStatus = adminView ? order.getOrderStatus() : includeCustomer
-                ? OrderStatusPresentation.forSeller(order.getOrderStatus())
-                : OrderStatusPresentation.forCustomer(order.getOrderStatus());
-        var sellerSnapshot = order.getSellerSnapshot();
-        SellerSummary seller = includeSeller && sellerSnapshot != null
-                ? new SellerSummary(sellerSnapshot.getDisplayName(), sellerSnapshot.getPhoneNumber(),
-                        adminView ? sellerSnapshot.getEmail() : null,
-                        adminView ? sellerSnapshot.getGstNumber() : null)
-                : null;
-        var customerSnapshot = order.getCustomerSnapshot();
-        CustomerSummary customer = includeCustomer && customerSnapshot != null
-                ? new CustomerSummary(customerSnapshot.getName(), customerSnapshot.getPhoneNumber(),
-                        customerSnapshot.getCompanyName(), adminView ? customerSnapshot.getGstNumber() : null)
-                : null;
+    private static OrderResponse build(Order order, String sellerId, boolean admin) {
+        Map<String, Order.SellerFulfillment> allGroups = order.getSellerFulfillments() == null ? Map.of()
+                : order.getSellerFulfillments().stream().collect(Collectors.toMap(Order.SellerFulfillment::getId, Function.identity(), (a, b) -> a));
+        List<Order.SellerFulfillment> groups = sellerId == null ? List.copyOf(allGroups.values())
+                : order.getSellerFulfillments().stream().filter(g -> sellerId.equals(g.getSellerId())).toList();
+        java.util.Set<String> allowedIds = sellerId == null ? null : groups.stream()
+                .flatMap(g -> g.getItemOrderIds().stream()).collect(Collectors.toSet());
+        List<Item> items = order.getItems() == null ? List.of() : order.getItems().stream()
+                .filter(i -> allowedIds == null || allowedIds.contains(i.getItemOrderId()))
+                .map(i -> Item.from(i, allGroups.get(i.getSellerFulfillmentId()))).toList();
+        List<SellerGroup> sellerGroups = groups.stream().map(SellerGroup::from).toList();
         List<StatusEvent> history = order.getStatusHistory() == null ? List.of()
-                : order.getStatusHistory().stream().map(event -> StatusEvent.from(event, includeCustomer, adminView)).toList();
-        return new OrderResponse(order.getId(), order.getOrderNumber(), order.getCheckoutGroupId(), displayStatus,
-                order.getPaymentMethod() == null ? null : order.getPaymentMethod().name(),
-                order.getPaymentState() == null ? null : order.getPaymentState().name(),
-                order.getAdvancePercentage(), order.getAdvanceAmountDue(), order.getPaymentStatus(), summary,
-                order.getItems() == null ? List.of() : order.getItems().stream().map(Item::from).toList(),
-                order.getSubtotalAmount(), order.getDiscountAmount(), order.getShippingAmount(),
-                order.getTotalAmount(), order.getCurrency(), order.getShippingAddress(), order.getBillingAddress(),
-                order.getPlacedAt(), order.getCreatedAt(), order.getUpdatedAt(),
-                includeCustomer && customerSnapshot != null ? customerSnapshot.getName() : null,
-                includeCustomer && customerSnapshot != null ? customerSnapshot.getPhoneNumber() : null,
-                seller, customer, history, adminView ? order.getCustomerId() : null,
-                adminView ? order.getSellerId() : null, adminView ? order.getStockReserved() : null,
-                adminView ? order.getCancelledAt() : null, adminView ? order.getVersion() : null,
-                adminView ? details : null,
-                ShippingDetails.from(order),
-                order.getRazorpayPaymentId());
+                : order.getStatusHistory().stream()
+                .filter(event -> sellerId == null || sellerCanSeeEvent(event, sellerId, allowedIds))
+                .map(event -> StatusEvent.from(event, sellerId, admin)).toList();
+        OrderCustomerSnapshot customerSnapshot = order.getCustomerSnapshot();
+        if (sellerId != null && customerSnapshot != null) {
+            OrderCustomerSnapshot limited = new OrderCustomerSnapshot();
+            limited.setFirstName(customerSnapshot.getFirstName());
+            limited.setLastName(customerSnapshot.getLastName());
+            limited.setPhoneNumber(customerSnapshot.getPhoneNumber());
+            limited.setEmail(null);
+            customerSnapshot = limited;
+        }
+        return new OrderResponse(order.getId(), admin ? order.getSchemaVersion() : null,
+                order.getOrderNumber(), order.getCheckoutGroupId(),
+                admin ? order.getIdempotencyKey() : null, admin ? order.getCustomerId() : null,
+                customerSnapshot, order.getShippingAddress(), order.getBillingAddress(), items, sellerGroups,
+                sellerId == null ? order.getFinancialSummary() : null,
+                sellerId == null ? order.getPayment() : null,
+                sellerId == null ? order.getCustomerDecisionWindows() : List.of(), order.getOverallStatus(),
+                history, order.getPlacedAt(), admin ? order.getCancelledAt() : null, order.getCreatedAt(),
+                order.getUpdatedAt(), admin ? order.getVersion() : null);
     }
 
-    private static Double safe(Double value) { return value == null ? 0.0 : value; }
+    private static boolean sellerCanSeeEvent(OrderStatusEvent event, String sellerId, java.util.Set<String> itemIds) {
+        if (sellerId.equals(event.getSellerFulfillmentId())) return true;
+        return event.getItemOrderIds() != null && itemIds != null
+                && event.getItemOrderIds().stream().anyMatch(itemIds::contains);
+    }
 
-    public record PaymentSummary(Double amountPaid, Double advanceAmount, Double remainingAmount,
-                                 Double paidPercentage, Double remainingPercentage) { }
-
-    public record ShippingDetails(
-            String awbCode,
-            String courierName,
-            String trackingUrl,
-            String status,
-            Long shipmentId) {
-        public static ShippingDetails from(Order order) {
-            if (order.getShiprocketAwbCode() == null && order.getShiprocketShipmentId() == null) return null;
-            return new ShippingDetails(
-                    order.getShiprocketAwbCode(),
-                    order.getShiprocketCourierName(),
-                    order.getShiprocketTrackingUrl(),
-                    order.getShiprocketStatus(),
-                    order.getShiprocketShipmentId()
-            );
+    public record Item(String itemOrderId, String sellerFulfillmentId, String sellerId, String sellerName,
+                       String productId, String categoryId, String variantId, String productCode, String productSku,
+                       String variantSku, OrderItem.VariantSnapshot variantSnapshot,
+                       Order.ProductSnapshot productSnapshot, Integer quantity,
+                       java.math.BigDecimal listPrice, java.math.BigDecimal discountAmount,
+                       java.math.BigDecimal discountPercentage, java.math.BigDecimal unitPrice, java.math.BigDecimal taxAmount,
+                       java.math.BigDecimal lineTotal, java.math.BigDecimal advanceAllocatedAtCheckout,
+                       java.math.BigDecimal codDueAtCheckout, String itemStatus,
+                       Order.ItemCancellation cancellation) {
+        private static Item from(OrderItem item, Order.SellerFulfillment group) {
+            return new Item(item.getItemOrderId(), item.getSellerFulfillmentId(), item.getSellerId(),
+                    group == null || group.getSellerSnapshot() == null ? null : group.getSellerSnapshot().getTradeName(),
+                    item.getProductId(), item.getCategoryId(), item.getVariantId(), item.getProductCode(), item.getProductSku(),
+                    item.getVariantSku(), item.getVariantSnapshot(), item.getProductSnapshot(), item.getQuantity(), item.getListPrice(),
+                    item.getDiscountAmount(), item.getDiscountPercentage(), item.getUnitPrice(), item.getTaxAmount(), item.getLineTotal(),
+                    item.getAdvanceAllocatedAtCheckout(), item.getCodDueAtCheckout(), item.getItemStatus(),
+                    item.getCancellation());
         }
     }
 
-    public record SellerSummary(String displayName, String phoneNumber, String email, String gstNumber) { }
-
-    public record CustomerSummary(String name, String phoneNumber, String companyName, String gstNumber) { }
-
-    /** Admin receives audit details; customer and seller views omit actor IDs and internal notes. */
-    public record StatusEvent(String status, LocalDateTime changedAt, String changedBy, String note) {
-        private static StatusEvent from(OrderStatusEvent event, boolean sellerView, boolean adminView) {
-            String status = adminView ? event.getStatus() : sellerView
-                    ? OrderStatusPresentation.forSeller(event.getStatus())
-                    : OrderStatusPresentation.forCustomer(event.getStatus());
-            return new StatusEvent(status, event.getChangedAt(), adminView ? event.getChangedBy() : null,
-                    adminView ? event.getNote() : null);
+    public record SellerGroup(String id, String sellerId, OrderSellerSnapshot sellerSnapshot,
+                              List<String> itemOrderIds, String status, LocalDateTime responseDeadlineAt,
+                              LocalDateTime acceptedAt, LocalDateTime dispatchSlaDeadlineAt,
+                              LocalDateTime dispatchedAt, List<Order.Shipment> shipments,
+                              Order.DelayReview delayReview) {
+        private static SellerGroup from(Order.SellerFulfillment value) {
+            return new SellerGroup(value.getId(), value.getSellerId(), value.getSellerSnapshot(),
+                    value.getItemOrderIds(), value.getStatus(), value.getResponseDeadlineAt(), value.getAcceptedAt(),
+                    value.getDispatchSlaDeadlineAt(), value.getDispatchedAt(), value.getShipments(), value.getDelayReview());
         }
     }
 
-    public record Item(String id, String productId, String variantId, String productCode, String sku,
-                       String title, String sellerName, String image,
-                       String variant, Integer quantity, Double listPrice, Double unitPrice, Double lineTotal) {
-        private static Item from(OrderItem item) {
-            return new Item(item.getId(), item.getProductId(), item.getVariantId(), item.getProductCode(), item.getSku(),
-                    item.getTitle(), item.getSellerName(),
-                    item.getImage(), item.getVariant(), item.getQuantity(), item.getListPrice(),
-                    item.getUnitPrice(), item.getLineTotal());
+    public record StatusEvent(String status, String sellerFulfillmentId, List<String> itemOrderIds,
+                              LocalDateTime occurredAt, String actor, String note) {
+        private static StatusEvent from(OrderStatusEvent event, String sellerId, boolean admin) {
+            return new StatusEvent(event.getStatus(), event.getSellerFulfillmentId(), event.getItemOrderIds(),
+                    event.getOccurredAt(), admin ? event.getActor() : null, admin ? event.getNote() : null);
         }
     }
 }

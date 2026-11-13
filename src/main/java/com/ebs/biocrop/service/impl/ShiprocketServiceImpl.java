@@ -6,6 +6,7 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderAddressSnapshot;
 import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.OrderPaymentMethod;
+import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.service.ShiprocketService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -36,33 +38,46 @@ public class ShiprocketServiceImpl implements ShiprocketService {
     private final Environment environment;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
-    private final HttpClient httpClient;
+    private volatile HttpClient httpClient;
 
-    @Value("${app.shiprocket.enabled:true}")
-    private boolean enabled = true;
+    @Value("${app.shiprocket.enabled:false}")
+    private boolean enabled;
 
     @Value("${app.shiprocket.url:https://apiv2.shiprocket.in/v1/external}")
     private String baseUrl = "https://apiv2.shiprocket.in/v1/external";
 
-    @Value("${app.shiprocket.email:shipping@ebsbiocrop.com}")
-    private String email = "shipping@ebsbiocrop.com";
+    @Value("${app.shiprocket.email:}")
+    private String email = "";
 
-    @Value("${app.shiprocket.password:ebs_shiprocket_secret_2026}")
-    private String password = "ebs_shiprocket_secret_2026";
+    @Value("${app.shiprocket.password:}")
+    private String password = "";
 
-    @Value("${app.shiprocket.pickup-location:Primary}")
-    private String pickupLocation = "Primary";
+    @Value("${app.shiprocket.pickup-location:}")
+    private String pickupLocation = "";
 
-    @Value("${app.shiprocket.pickup-pincode:132001}")
-    private String pickupPincode = "132001";
+    @Value("${app.shiprocket.pickup-pincode:}")
+    private String pickupPincode = "";
 
     public ShiprocketServiceImpl(Environment environment, ObjectMapper objectMapper, StringRedisTemplate redisTemplate) {
         this.environment = environment;
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+    }
+
+    private HttpClient httpClient() {
+        HttpClient client = httpClient;
+        if (client == null) {
+            synchronized (this) {
+                client = httpClient;
+                if (client == null) {
+                    client = HttpClient.newBuilder()
+                            .connectTimeout(Duration.ofSeconds(10))
+                            .build();
+                    httpClient = client;
+                }
+            }
+        }
+        return client;
     }
 
     @Override
@@ -73,6 +88,9 @@ public class ShiprocketServiceImpl implements ShiprocketService {
     }
 
     private String getAuthToken() {
+        if (!isConfigured()) {
+            return null;
+        }
         try {
             String cachedToken = redisTemplate.opsForValue().get(REDIS_TOKEN_KEY);
             if (cachedToken != null && !cachedToken.isBlank()) {
@@ -94,7 +112,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 JsonNode root = objectMapper.readTree(response.body());
                 String token = root.path("token").asText();
@@ -132,7 +150,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .GET()
                         .build();
 
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     JsonNode root = objectMapper.readTree(response.body());
                     JsonNode data = root.path("data");
@@ -157,6 +175,12 @@ public class ShiprocketServiceImpl implements ShiprocketService {
             }
         }
 
+        if (!isDevelopmentProfile()) {
+            return new ShiprocketServiceabilityResponse(
+                    deliveryPincode, false, 0, "", 0.0,
+                    "Shiprocket serviceability is not configured");
+        }
+
         // Reliable default estimate for Indian postal codes
         int estimatedDays = deliveryPincode.startsWith("1") ? 2 : (deliveryPincode.startsWith("2") || deliveryPincode.startsWith("3")) ? 3 : 4;
         return new ShiprocketServiceabilityResponse(
@@ -171,6 +195,25 @@ public class ShiprocketServiceImpl implements ShiprocketService {
 
     @Override
     public ShiprocketOrderResult createOrderAndShipment(Order order) {
+        return doCreateShiprocketShipment(order, null, order.getItems() != null ? order.getItems() : List.of());
+    }
+
+    @Override
+    public ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId) {
+        Order.SellerFulfillment fulfillment = (order.getSellerFulfillments() == null ? List.<Order.SellerFulfillment>of() : order.getSellerFulfillments()).stream()
+                .filter(f -> Objects.equals(f.getId(), fulfillmentId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Seller fulfillment [" + fulfillmentId + "] not found in order " + order.getId()));
+
+        List<String> itemIds = fulfillment.getItemOrderIds() == null ? List.of() : fulfillment.getItemOrderIds();
+        List<OrderItem> items = (order.getItems() == null ? List.<OrderItem>of() : order.getItems()).stream()
+                .filter(item -> itemIds.contains(item.getItemOrderId()))
+                .toList();
+
+        return doCreateShiprocketShipment(order, fulfillment, items);
+    }
+
+    private ShiprocketOrderResult doCreateShiprocketShipment(Order order, Order.SellerFulfillment fulfillment, List<OrderItem> items) {
         String token = getAuthToken();
         OrderAddressSnapshot address = order.getShippingAddress();
         if (address == null) {
@@ -184,10 +227,14 @@ public class ShiprocketServiceImpl implements ShiprocketService {
         String state = (address != null && address.getState() != null) ? address.getState() : "Haryana";
         String village = (address != null && address.getVillageArea() != null) ? address.getVillageArea() : "Main Farm Road";
 
+        String externalOrderId = fulfillment != null && fulfillment.getId() != null
+                ? order.getOrderNumber() + "-F" + fulfillment.getId().substring(Math.max(0, fulfillment.getId().length() - 6))
+                : order.getOrderNumber();
+
         if (token != null) {
             try {
                 Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("order_id", order.getOrderNumber());
+                payload.put("order_id", externalOrderId);
                 payload.put("order_date", order.getPlacedAt() != null ? order.getPlacedAt().format(DATE_FORMATTER) : "2026-11-11 12:00");
                 payload.put("pickup_location", pickupLocation);
 
@@ -203,25 +250,31 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                 payload.put("billing_phone", recipientPhone);
                 payload.put("shipping_is_billing", true);
 
-                List<Map<String, Object>> items = new ArrayList<>();
-                if (order.getItems() != null) {
-                    for (OrderItem item : order.getItems()) {
-                        Map<String, Object> itemMap = new LinkedHashMap<>();
-                        itemMap.put("name", item.getTitle() != null ? item.getTitle() : "Agri Product");
-                        itemMap.put("sku", item.getSku() != null ? item.getSku() : item.getProductCode());
-                        itemMap.put("units", item.getQuantity() != null ? item.getQuantity() : 1);
-                        itemMap.put("selling_price", item.getUnitPrice() != null ? item.getUnitPrice() : 100.0);
-                        itemMap.put("discount", 0);
-                        items.add(itemMap);
-                    }
+                List<Map<String, Object>> itemMaps = new ArrayList<>();
+                double itemsSubtotal = 0.0;
+                for (OrderItem item : items) {
+                    Map<String, Object> itemMap = new LinkedHashMap<>();
+                    String itemTitle = item.getProductSnapshot() == null ? null : item.getProductSnapshot().getTitle();
+                    String itemSku = item.getVariantSku() != null ? item.getVariantSku() : item.getProductSku();
+                    itemMap.put("name", itemTitle != null ? itemTitle : "Agri Product");
+                    itemMap.put("sku", itemSku != null ? itemSku : item.getProductCode());
+                    int qty = item.getQuantity() != null ? item.getQuantity() : 1;
+                    double unitPrice = item.getUnitPrice() != null ? item.getUnitPrice().doubleValue() : 100.0;
+                    itemMap.put("units", qty);
+                    itemMap.put("selling_price", unitPrice);
+                    itemMap.put("discount", 0);
+                    itemMaps.add(itemMap);
+                    itemsSubtotal += (unitPrice * qty);
                 }
-                payload.put("order_items", items);
-                payload.put("payment_method", order.getPaymentMethod() == OrderPaymentMethod.PREPAID ? "Prepaid" : "COD");
-                payload.put("sub_total", order.getTotalAmount() != null ? order.getTotalAmount() : 0.0);
+                payload.put("order_items", itemMaps);
+
+                boolean hasCodDue = items.stream().anyMatch(i -> i.getCodDueAtCheckout() != null && i.getCodDueAtCheckout().signum() > 0);
+                payload.put("payment_method", hasCodDue ? "COD" : "Prepaid");
+                payload.put("sub_total", itemsSubtotal > 0 ? itemsSubtotal : (order.getTotalAmount() != null ? order.getTotalAmount() : 0.0));
                 payload.put("length", 12);
                 payload.put("breadth", 12);
                 payload.put("height", 12);
-                payload.put("weight", Math.max(0.5, (items.size() * 0.4)));
+                payload.put("weight", Math.max(0.5, (itemMaps.size() * 0.4)));
 
                 String json = objectMapper.writeValueAsString(payload);
                 HttpRequest request = HttpRequest.newBuilder()
@@ -232,7 +285,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
 
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     JsonNode root = objectMapper.readTree(response.body());
                     long srOrderId = root.path("order_id").asLong();
@@ -242,9 +295,10 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                     // Request AWB assignment
                     String awbCode = assignAwb(shipmentId, token);
                     String courier = "Delhivery Surface (Shiprocket)";
-                    String trackingUrl = "https://shiprocket.co/tracking/" + (awbCode != null ? awbCode : order.getOrderNumber());
+                    String trackingUrl = "https://shiprocket.co/tracking/" + (awbCode != null ? awbCode : externalOrderId);
 
-                    log.info("Shiprocket shipment successfully created. Order ID: {}, Shipment ID: {}, AWB: {}", srOrderId, shipmentId, awbCode);
+                    log.info("Shiprocket shipment successfully created for order [{}] (fulfillment [{}]). Order ID: {}, Shipment ID: {}, AWB: {}",
+                            order.getOrderNumber(), fulfillment != null ? fulfillment.getId() : "ALL", srOrderId, shipmentId, awbCode);
                     return new ShiprocketOrderResult(srOrderId, shipmentId, awbCode, courier, "1", trackingUrl, status);
                 } else {
                     log.warn("Shiprocket adhoc order creation returned status [{}]: {}", response.statusCode(), response.body());
@@ -254,15 +308,20 @@ public class ShiprocketServiceImpl implements ShiprocketService {
             }
         }
 
-        // Generated mock Shiprocket logistics result in dev/fallback
-        long mockSrOrderId = 10000000L + Math.abs(order.getOrderNumber().hashCode() % 8999999L);
+        if (!isDevelopmentProfile()) {
+            throw new AppException("Shiprocket shipment booking is unavailable; integration failed or is not configured",
+                    HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        // Generated mock Shiprocket logistics result only in the dev profile.
+        long mockSrOrderId = 10000000L + Math.abs((externalOrderId).hashCode() % 8999999L);
         long mockShipmentId = mockSrOrderId + 1;
         String mockAwb = "SRK" + (mockSrOrderId % 100000000L) + "IN";
         String courier = "Delhivery Surface (Shiprocket)";
         String trackingUrl = "https://shiprocket.co/tracking/" + mockAwb;
 
-        log.info("[SHIPROCKET-MOCK] Generated logistics assignment: AWB [{}] via [{}] for order [{}]",
-                mockAwb, courier, order.getOrderNumber());
+        log.info("[SHIPROCKET-MOCK] Generated logistics assignment: AWB [{}] via [{}] for order [{}] fulfillment [{}]",
+                mockAwb, courier, order.getOrderNumber(), fulfillment != null ? fulfillment.getId() : "ALL");
 
         return new ShiprocketOrderResult(
                 mockSrOrderId,
@@ -288,7 +347,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 JsonNode root = objectMapper.readTree(response.body());
                 JsonNode awb = root.path("response").path("data").path("awb_code");
@@ -315,12 +374,19 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .GET()
                         .build();
 
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     return response.body();
                 }
             } catch (Exception ignored) {}
         }
+        if (!isDevelopmentProfile()) {
+            return "{\"tracking\": {\"awb\": \"" + awbCode + "\", \"status\": \"UNAVAILABLE\"}}";
+        }
         return "{\"tracking\": {\"awb\": \"" + awbCode + "\", \"status\": \"In Transit\", \"courier\": \"Delhivery Surface\"}}";
+    }
+
+    private boolean isDevelopmentProfile() {
+        return environment != null && environment.acceptsProfiles(Profiles.of("dev"));
     }
 }

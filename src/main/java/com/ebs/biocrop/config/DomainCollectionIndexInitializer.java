@@ -99,20 +99,28 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 log.warn("Could not create orders collection: {}", e.getMessage());
             }
         }
-        ensure("orders", "uniq_order_seller_number", Map.of("sellerId", 1, "orderNumber", 1),
-                new Index().on("sellerId", Sort.Direction.ASC).on("orderNumber", Sort.Direction.ASC)
-                        .unique().named("uniq_order_seller_number"));
+        ensure("orders", "uniq_order_number_v2", Map.of("orderNumber", 1),
+                new Index().on("orderNumber", Sort.Direction.ASC).unique()
+                        .partial(PartialIndexFilter.of(Criteria.where("schemaVersion").is(2)))
+                        .named("uniq_order_number_v2"));
+        ensure("orders", "uniq_checkout_group_id_v2", Map.of("checkoutGroupId", 1),
+                new Index().on("checkoutGroupId", Sort.Direction.ASC).unique()
+                        .partial(PartialIndexFilter.of(Criteria.where("schemaVersion").is(2)))
+                        .named("uniq_checkout_group_id_v2"));
+        ensure("orders", "uniq_customer_idempotency_v2", Map.of("customerId", 1, "idempotencyKey", 1),
+                new Index().on("customerId", Sort.Direction.ASC).on("idempotencyKey", Sort.Direction.ASC).unique()
+                        .partial(PartialIndexFilter.of(Criteria.where("schemaVersion").is(2)
+                                .and("idempotencyKey").type(2)))
+                        .named("uniq_customer_idempotency_v2"));
         ensure("orders", "order_customer_created_idx", Map.of("customerId", 1, "createdAt", -1),
                 new Index().on("customerId", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
                         .named("order_customer_created_idx"));
-        ensure("orders", "order_seller_created_idx", Map.of("sellerId", 1, "createdAt", -1),
-                new Index().on("sellerId", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
-                        .named("order_seller_created_idx"));
-        ensure("orders", "order_checkout_group_idx", Map.of("checkoutGroupId", 1),
-                new Index().on("checkoutGroupId", Sort.Direction.ASC).named("order_checkout_group_idx"));
-        ensure("orders", "order_status_created_idx", Map.of("orderStatus", 1, "createdAt", -1),
-                new Index().on("orderStatus", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
-                        .named("order_status_created_idx"));
+        ensure("orders", "order_seller_fulfillment_created_idx", Map.of("sellerFulfillments.sellerId", 1, "createdAt", -1),
+                new Index().on("sellerFulfillments.sellerId", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
+                        .named("order_seller_fulfillment_created_idx"));
+        ensure("orders", "order_overall_status_created_idx", Map.of("overallStatus", 1, "createdAt", -1),
+                new Index().on("overallStatus", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
+                        .named("order_overall_status_created_idx"));
     }
 
     private void ensure(String collection, String requestedName, Map<String, Integer> requestedKeys, Index index) {

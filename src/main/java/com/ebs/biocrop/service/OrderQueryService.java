@@ -3,16 +3,15 @@ package com.ebs.biocrop.service;
 import com.ebs.biocrop.entity.Order;
 import org.springframework.data.domain.Page;
 
-import java.util.List;
 
 public interface OrderQueryService {
     Page<Order> listForCustomer(String customerId, int page, int size);
     Order getForCustomer(String customerId, String orderId);
-    List<Order> getCheckoutGroupForCustomer(String customerId, String checkoutGroupId);
+    Order getCheckoutGroupForCustomer(String customerId, String checkoutGroupId);
     Page<Order> listForAdmin(int page, int size);
     Page<Order> listForAdmin(String sellerId, int page, int size);
     Order getForAdmin(String orderId);
-    List<Order> getCheckoutGroupForAdmin(String checkoutGroupId);
+    Order getCheckoutGroupForAdmin(String checkoutGroupId);
     Page<Order> listForSeller(String sellerId, int page, int size);
     Order getForSeller(String sellerId, String orderId);
 }

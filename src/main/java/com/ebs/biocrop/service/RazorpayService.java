@@ -9,6 +9,10 @@ import java.util.Map;
  */
 public interface RazorpayService {
 
+    record PaymentDetails(String paymentId, String orderId, long amountPaise, String currency,
+                          String status, boolean captured) { }
+    record OrderDetails(String orderId, long amountPaise, String currency, String status, Map<String, String> notes) { }
+
     /**
      * Creates an order with Razorpay in INR.
      */
@@ -18,6 +22,12 @@ public interface RazorpayService {
      * Cryptographically verifies the payment signature returned by the client checkout.
      */
     boolean verifyPaymentSignature(String razorpayOrderId, String razorpayPaymentId, String razorpaySignature);
+
+    /** Fetches a payment from Razorpay's server API; client-supplied status/amount is never trusted. */
+    PaymentDetails fetchPaymentDetails(String razorpayPaymentId);
+
+    /** Fetches the provider order and its server-stored notes to bind payment to the initiating customer. */
+    OrderDetails fetchOrderDetails(String razorpayOrderId);
 
     /**
      * Verifies the authenticity of Razorpay webhooks.

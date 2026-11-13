@@ -10,7 +10,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 public class OrderQueryServiceImpl implements OrderQueryService {
@@ -33,8 +32,9 @@ public class OrderQueryServiceImpl implements OrderQueryService {
     }
 
     @Override
-    public List<Order> getCheckoutGroupForCustomer(String customerId, String checkoutGroupId) {
-        return orders.findByCustomerIdAndCheckoutGroupId(customerId, checkoutGroupId);
+    public Order getCheckoutGroupForCustomer(String customerId, String checkoutGroupId) {
+        return orders.findByCustomerIdAndCheckoutGroupId(customerId, checkoutGroupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "checkoutGroupId", checkoutGroupId));
     }
 
     @Override
@@ -47,7 +47,7 @@ public class OrderQueryServiceImpl implements OrderQueryService {
         Pageable pageable = PageRequestSupport.create(page, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         if (sellerId != null && !sellerId.isBlank()) {
-            return orders.findBySellerId(sellerId.trim(), pageable);
+            return orders.findBySellerFulfillmentsSellerId(sellerId.trim(), pageable);
         }
         return orders.findAll(pageable);
     }
@@ -59,22 +59,23 @@ public class OrderQueryServiceImpl implements OrderQueryService {
     }
 
     @Override
-    public List<Order> getCheckoutGroupForAdmin(String checkoutGroupId) {
+    public Order getCheckoutGroupForAdmin(String checkoutGroupId) {
         if (checkoutGroupId == null || checkoutGroupId.isBlank()) {
-            return List.of();
+            throw new ResourceNotFoundException("Order", "checkoutGroupId", checkoutGroupId);
         }
-        return orders.findByCheckoutGroupId(checkoutGroupId.trim());
+        return orders.findByCheckoutGroupId(checkoutGroupId.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "checkoutGroupId", checkoutGroupId));
     }
 
     @Override
     public Page<Order> listForSeller(String sellerId, int page, int size) {
-        return orders.findBySellerId(sellerId,
+        return orders.findBySellerFulfillmentsSellerId(sellerId,
                 PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     @Override
     public Order getForSeller(String sellerId, String orderId) {
-        return orders.findByIdAndSellerId(orderId, sellerId)
+        return orders.findByIdAndSellerFulfillmentsSellerId(orderId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
     }
 }

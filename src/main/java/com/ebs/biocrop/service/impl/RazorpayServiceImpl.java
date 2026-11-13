@@ -40,17 +40,17 @@ public class RazorpayServiceImpl implements RazorpayService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    @Value("${app.razorpay.enabled:true}")
-    private boolean enabled = true;
+    @Value("${app.razorpay.enabled:false}")
+    private boolean enabled;
 
-    @Value("${app.razorpay.key-id:rzp_test_ebs_biocrop_default}")
-    private String keyId = "rzp_test_ebs_biocrop_default";
+    @Value("${app.razorpay.key-id:}")
+    private String keyId = "";
 
-    @Value("${app.razorpay.key-secret:ebs_biocrop_secret_default_2026}")
-    private String keySecret = "ebs_biocrop_secret_default_2026";
+    @Value("${app.razorpay.key-secret:}")
+    private String keySecret = "";
 
-    @Value("${app.razorpay.webhook-secret:ebs_biocrop_webhook_secret_2026}")
-    private String webhookSecret = "ebs_biocrop_webhook_secret_2026";
+    @Value("${app.razorpay.webhook-secret:}")
+    private String webhookSecret = "";
 
     public RazorpayServiceImpl(Environment environment, ObjectMapper objectMapper) {
         this.environment = environment;
@@ -188,6 +188,76 @@ public class RazorpayServiceImpl implements RazorpayService {
         } catch (Exception e) {
             log.error("Error computing Razorpay HMAC-SHA256 signature: {}", e.getMessage());
             return false;
+        }
+    }
+
+    @Override
+    public RazorpayService.PaymentDetails fetchPaymentDetails(String razorpayPaymentId) {
+        if (!isConfigured() || razorpayPaymentId == null || razorpayPaymentId.isBlank()) {
+            throw new AppException("Payment verification is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        try {
+            String credentials = keyId + ":" + keySecret;
+            String encodedAuth = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.razorpay.com/v1/payments/" + razorpayPaymentId))
+                    .header("Accept", "application/json")
+                    .header("Authorization", "Basic " + encodedAuth)
+                    .timeout(Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("Razorpay payment lookup failed with status [{}]", response.statusCode());
+                throw new AppException("Could not verify payment with the payment provider", HttpStatus.BAD_GATEWAY);
+            }
+            JsonNode payment = objectMapper.readTree(response.body());
+            return new RazorpayService.PaymentDetails(
+                    payment.path("id").asText(null),
+                    payment.path("order_id").asText(null),
+                    payment.path("amount").asLong(-1),
+                    payment.path("currency").asText(null),
+                    payment.path("status").asText(null),
+                    payment.path("captured").asBoolean(false));
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Razorpay payment lookup failed: {}", e.getMessage());
+            throw new AppException("Payment provider is temporarily unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public RazorpayService.OrderDetails fetchOrderDetails(String razorpayOrderId) {
+        if (!isConfigured() || razorpayOrderId == null || razorpayOrderId.isBlank()) {
+            throw new AppException("Payment verification is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        try {
+            String credentials = keyId + ":" + keySecret;
+            String encodedAuth = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(RAZORPAY_API_URL + "/" + razorpayOrderId))
+                    .header("Accept", "application/json")
+                    .header("Authorization", "Basic " + encodedAuth)
+                    .timeout(Duration.ofSeconds(15))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("Razorpay order lookup failed with status [{}]", response.statusCode());
+                throw new AppException("Could not verify checkout with the payment provider", HttpStatus.BAD_GATEWAY);
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            Map<String, String> notes = new LinkedHashMap<>();
+            JsonNode notesNode = root.path("notes");
+            if (notesNode.isObject()) notesNode.fields().forEachRemaining(entry -> notes.put(entry.getKey(), entry.getValue().asText()));
+            return new RazorpayService.OrderDetails(root.path("id").asText(null), root.path("amount").asLong(-1),
+                    root.path("currency").asText(null), root.path("status").asText(null), Map.copyOf(notes));
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Razorpay order lookup failed: {}", e.getMessage());
+            throw new AppException("Payment provider is temporarily unavailable", HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
 

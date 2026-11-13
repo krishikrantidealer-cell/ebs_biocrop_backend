@@ -3,6 +3,7 @@ package com.ebs.biocrop;
 import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.dto.request.SellerProductWriteRequest;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductRepository;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.bson.types.ObjectId;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +25,10 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class SellerProductPricingTest {
@@ -74,6 +79,34 @@ class SellerProductPricingTest {
 
         assertNull(variant.getDiscountOnMrpRs());
         assertNull(variant.getDiscountPercentage());
+    }
+
+    @Test
+    void createsSellerlessPlatformProductWithoutUsingASequenceCollection() {
+        SellerProductWriteRequest request = new SellerProductWriteRequest();
+        request.setTitle("Platform product");
+        request.setCategoryId("category-1");
+        SellerProductWriteRequest.VariantWriteRequest variant = new SellerProductWriteRequest.VariantWriteRequest();
+        variant.setUnit("l");
+        variant.setPackSize(1);
+        variant.setPackSizeUnit("l");
+        variant.setPackQuantity(1);
+        variant.setDisplayRate(100.0);
+        variant.setPrintedMrp(100.0);
+        variant.setStock(0);
+        request.setVariants(List.of(variant));
+        when(products.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product created = service.create(null, request);
+
+        assertTrue(ObjectId.isValid(created.getId()));
+        assertEquals("PRD-EBS-" + created.getId().toUpperCase(java.util.Locale.ROOT), created.getProductCode());
+        assertEquals(created.getProductCode(), created.getSku());
+        assertNull(created.getSellerId());
+        assertEquals("ACTIVE", created.getStatus());
+        assertEquals(Boolean.TRUE, created.getIsAvailable());
+        assertEquals(Boolean.TRUE, created.getIsFeatured());
+        verifyNoInteractions(mongoTemplate, sellerCodeService);
     }
 
     private Product product(ProductVariant variant) {

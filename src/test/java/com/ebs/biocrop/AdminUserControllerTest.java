@@ -50,7 +50,7 @@ class AdminUserControllerTest {
     @Test
     void adminCanListSellersAndCreateCustomer() throws Exception {
         AdminUserResponse seller = response("seller-id", "ROLE_SELLER", false, false);
-        when(adminUserService.list(eq("SELLER"), isNull(), isNull(), isNull(), eq(0), eq(20)))
+        when(adminUserService.list(eq("SELLER"), isNull(), isNull(), isNull(), eq(0), eq(500)))
                 .thenReturn(new PageImpl<>(List.of(seller)));
         when(adminUserService.createManagedUser(eq("CUSTOMER"), any()))
                 .thenReturn(response("customer-id", "ROLE_CUSTOMER", false, false));

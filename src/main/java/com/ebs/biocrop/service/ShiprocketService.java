@@ -20,6 +20,12 @@ public interface ShiprocketService {
     ShiprocketOrderResult createOrderAndShipment(Order order);
 
     /**
+     * Creates an adhoc fulfillment shipment in Shiprocket for a specific seller fulfillment group,
+     * allocating courier & AWB, embedded into the unified order's sellerFulfillments[].shipments[].
+     */
+    ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId);
+
+    /**
      * Retrieves tracking activities for a given AWB or order.
      */
     String trackShipment(String awbCode);

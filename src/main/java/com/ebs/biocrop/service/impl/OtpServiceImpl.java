@@ -37,10 +37,10 @@ public class OtpServiceImpl implements OtpService {
     @Value("${app.otp.console-delivery.enabled:false}")
     private boolean consoleDeliveryEnabled;
 
-    @Value("${app.otp.master-otp:123456}")
-    private String masterOtp;
+    @Value("${app.otp.master-otp:}")
+    private String masterOtp = "";
 
-    @Value("${app.otp.master-otp.enabled:true}")
+    @Value("${app.otp.master-otp.enabled:false}")
     private boolean masterOtpEnabled;
 
     @Value("${app.otp.length:6}")

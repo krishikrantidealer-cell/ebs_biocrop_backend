@@ -1,9 +1,11 @@
 package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.dto.request.PlaceOrderRequest;
-import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
+import com.ebs.biocrop.entity.Order;
+import java.math.BigDecimal;
 
 public interface OrderPlacementService {
-    PlacedOrdersResponse createOrders(String customerId, PlaceOrderRequest request);
-    PlacedOrdersResponse createOrdersForAdmin(String customerId, PlaceOrderRequest request, String adminId);
+    Order createOrders(String customerId, PlaceOrderRequest request, String idempotencyKey);
+    Order createOrdersForAdmin(String customerId, PlaceOrderRequest request, String adminId, String idempotencyKey);
+    BigDecimal calculateOnlinePaymentAmount(String customerId, PlaceOrderRequest request);
 }

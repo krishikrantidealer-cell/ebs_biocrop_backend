@@ -2,14 +2,13 @@ package com.ebs.biocrop.controller;
 
 import com.ebs.biocrop.dto.request.CheckoutConfirmRequest;
 import com.ebs.biocrop.dto.request.CheckoutPaymentInitRequest;
+import com.ebs.biocrop.dto.request.PlaceOrderRequest;
 import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.CheckoutPaymentInitResponse;
 import com.ebs.biocrop.dto.response.CheckoutSummaryResponse;
 import com.ebs.biocrop.dto.response.CartResponse;
 import com.ebs.biocrop.dto.response.OrderResponse;
-import com.ebs.biocrop.dto.response.PlacedOrdersResponse;
 import com.ebs.biocrop.dto.response.RazorpayOrderResult;
-import com.ebs.biocrop.dto.response.ShiprocketOrderResult;
 import com.ebs.biocrop.dto.response.ShiprocketServiceabilityResponse;
 import com.ebs.biocrop.entity.*;
 import com.ebs.biocrop.exception.AppException;
@@ -19,7 +18,6 @@ import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.*;
-import com.ebs.biocrop.websocket.WebSocketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -46,33 +43,30 @@ public class CheckoutController {
     private static final Logger log = LoggerFactory.getLogger(CheckoutController.class);
 
     private final CartService cartService;
-    private final CartRepository cartRepository;
     private final OrderPlacementService orderPlacementService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final RazorpayService razorpayService;
     private final ShiprocketService shiprocketService;
-    private final WebSocketService webSocketService;
+    private final OrderLifecycleService orderLifecycleService;
     private final RateLimitGuard rateLimitGuard;
 
     public CheckoutController(
             CartService cartService,
-            CartRepository cartRepository,
             OrderPlacementService orderPlacementService,
             OrderRepository orderRepository,
             UserRepository userRepository,
             RazorpayService razorpayService,
             ShiprocketService shiprocketService,
-            WebSocketService webSocketService,
+            OrderLifecycleService orderLifecycleService,
             RateLimitGuard rateLimitGuard) {
         this.cartService = cartService;
-        this.cartRepository = cartRepository;
         this.orderPlacementService = orderPlacementService;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.razorpayService = razorpayService;
         this.shiprocketService = shiprocketService;
-        this.webSocketService = webSocketService;
+        this.orderLifecycleService = orderLifecycleService;
         this.rateLimitGuard = rateLimitGuard;
     }
 
@@ -85,6 +79,9 @@ public class CheckoutController {
             @RequestParam String pincode,
             @RequestParam(defaultValue = "0.5") double weight,
             @RequestParam(defaultValue = "false") boolean cod) {
+        if (!shiprocketService.isConfigured()) {
+            throw new AppException("Courier serviceability integration is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
         ShiprocketServiceabilityResponse response = shiprocketService.checkServiceability(pincode, weight, cod);
         return ResponseEntity.ok(ApiResponse.ok("Serviceability checked", response));
     }
@@ -135,9 +132,18 @@ public class CheckoutController {
     @Operation(summary = "Create a Razorpay payment order for the current checkout")
     public ResponseEntity<ApiResponse<CheckoutPaymentInitResponse>> initiatePayment(
             @AuthenticationPrincipal CustomUserDetails customer,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody CheckoutPaymentInitRequest request) {
 
+        if (!razorpayService.isConfigured()) {
+            throw new AppException("Payment integration is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
         rateLimitGuard.enforce("payment-init", customer.getId(), 10, Duration.ofMinutes(1));
+        String checkoutKey = idempotencyKey == null ? "" : idempotencyKey.trim();
+        if (checkoutKey.isBlank() || checkoutKey.length() > 128) {
+            throw new AppException("A valid Idempotency-Key header is required", HttpStatus.BAD_REQUEST);
+        }
 
         String phone = customer.getUsername();
         CartResponse cart = cartService.getCart(phone);
@@ -145,27 +151,25 @@ public class CheckoutController {
             throw new AppException("Your cart is empty. Please add items before checking out.", HttpStatus.BAD_REQUEST);
         }
 
-        double totalAmount = cart.getFinalAmount() != null ? cart.getFinalAmount() : (cart.getTotalAmount() != null ? cart.getTotalAmount() : 0.0);
-        double advancePct = 100.0;
-
-        if (request.getPaymentMethod() == OrderPaymentMethod.PARTIAL) {
-            BigDecimal requestedAdv = request.getAdvancePercentage();
-            if (requestedAdv == null || !List.of(10, 20, 50).contains(requestedAdv.intValue())) {
-                throw new AppException("Partial payment options must be 10%, 20%, or 50%.", HttpStatus.BAD_REQUEST);
-            }
-            advancePct = requestedAdv.doubleValue();
+        PlaceOrderRequest orderRequest = request.getOrderRequest();
+        if (orderRequest == null) {
+            throw new AppException("Order details are required", HttpStatus.BAD_REQUEST);
         }
-
-        double amountToPay = BigDecimal.valueOf(totalAmount)
-                .multiply(BigDecimal.valueOf(advancePct))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
-                .doubleValue();
+        if (orderRequest.getPaymentMethod() == OrderPaymentMethod.COD) {
+            throw new AppException("COD orders are placed after customer confirmation without online payment", HttpStatus.BAD_REQUEST);
+        }
+        double totalAmount = cart.getFinalAmount() != null ? cart.getFinalAmount() : (cart.getTotalAmount() != null ? cart.getTotalAmount() : 0.0);
+        BigDecimal amount = orderPlacementService.calculateOnlinePaymentAmount(customer.getId(), orderRequest);
+        double amountToPay = amount.doubleValue();
+        double advancePct = orderRequest.getPaymentMethod() == OrderPaymentMethod.PREPAID ? 100.0
+                : (orderRequest.getAdvancePercentage() == null ? 10.0 : orderRequest.getAdvancePercentage().doubleValue());
 
         String receipt = "rcpt_" + System.currentTimeMillis();
         Map<String, String> notes = Map.of(
                 "customerId", customer.getId(),
                 "customerPhone", phone,
-                "paymentMethod", request.getPaymentMethod().name(),
+                "idempotencyKey", checkoutKey,
+                "paymentMethod", orderRequest.getPaymentMethod().name(),
                 "advancePercentage", String.valueOf(advancePct)
         );
 
@@ -197,15 +201,20 @@ public class CheckoutController {
     }
 
     /**
-     * Confirms the payment signature, converts the cart into confirmed orders, and dispatches to Shiprocket.
+     * Confirms the payment signature and records the advance against one unified checkout order.
      */
     @PostMapping("/confirm-order")
     @PreAuthorize("hasRole('CUSTOMER')")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Verify Razorpay signature, finalize order placement, and dispatch via Shiprocket")
-    public ResponseEntity<ApiResponse<PlacedOrdersResponse>> confirmOrder(
+    @Operation(summary = "Verify payment signature and confirm one unified checkout order")
+    public ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(
             @AuthenticationPrincipal CustomUserDetails customer,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody CheckoutConfirmRequest confirmRequest) {
+
+        if (!razorpayService.isConfigured()) {
+            throw new AppException("Payment integration is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
 
         rateLimitGuard.enforce("order-confirm", customer.getId(), 5, Duration.ofMinutes(1));
 
@@ -214,86 +223,57 @@ public class CheckoutController {
         String rzpSignature = confirmRequest.getRazorpaySignature();
 
         // 1. Verify Razorpay cryptographic signature
-        if (rzpOrderId != null && !rzpOrderId.isBlank()) {
-            boolean validSignature = razorpayService.verifyPaymentSignature(rzpOrderId, rzpPaymentId, rzpSignature);
-            if (!validSignature) {
-                log.error("Invalid Razorpay payment signature for order [{}] payment [{}]", rzpOrderId, rzpPaymentId);
-                throw new AppException("Razorpay payment signature verification failed. Order not confirmed.", HttpStatus.PAYMENT_REQUIRED);
-            }
+        if (rzpOrderId == null || rzpOrderId.isBlank() || rzpPaymentId == null || rzpPaymentId.isBlank()
+                || rzpSignature == null || rzpSignature.isBlank()) {
+            throw new AppException("Razorpay order, payment, and signature are required", HttpStatus.BAD_REQUEST);
+        }
+        boolean validSignature = razorpayService.verifyPaymentSignature(rzpOrderId, rzpPaymentId, rzpSignature);
+        if (!validSignature) {
+            log.error("Invalid Razorpay payment signature for order [{}] payment [{}]", rzpOrderId, rzpPaymentId);
+            throw new AppException("Razorpay payment signature verification failed. Order not confirmed.", HttpStatus.PAYMENT_REQUIRED);
         }
 
-        // 2. Place orders via core OrderPlacementService
-        PlacedOrdersResponse placedOrders = orderPlacementService.createOrders(customer.getId(), confirmRequest.getOrderRequest());
-
-        // 3. Attach Razorpay payment confirmation and trigger Shiprocket fulfillment
-        List<OrderResponse> updatedResponses = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
-
-        for (OrderResponse orderResp : placedOrders.orders()) {
-            Order order = orderRepository.findById(orderResp.id()).orElse(null);
-            if (order != null) {
-                // Record Razorpay Details
-                order.setRazorpayOrderId(rzpOrderId);
-                order.setRazorpayPaymentId(rzpPaymentId);
-                order.setRazorpaySignature(rzpSignature);
-
-                double amountPaid = order.getAdvanceAmountDue() != null ? order.getAdvanceAmountDue() : order.getTotalAmount();
-                if (order.getPaymentMethod() == OrderPaymentMethod.PREPAID) {
-                    amountPaid = order.getTotalAmount();
-                }
-
-                OrderPaymentTransaction tx = new OrderPaymentTransaction();
-                tx.setAmount(amountPaid);
-                tx.setStatus("SUCCESS");
-                tx.setProvider("RAZORPAY");
-                tx.setProviderPaymentId(rzpPaymentId != null ? rzpPaymentId : ("pay_mock_" + UUID.randomUUID().toString().substring(0, 8)));
-                tx.setReferenceNumber(rzpOrderId != null ? rzpOrderId : order.getOrderNumber());
-                tx.setPaidAt(now);
-
-                if (order.getPayment() == null) {
-                    order.setPayment(new OrderPaymentDetails());
-                }
-                order.getPayment().getTransactions().add(tx);
-                order.recordConfirmedPayment(amountPaid);
-
-                // Create Shiprocket Fulfillment Order & Shipment
-                try {
-                    ShiprocketOrderResult shipResult = shiprocketService.createOrderAndShipment(order);
-                    if (shipResult != null) {
-                        order.setShiprocketOrderId(shipResult.shiprocketOrderId());
-                        order.setShiprocketShipmentId(shipResult.shipmentId());
-                        order.setShiprocketAwbCode(shipResult.awbCode());
-                        order.setShiprocketCourierName(shipResult.courierName());
-                        order.setShiprocketTrackingUrl(shipResult.trackingUrl());
-                        order.setShiprocketStatus(shipResult.status());
-
-                        OrderStatusEvent shipEvent = new OrderStatusEvent();
-                        shipEvent.setStatus(OrderStatus.PACKED.name());
-                        shipEvent.setChangedAt(now);
-                        shipEvent.setChangedBy("SYSTEM_SHIPROCKET");
-                        shipEvent.setNote("Dispatched to Shiprocket: " + shipResult.courierName() + " (AWB: " + shipResult.awbCode() + ")");
-                        order.getStatusHistory().add(shipEvent);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to automatically dispatch order [{}] to Shiprocket: {}", order.getOrderNumber(), e.getMessage());
-                }
-
-                order.setUpdatedAt(now);
-                order = orderRepository.save(order);
-                webSocketService.broadcast("orders:status", order);
-
-                updatedResponses.add(OrderResponse.forCustomer(order));
-            } else {
-                updatedResponses.add(orderResp);
-            }
+        RazorpayService.PaymentDetails paymentDetails = razorpayService.fetchPaymentDetails(rzpPaymentId);
+        RazorpayService.OrderDetails providerOrder = razorpayService.fetchOrderDetails(rzpOrderId);
+        if (!Objects.equals(rzpPaymentId, paymentDetails.paymentId())
+                || !Objects.equals(rzpOrderId, paymentDetails.orderId())
+                || !Objects.equals(rzpOrderId, providerOrder.orderId())
+                || !paymentDetails.captured()
+                || !"captured".equalsIgnoreCase(paymentDetails.status())
+                || !"INR".equalsIgnoreCase(paymentDetails.currency())
+                || !"INR".equalsIgnoreCase(providerOrder.currency())
+                || !Objects.equals(customer.getId(), providerOrder.notes().get("customerId"))
+                || !Objects.equals(idempotencyKey.trim(), providerOrder.notes().get("idempotencyKey"))) {
+            throw new AppException("Payment is not captured or does not match this checkout", HttpStatus.PAYMENT_REQUIRED);
+        }
+        Optional<Order> existingOrder = orderRepository.findByCustomerIdAndIdempotencyKey(customer.getId(), idempotencyKey.trim());
+        if (existingOrder.isPresent()) {
+            Order existing = existingOrder.get();
+            boolean sameCapturedPayment = existing.getPayment() != null
+                    && Objects.equals(existing.getPayment().getProviderOrderId(), rzpOrderId)
+                    && existing.getPayment().getTransactions() != null
+                    && existing.getPayment().getTransactions().stream().anyMatch(tx -> Objects.equals(tx.getProviderPaymentId(), rzpPaymentId));
+            if (!sameCapturedPayment) throw new AppException("Idempotency-Key was already used for a different payment", HttpStatus.CONFLICT);
+            return ResponseEntity.ok(ApiResponse.ok("Checkout payment was already confirmed", OrderResponse.forCustomer(existing)));
+        }
+        BigDecimal expectedAmount = orderPlacementService.calculateOnlinePaymentAmount(customer.getId(), confirmRequest.getOrderRequest());
+        long expectedPaise = expectedAmount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
+        if (paymentDetails.amountPaise() != expectedPaise || providerOrder.amountPaise() != expectedPaise) {
+            throw new AppException("Captured amount does not match the current checkout total", HttpStatus.CONFLICT);
         }
 
-        PlacedOrdersResponse finalResponse = new PlacedOrdersResponse(placedOrders.checkoutGroupId(), updatedResponses);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Order placed and payment confirmed", finalResponse));
+        Order order = orderPlacementService.createOrders(customer.getId(), confirmRequest.getOrderRequest(), idempotencyKey);
+        order.getPayment().setProvider("RAZORPAY");
+        order.getPayment().setProviderOrderId(rzpOrderId);
+        order = orderRepository.save(order);
+        Order confirmed = orderLifecycleService.recordAdvancePaymentCaptured(order.getId(), rzpPaymentId,
+                BigDecimal.valueOf(paymentDetails.amountPaise(), 2));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Checkout order payment confirmed",
+                OrderResponse.forCustomer(confirmed)));
     }
 
     /**
-     * Get live Shiprocket tracking status for an order.
+     * Get embedded shipment status for the authenticated customer's order.
      */
     @GetMapping("/track/{orderId}")
     @PreAuthorize("hasRole('CUSTOMER')")
@@ -303,25 +283,29 @@ public class CheckoutController {
             @AuthenticationPrincipal CustomUserDetails customer,
             @PathVariable String orderId) {
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdAndCustomerId(orderId, customer.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
-
-        if (!customer.getId().equals(order.getCustomerId())) {
-            throw new AppException("You do not have access to this order's tracking", HttpStatus.FORBIDDEN);
-        }
 
         Map<String, Object> tracking = new LinkedHashMap<>();
         tracking.put("orderNumber", order.getOrderNumber());
-        tracking.put("orderStatus", order.getOrderStatus());
-        tracking.put("courierName", order.getShiprocketCourierName());
-        tracking.put("awbCode", order.getShiprocketAwbCode());
-        tracking.put("trackingUrl", order.getShiprocketTrackingUrl());
-        tracking.put("status", order.getShiprocketStatus());
-
-        if (order.getShiprocketAwbCode() != null && !order.getShiprocketAwbCode().isBlank()) {
-            String rawShiprocketJson = shiprocketService.trackShipment(order.getShiprocketAwbCode());
-            tracking.put("rawTracking", rawShiprocketJson);
+        tracking.put("overallStatus", order.getOverallStatus());
+        List<Map<String, Object>> fulfillmentTracking = new ArrayList<>();
+        if (order.getSellerFulfillments() != null) {
+            for (Order.SellerFulfillment fulfillment : order.getSellerFulfillments()) {
+                for (Order.Shipment shipment : fulfillment.getShipments()) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("sellerFulfillmentId", fulfillment.getId());
+                    item.put("shipmentId", shipment.getShipmentId());
+                    item.put("carrier", shipment.getCarrier());
+                    item.put("trackingNumber", shipment.getTrackingNumber());
+                    item.put("status", shipment.getStatus());
+                    item.put("lastTrackingUpdateAt", shipment.getLastTrackingUpdateAt());
+                    item.put("lastTrackingDescription", shipment.getLastTrackingDescription());
+                    fulfillmentTracking.add(item);
+                }
+            }
         }
+        tracking.put("shipments", fulfillmentTracking);
 
         return ResponseEntity.ok(ApiResponse.ok("Tracking details retrieved", tracking));
     }

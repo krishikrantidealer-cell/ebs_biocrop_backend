@@ -32,35 +32,35 @@ public class AirtelIqSmsDeliveryService implements SmsDeliveryService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    @Value("${app.sms.airtel-iq.enabled:true}")
-    private boolean enabled = true;
+    @Value("${app.sms.airtel-iq.enabled:false}")
+    private boolean enabled;
 
     @Value("${app.sms.airtel-iq.url:https://iqsms.airtel.in/api/v1/send-sms}")
     private String apiUrl = "https://iqsms.airtel.in/api/v1/send-sms";
 
-    @Value("${app.sms.airtel-iq.customer-id:60bcc9cf-5bbe-40f5-a5ea-f8cc875bc1ea}")
-    private String customerId = "60bcc9cf-5bbe-40f5-a5ea-f8cc875bc1ea";
+    @Value("${app.sms.airtel-iq.customer-id:}")
+    private String customerId = "";
 
-    @Value("${app.sms.airtel-iq.username:3e6ecb5e_f47d_482a_bd24_226521e128cf}")
-    private String username = "3e6ecb5e_f47d_482a_bd24_226521e128cf";
+    @Value("${app.sms.airtel-iq.username:}")
+    private String username = "";
 
-    @Value("${app.sms.airtel-iq.password:4lC0T2bLD4}")
-    private String password = "4lC0T2bLD4";
+    @Value("${app.sms.airtel-iq.password:}")
+    private String password = "";
 
-    @Value("${app.sms.airtel-iq.source-address:KRORCS}")
-    private String sourceAddress = "KRORCS";
+    @Value("${app.sms.airtel-iq.source-address:}")
+    private String sourceAddress = "";
 
-    @Value("${app.sms.airtel-iq.dlt-template-id:1007069945111743122}")
-    private String dltTemplateId = "1007069945111743122";
+    @Value("${app.sms.airtel-iq.dlt-template-id:}")
+    private String dltTemplateId = "";
 
-    @Value("${app.sms.airtel-iq.entity-id:1001392915934347308}")
-    private String entityId = "1001392915934347308";
+    @Value("${app.sms.airtel-iq.entity-id:}")
+    private String entityId = "";
 
     @Value("${app.sms.airtel-iq.message-template:{otp} is your login OTP for Krishikranti Organics. This OTP is valid for 10 minutes. Do not share this OTP with anyone.}")
     private String messageTemplate = "{otp} is your login OTP for Krishikranti Organics. This OTP is valid for 10 minutes. Do not share this OTP with anyone.";
 
-    @Value("${app.sms.airtel-iq.test-numbers:9999999999}")
-    private String testNumbers = "9999999999";
+    @Value("${app.sms.airtel-iq.test-numbers:}")
+    private String testNumbers = "";
 
     public AirtelIqSmsDeliveryService(Environment environment, ObjectMapper objectMapper) {
         this.environment = environment;
