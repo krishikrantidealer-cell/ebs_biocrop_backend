@@ -142,7 +142,36 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.setUpdatedAt(now);
         appendHistory(order, prepaid ? "PREPAID_PAYMENT_CAPTURED" : "ADVANCE_PAYMENT_CAPTURED", "SYSTEM",
                 prepaid ? "Full online payment confirmed" : "Required partial online payment confirmed");
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:payment_captured", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "amount", captured,
+                    "overallStatus", OrderStatus.CONFIRMED.name()));
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:status_change", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "oldStatus", OrderStatus.PENDING_PAYMENT.name(),
+                    "newStatus", OrderStatus.CONFIRMED.name()));
+        }
+        if (saved.getSellerFulfillments() != null) {
+            saved.getSellerFulfillments().forEach(sf -> {
+                if (sf.getSellerId() != null) {
+                    webSocketService.sendToUser(sf.getSellerId(), "orders:seller_payment_confirmed", Map.of(
+                            "orderId", saved.getId(),
+                            "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                            "fulfillmentId", sf.getId() != null ? sf.getId() : "",
+                            "status", OrderStatus.CONFIRMED.name()));
+                }
+            });
+        }
+        webSocketService.sendToRole("ROLE_ADMIN", "orders:status_change", Map.of(
+                "orderId", saved.getId(),
+                "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                "oldStatus", OrderStatus.PENDING_PAYMENT.name(),
+                "newStatus", OrderStatus.CONFIRMED.name()));
+        return saved;
     }
 
     @Override
@@ -166,7 +195,13 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.getPayment().getTransactions().add(tx);
         order.setUpdatedAt(now);
         appendHistory(order, "PAYMENT_AUTHORIZED", "SYSTEM", "Payment authorization received: " + providerPaymentReference);
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:payment_authorized", Map.of(
+                    "orderId", saved.getId(),
+                    "providerPaymentId", providerPaymentReference));
+        }
+        return saved;
     }
 
     @Override
@@ -190,7 +225,14 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.getPayment().getTransactions().add(tx);
         order.setUpdatedAt(now);
         appendHistory(order, "PAYMENT_FAILED", "SYSTEM", "Payment failed: " + (failureReason != null ? failureReason : "Gateway failure"));
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:payment_failed", Map.of(
+                    "orderId", saved.getId(),
+                    "providerPaymentId", providerPaymentReference,
+                    "reason", failureReason != null ? failureReason : "Payment failed"));
+        }
+        return saved;
     }
 
     @Override
@@ -222,7 +264,15 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         }
         order.setUpdatedAt(now);
         appendHistory(order, "PAYMENT_REFUNDED", "SYSTEM", "Payment refund processed: " + refundId + " (amount " + refund + ")");
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:refund_processed", Map.of(
+                    "orderId", saved.getId(),
+                    "refundId", refundId,
+                    "amount", refund,
+                    "reason", reason != null ? reason : "Gateway refund"));
+        }
+        return saved;
     }
 
     @Override
@@ -310,7 +360,28 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.setUpdatedAt(now);
         appendHistory(order, "ACCEPT".equals(normalized) ? "SELLER_ACCEPTED" : "SELLER_REJECTED",
                 sellerId, "Seller " + normalized.toLowerCase(java.util.Locale.ROOT) + " fulfillment " + fulfillmentId);
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:status_change", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "fulfillmentId", fulfillmentId,
+                    "decision", normalized,
+                    "overallStatus", saved.getOverallStatus()));
+            if ("REJECT".equals(normalized)) {
+                webSocketService.sendToUser(saved.getCustomerId(), "orders:decision_required", Map.of(
+                        "orderId", saved.getId(),
+                        "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                        "fulfillmentId", fulfillmentId));
+            }
+        }
+        webSocketService.sendToRole("ROLE_ADMIN", "orders:status_change", Map.of(
+                "orderId", saved.getId(),
+                "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                "fulfillmentId", fulfillmentId,
+                "decision", normalized,
+                "overallStatus", saved.getOverallStatus()));
+        return saved;
     }
 
     @Override
@@ -333,7 +404,14 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         fulfillment.setStatus(OrderStatus.PROCESSING.name());
         order.setUpdatedAt(LocalDateTime.now());
         appendHistory(order, "SELLER_FULFILLMENT_PACKED", sellerId, "Seller marked fulfillment packed; carrier handover is still pending");
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:packed", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "fulfillmentId", fulfillmentId));
+        }
+        return saved;
     }
 
     @Override
@@ -581,7 +659,37 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 "Shipment " + shipment.getShipmentId() + " status changed from " + previousStatus + " to " + nextStatus
                         + " (AWB: " + trackingNumber + ")");
 
-        return orders.save(order);
+        Order saved = orders.save(order);
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:tracking_updated", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "fulfillmentId", fulfillmentId,
+                    "trackingNumber", trackingNumber,
+                    "status", nextStatus,
+                    "carrierStatus", carrierStatus == null ? nextStatus : carrierStatus,
+                    "overallStatus", saved.getOverallStatus()));
+            if ("IN_TRANSIT".equals(nextStatus) && "PICKED UP".equalsIgnoreCase(carrierStatus)) {
+                webSocketService.sendToUser(saved.getCustomerId(), "orders:dispatched", Map.of(
+                        "orderId", saved.getId(),
+                        "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                        "fulfillmentId", fulfillmentId,
+                        "trackingNumber", trackingNumber));
+            }
+        }
+        if (fulfillment.getSellerId() != null) {
+            webSocketService.sendToUser(fulfillment.getSellerId(), "orders:seller_tracking_updated", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "fulfillmentId", fulfillmentId,
+                    "trackingNumber", trackingNumber,
+                    "status", nextStatus));
+        }
+        webSocketService.sendToRole("ROLE_ADMIN", "orders:status_change", Map.of(
+                "orderId", saved.getId(),
+                "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                "overallStatus", saved.getOverallStatus()));
+        return saved;
     }
 
     private String mapShiprocketStatus(Integer statusId, String carrierStatus) {
@@ -1004,8 +1112,28 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         order.setStatusHistory(history);
         Order saved = orders.save(order);
         redisCache.invalidateRegionAfterCommit("public-products");
-        webSocketService.broadcast("orders:status_change", Map.of(
-                "orderId", saved.getId(), "oldStatus", "AWAITING_ADVANCE_PAYMENT", "newStatus", "CANCELLED"));
+        if (saved.getCustomerId() != null) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:status_change", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                    "oldStatus", OrderStatus.PENDING_PAYMENT.name(),
+                    "newStatus", OrderStatus.CANCELLED.name()));
+        }
+        if (saved.getSellerFulfillments() != null) {
+            saved.getSellerFulfillments().forEach(sf -> {
+                if (sf.getSellerId() != null) {
+                    webSocketService.sendToUser(sf.getSellerId(), "orders:seller_status_change", Map.of(
+                            "orderId", saved.getId(),
+                            "fulfillmentId", sf.getId() != null ? sf.getId() : "",
+                            "newStatus", OrderStatus.CANCELLED.name()));
+                }
+            });
+        }
+        webSocketService.sendToRole("ROLE_ADMIN", "orders:status_change", Map.of(
+                "orderId", saved.getId(),
+                "orderNumber", saved.getOrderNumber() != null ? saved.getOrderNumber() : "",
+                "oldStatus", OrderStatus.PENDING_PAYMENT.name(),
+                "newStatus", OrderStatus.CANCELLED.name()));
         return saved;
     }
 }

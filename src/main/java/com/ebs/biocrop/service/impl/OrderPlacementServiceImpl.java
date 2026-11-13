@@ -334,10 +334,23 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                     "productId", update.productId(),
                     "variantId", update.variantId(),
                     "stock", update.stock())));
-            webSocketService.broadcast("orders:new", Map.of(
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:new", Map.of(
                     "orderId", saved.getId(),
                     "orderNumber", saved.getOrderNumber(),
                     "checkoutGroupId", saved.getCheckoutGroupId(),
+                    "overallStatus", saved.getOverallStatus()));
+            if (sellerIds != null) {
+                for (String sellerId : sellerIds) {
+                    webSocketService.sendToUser(sellerId, "orders:seller_new", Map.of(
+                            "orderId", saved.getId(),
+                            "orderNumber", saved.getOrderNumber(),
+                            "overallStatus", saved.getOverallStatus()));
+                }
+            }
+            webSocketService.sendToRole("ROLE_ADMIN", "orders:new", Map.of(
+                    "orderId", saved.getId(),
+                    "orderNumber", saved.getOrderNumber(),
+                    "customerId", saved.getCustomerId(),
                     "overallStatus", saved.getOverallStatus()));
             return saved;
         } catch (DuplicateKeyException duplicate) {

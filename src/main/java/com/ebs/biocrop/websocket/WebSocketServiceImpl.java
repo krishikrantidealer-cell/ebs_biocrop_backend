@@ -33,6 +33,18 @@ public class WebSocketServiceImpl implements WebSocketService {
     }
 
     @Override
+    public void sendToRole(String role, String eventName, Object data) {
+        log.debug("[WS Service] Sending event {} to role {}", eventName, role);
+        handler.sendToRole(role, eventName, data);
+    }
+
+    @Override
+    public void disconnectUser(String userId) {
+        log.debug("[WS Service] Disconnecting user {}", userId);
+        handler.disconnectUser(userId);
+    }
+
+    @Override
     public int getActiveSessionCount() {
         return handler.getActiveSessionCount();
     }

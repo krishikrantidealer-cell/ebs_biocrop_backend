@@ -356,6 +356,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                     "userId", id,
                     "reason", "Account has been blocked by administrator"
             ));
+            webSocketService.disconnectUser(id);
         }
         return AdminUserResponse.from(saved);
     }
@@ -410,6 +411,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                         "userId", id,
                         "reason", "Account has been deactivated"
                 ));
+                webSocketService.disconnectUser(id);
             }
             responses.add(AdminUserResponse.from(saved));
         }
@@ -506,6 +508,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                     "userId", id,
                     "reason", "Account has been permanently deleted"
             ));
+            webSocketService.disconnectUser(id);
             deletedIds.add(id);
         }
 

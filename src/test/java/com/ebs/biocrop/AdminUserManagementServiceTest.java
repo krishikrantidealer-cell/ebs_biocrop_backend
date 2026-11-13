@@ -429,6 +429,8 @@ class AdminUserManagementServiceTest {
         assertEquals(2, permDeleteResp.count());
         verify(users).delete(c1);
         verify(users).delete(c2);
+        verify(webSocketService, times(2)).disconnectUser("c1");
+        verify(webSocketService, times(2)).disconnectUser("c2");
     }
 
     private Address completeAddress() {

@@ -79,12 +79,14 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
         // Handle Heartbeat PING from Flutter or KD Panel
         if (payload.contains("\"type\":\"PING\"") || payload.contains("\"PING\"")) {
             String pongPayload = String.format("{\"type\":\"PONG\",\"timestamp\":\"%s\"}", Instant.now());
-            session.sendMessage(new TextMessage(pongPayload));
+            WebSocketSession decorated = activeSessions.get(session.getId());
+            WebSocketSession target = decorated != null ? decorated : session;
+            target.sendMessage(new TextMessage(pongPayload));
             return;
         }
 
         // Additional client text messages can be logged safely without throwing
-        log.debug("[WS] Received message from sessionId={}: {}", session.getId(), payload);
+        log.debug("[WS] Received message from sessionId={}: length={}", session.getId(), payload != null ? payload.length() : 0);
     }
 
     @Override
@@ -178,6 +180,53 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
+     * Sends an event envelope only to active sessions matching a specific role (e.g. ROLE_ADMIN, ROLE_SELLER).
+     */
+    public void sendToRole(String role, String eventName, Object data) {
+        if (role == null || role.isBlank()) return;
+        String targetRole = role.trim();
+        String normalizedTarget = targetRole.toUpperCase(java.util.Locale.ROOT);
+        if (!normalizedTarget.startsWith("ROLE_")) {
+            normalizedTarget = "ROLE_" + normalizedTarget;
+        }
+
+        Map<String, Object> envelope = Map.of(
+                "event", eventName,
+                "data", data,
+                "timestamp", Instant.now().toString()
+        );
+
+        String jsonMessage;
+        try {
+            jsonMessage = objectMapper.writeValueAsString(envelope);
+        } catch (Exception e) {
+            log.error("[WS] Serialization error for role {} event {}: {}", role, eventName, e.getMessage());
+            return;
+        }
+
+        TextMessage textMessage = new TextMessage(jsonMessage);
+        for (WebSocketSession session : activeSessions.values()) {
+            if (session.isOpen()) {
+                Object sessionRoleObj = session.getAttributes().get("role");
+                if (sessionRoleObj instanceof String sessionRole) {
+                    String normSessionRole = sessionRole.trim().toUpperCase(java.util.Locale.ROOT);
+                    if (!normSessionRole.startsWith("ROLE_")) {
+                        normSessionRole = "ROLE_" + normSessionRole;
+                    }
+                    if (normalizedTarget.equalsIgnoreCase(normSessionRole)) {
+                        try {
+                            session.sendMessage(textMessage);
+                        } catch (IOException e) {
+                            log.warn("[WS] Error sending to role {} session {}: {}", role, session.getId(), e.getMessage());
+                            cleanupSession(session.getId(), CloseStatus.PROTOCOL_ERROR.getCode(), "Write failure");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Cleanly closes and removes any stale sessions that have not pinged or sent data
      * within the specified idle threshold.
      */
@@ -197,6 +246,30 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         }
+    }
+
+    /**
+     * Forcibly closes and disconnects all active sessions for a user (e.g. on account block, deletion, or token revocation).
+     */
+    public void disconnectUser(String userId) {
+        if (userId == null) return;
+        Set<String> sessionIds = userSessions.remove(userId);
+        if (sessionIds == null || sessionIds.isEmpty()) return;
+
+        for (String sessionId : sessionIds) {
+            WebSocketSession session = activeSessions.remove(sessionId);
+            if (session != null) {
+                try {
+                    if (session.isOpen()) {
+                        session.close(CloseStatus.POLICY_VIOLATION);
+                    }
+                } catch (IOException e) {
+                    log.warn("[WS] Error closing revoked session {} for user {}: {}", sessionId, userId, e.getMessage());
+                }
+            }
+        }
+        log.info("[WS] Revoked and disconnected all sessions for userId={}. Remaining total active: {}",
+                userId, activeSessions.size());
     }
 
     public int getActiveSessionCount() {

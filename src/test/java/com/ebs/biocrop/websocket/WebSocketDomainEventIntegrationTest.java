@@ -22,6 +22,7 @@ import com.ebs.biocrop.service.impl.OrderLifecycleServiceImpl;
 import com.ebs.biocrop.entity.Cart;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
+import com.ebs.biocrop.entity.enums.OrderStatus;
 import com.ebs.biocrop.repository.CartRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
@@ -133,7 +134,8 @@ class WebSocketDomainEventIntegrationTest {
 
         Order existingOrder = new Order();
         existingOrder.setId("ord-999");
-        existingOrder.setOverallStatus("AWAITING_ADVANCE_PAYMENT");
+        existingOrder.setCustomerId("cust-999");
+        existingOrder.setOverallStatus(OrderStatus.PENDING_PAYMENT.name());
 
         when(orderRepository.findById("ord-999")).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -152,14 +154,14 @@ class WebSocketDomainEventIntegrationTest {
         ArgumentCaptor<String> eventCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
 
-        verify(webSocketService).broadcast(eventCaptor.capture(), payloadCaptor.capture());
+        verify(webSocketService).sendToRole(eq("ROLE_ADMIN"), eventCaptor.capture(), payloadCaptor.capture());
 
         assertEquals("orders:status_change", eventCaptor.getValue());
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
         assertEquals("ord-999", data.get("orderId"));
-        assertEquals("AWAITING_ADVANCE_PAYMENT", data.get("oldStatus"));
-        assertEquals("CANCELLED", data.get("newStatus"));
+        assertEquals(OrderStatus.PENDING_PAYMENT.name(), data.get("oldStatus"));
+        assertEquals(OrderStatus.CANCELLED.name(), data.get("newStatus"));
     }
 
     @Test
@@ -169,7 +171,7 @@ class WebSocketDomainEventIntegrationTest {
         );
         Order existingOrder = new Order();
         existingOrder.setId("ord-reserved");
-        existingOrder.setOverallStatus("AWAITING_ADVANCE_PAYMENT");
+        existingOrder.setOverallStatus(OrderStatus.PENDING_PAYMENT.name());
         existingOrder.setStockReserved(true);
         OrderItem item = new OrderItem();
         item.setItemOrderId("item-1");
@@ -339,6 +341,7 @@ class WebSocketDomainEventIntegrationTest {
         Map<String, Object> data = (Map<String, Object>) payloadCaptor.getValue();
         assertEquals(userId, data.get("userId"));
         assertEquals("Account has been blocked by administrator", data.get("reason"));
+        verify(webSocketService).disconnectUser(userId);
     }
 
     @Test

@@ -145,4 +145,61 @@ class RealtimeWebSocketHandlerTest {
         assertEquals(0, handler.getActiveSessionCount());
         verify(session).close(CloseStatus.SESSION_NOT_RELIABLE);
     }
+
+    @Test
+    void sendToRole_shouldDeliverOnlyToMatchingRoleSessions() throws Exception {
+        WebSocketSession adminSession = mock(WebSocketSession.class);
+        WebSocketSession customerSession = mock(WebSocketSession.class);
+
+        Map<String, Object> adminAttr = new HashMap<>();
+        adminAttr.put("userId", "admin-1");
+        adminAttr.put("role", "ROLE_ADMIN");
+
+        Map<String, Object> customerAttr = new HashMap<>();
+        customerAttr.put("userId", "cust-1");
+        customerAttr.put("role", "ROLE_CUSTOMER");
+
+        when(adminSession.getId()).thenReturn("s-admin");
+        when(adminSession.getAttributes()).thenReturn(adminAttr);
+        when(adminSession.isOpen()).thenReturn(true);
+
+        when(customerSession.getId()).thenReturn("s-cust");
+        when(customerSession.getAttributes()).thenReturn(customerAttr);
+        when(customerSession.isOpen()).thenReturn(true);
+
+        handler.afterConnectionEstablished(adminSession);
+        handler.afterConnectionEstablished(customerSession);
+
+        handler.sendToRole("ROLE_ADMIN", "orders:new", Map.of("orderId", "ord-123"));
+
+        ArgumentCaptor<TextMessage> adminCaptor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(adminSession, atLeast(2)).sendMessage(adminCaptor.capture());
+
+        TextMessage lastAdminMsg = adminCaptor.getValue();
+        JsonNode json = objectMapper.readTree(lastAdminMsg.getPayload());
+        assertEquals("orders:new", json.get("event").asText());
+        assertEquals("ord-123", json.get("data").get("orderId").asText());
+
+        // customerSession should only have received the initial system:connected frame (1 time), not orders:new
+        verify(customerSession, times(1)).sendMessage(any(TextMessage.class));
+    }
+
+    @Test
+    void disconnectUser_shouldCloseAndEvictAllSessionsForUser() throws Exception {
+        WebSocketSession session = mock(WebSocketSession.class);
+        Map<String, Object> attr = new HashMap<>();
+        attr.put("userId", "revoked-user");
+
+        when(session.getId()).thenReturn("s-revoked");
+        when(session.getAttributes()).thenReturn(attr);
+        when(session.isOpen()).thenReturn(true);
+
+        handler.afterConnectionEstablished(session);
+        assertEquals(1, handler.getActiveSessionCount());
+
+        handler.disconnectUser("revoked-user");
+
+        assertEquals(0, handler.getActiveSessionCount());
+        verify(session).close(CloseStatus.POLICY_VIOLATION);
+    }
 }

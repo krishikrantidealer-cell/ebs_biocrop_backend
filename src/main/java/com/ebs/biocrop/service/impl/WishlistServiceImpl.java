@@ -11,6 +11,7 @@ import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.WishlistRepository;
 import com.ebs.biocrop.service.WishlistService;
 import com.ebs.biocrop.service.SellerShopNameLookup;
+import com.ebs.biocrop.websocket.WebSocketService;
 import jakarta.annotation.PostConstruct;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -44,6 +45,7 @@ public class WishlistServiceImpl implements WishlistService {
     private final ProductVariantLookup productVariantLookup;
     private final MongoTemplate mongoTemplate;
     private final SellerShopNameLookup sellerNames;
+    private final WebSocketService webSocketService;
     @Value("${app.database.maintenance-mode.enabled:false}")
     private boolean maintenanceMode;
 
@@ -53,11 +55,24 @@ public class WishlistServiceImpl implements WishlistService {
             ProductVariantLookup productVariantLookup,
             MongoTemplate mongoTemplate,
             SellerShopNameLookup sellerNames) {
+        this(wishlistRepository, productRepository, productVariantLookup, mongoTemplate, sellerNames, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WishlistServiceImpl(
+            WishlistRepository wishlistRepository,
+            ProductRepository productRepository,
+            ProductVariantLookup productVariantLookup,
+            MongoTemplate mongoTemplate,
+            SellerShopNameLookup sellerNames,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            WebSocketService webSocketService) {
         this.wishlistRepository = wishlistRepository;
         this.productRepository = productRepository;
         this.productVariantLookup = productVariantLookup;
         this.mongoTemplate = mongoTemplate;
         this.sellerNames = sellerNames;
+        this.webSocketService = webSocketService;
     }
 
     @PostConstruct
@@ -112,6 +127,9 @@ public class WishlistServiceImpl implements WishlistService {
         if (wishlist == null) {
             throw new IllegalStateException("Wishlist update did not return a document.");
         }
+        if (webSocketService != null) {
+            webSocketService.sendToUser(userId, "wishlist:update", Map.of("action", "add", "variantId", normalizedVariantId));
+        }
         return toResponse(wishlist);
     }
 
@@ -125,6 +143,9 @@ public class WishlistServiceImpl implements WishlistService {
                         .set("updatedAt", LocalDateTime.now()),
                 FindAndModifyOptions.options().returnNew(true),
                 Wishlist.class);
+        if (webSocketService != null) {
+            webSocketService.sendToUser(userId, "wishlist:update", Map.of("action", "remove", "variantId", normalizedVariantId));
+        }
         return wishlist != null
                 ? toResponse(wishlist)
                 : new WishlistResponse(List.of(), null, null);
@@ -140,6 +161,9 @@ public class WishlistServiceImpl implements WishlistService {
                         .set("updatedAt", LocalDateTime.now()),
                 FindAndModifyOptions.options().returnNew(true),
                 Wishlist.class);
+        if (webSocketService != null) {
+            webSocketService.sendToUser(userId, "wishlist:update", Map.of("action", "clear"));
+        }
         return wishlist != null
                 ? toResponse(wishlist)
                 : new WishlistResponse(List.of(), null, null);

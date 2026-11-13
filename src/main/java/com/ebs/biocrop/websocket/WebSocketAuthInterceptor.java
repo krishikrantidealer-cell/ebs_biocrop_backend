@@ -1,8 +1,12 @@
 package com.ebs.biocrop.websocket;
 
+import com.ebs.biocrop.entity.User;
+import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.jwt.JwtTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -15,10 +19,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * Validates JWT access token and user identity during WebSocket handshake.
- * Expected query format: /ws?userId={userId}&token={jwtToken}
+ * Validates JWT access token, user identity, and account active status during WebSocket handshake.
+ * Strict by default: requires token via HTTP header (Authorization: Bearer <jwt> or Sec-WebSocket-Protocol)
+ * to completely eliminate token exposure in URL access logs.
+ * URL query parameter token can optionally be allowed via app.websocket.allow-query-token=true.
  */
 @Component
 public class WebSocketAuthInterceptor implements HandshakeInterceptor {
@@ -26,9 +33,20 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
     private static final Logger log = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
+    private final boolean allowQueryToken;
 
-    public WebSocketAuthInterceptor(JwtTokenProvider jwtTokenProvider) {
+    public WebSocketAuthInterceptor(
+            JwtTokenProvider jwtTokenProvider,
+            UserRepository userRepository,
+            @Value("${app.websocket.allow-query-token:false}") boolean allowQueryToken) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.userRepository = userRepository;
+        this.allowQueryToken = allowQueryToken;
+    }
+
+    public WebSocketAuthInterceptor(JwtTokenProvider jwtTokenProvider, UserRepository userRepository) {
+        this(jwtTokenProvider, userRepository, false);
     }
 
     @Override
@@ -44,10 +62,53 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
                 .getQueryParams();
 
         String userId = queryParams.getFirst("userId");
-        String token = queryParams.getFirst("token");
+        String token = null;
+        String selectedSubprotocol = null;
+
+        HttpHeaders headers = request.getHeaders();
+        if (headers != null) {
+            // 1. Check Authorization header (e.g. "Bearer eyJ...")
+            String authHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7).trim();
+            }
+
+            // 2. Check Sec-WebSocket-Protocol header (browser WebSocket workaround for headers)
+            if (token == null || token.isBlank()) {
+                String protocolHeader = headers.getFirst("Sec-WebSocket-Protocol");
+                if (protocolHeader != null && !protocolHeader.isBlank()) {
+                    for (String candidate : protocolHeader.split(",")) {
+                        String trimmed = candidate.trim();
+                        if (!trimmed.isEmpty()) {
+                            token = trimmed;
+                            selectedSubprotocol = trimmed;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Query parameter fallback (strictly disabled by default for URL security)
+        String queryToken = queryParams.getFirst("token");
+        if (queryToken != null && !queryToken.isBlank()) {
+            if (token == null || token.isBlank()) {
+                if (!allowQueryToken) {
+                    log.warn("[WS Auth] Handshake rejected - token in URL query parameter is disabled for security. Path: {}. Use Authorization header or Sec-WebSocket-Protocol.", uri.getPath());
+                    response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                    return false;
+                }
+                token = queryToken.trim();
+            }
+        }
 
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7).trim();
+        }
+
+        // If userId was not passed as query param, extract it directly from the valid token
+        if ((userId == null || userId.isBlank()) && token != null && !token.isBlank() && jwtTokenProvider.validateToken(token)) {
+            userId = jwtTokenProvider.getUserIdFromToken(token);
         }
 
         if (userId == null || userId.isBlank() || token == null || token.isBlank()) {
@@ -73,10 +134,38 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             return false;
         }
 
+        // Validate account active status in database (prevents blocked/deleted users from reconnecting with unexpired JWT)
+        if (userRepository != null) {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty()) {
+                log.warn("[WS Auth] Handshake rejected - user not found in database: {}", userId);
+                response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                return false;
+            }
+            User user = userOpt.get();
+            if (Boolean.TRUE.equals(user.getIsBlocked())) {
+                log.warn("[WS Auth] Handshake rejected - user account is blocked: {}", userId);
+                response.setStatusCode(HttpStatus.FORBIDDEN);
+                return false;
+            }
+            if (Boolean.TRUE.equals(user.getIsDeleted())) {
+                log.warn("[WS Auth] Handshake rejected - user account is deactivated: {}", userId);
+                response.setStatusCode(HttpStatus.FORBIDDEN);
+                return false;
+            }
+        }
+
         String role = jwtTokenProvider.getRoleFromToken(token);
         attributes.put("userId", userId);
         attributes.put("role", role != null ? role : "ROLE_USER");
         attributes.put("lastActive", Instant.now().toEpochMilli());
+
+        if (selectedSubprotocol != null) {
+            HttpHeaders resHeaders = response.getHeaders();
+            if (resHeaders != null) {
+                resHeaders.set("Sec-WebSocket-Protocol", selectedSubprotocol);
+            }
+        }
 
         log.info("[WS Auth] Handshake approved for userId={}, role={}", userId, role);
         return true;
