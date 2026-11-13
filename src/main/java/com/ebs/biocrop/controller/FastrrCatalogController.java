@@ -1,23 +1,30 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.entity.User;
+import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.service.GcsImageStorageService;
+import com.ebs.biocrop.service.OrderLifecycleService;
 import com.ebs.biocrop.service.SellerShopNameLookup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +62,12 @@ public class FastrrCatalogController {
     private final SellerShopNameLookup sellerNames;
     private final MongoTemplate mongoTemplate;
 
+    @Value("${app.shiprocket.webhook-token:${SHIPROCKET_WEBHOOK_TOKEN:}}")
+    private String shiprocketWebhookToken = "";
+
+    @Autowired(required = false)
+    private OrderLifecycleService orderLifecycle;
+
     public FastrrCatalogController(ProductRepository productRepository,
                                    ProductCollectionRepository collectionRepository,
                                    GcsImageStorageService imageStorage,
@@ -86,7 +99,6 @@ public class FastrrCatalogController {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(rawId.getBytes(StandardCharsets.UTF_8));
             long val = ByteBuffer.wrap(digest, 0, 8).getLong() & 0x7FFFFFFFFFFFFFFFL;
-            // Map into positive 13-digit range [1_000_000_000_000L, 8_999_999_999_999L] (fits safely in JavaScript Number.MAX_SAFE_INTEGER < 9*10^15)
             long min = 1_000_000_000_000L;
             long range = 8_000_000_000_000L;
             return min + (val % range);
@@ -142,9 +154,11 @@ public class FastrrCatalogController {
         List<ProductCollection> allCollections = collectionRepository.findByIsActiveTrueOrderByPriorityAscNameAsc();
         int total = allCollections.size();
 
-        int fromIndex = Math.max(0, (page - 1) * limit);
-        List<ProductCollection> paged = fromIndex >= total ? List.of()
-                : allCollections.subList(fromIndex, Math.min(fromIndex + limit, total));
+        int pageSize = Math.min(Math.max(1, limit), 100);
+        long requestedOffset = Math.max(0L, (long) Math.max(1, page) - 1L) * pageSize;
+        int fromIndex = requestedOffset >= total ? total : (int) requestedOffset;
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        List<ProductCollection> paged = allCollections.subList(fromIndex, toIndex);
 
         List<Map<String, Object>> mappedCollections = paged.stream()
                 .map(this::mapToFastrrCollection)
@@ -193,7 +207,6 @@ public class FastrrCatalogController {
                     .findFirst();
 
             if (colOpt.isEmpty()) {
-                // Check sub-collections
                 colOpt = allCollections.stream()
                         .filter(c -> c.getSubCollections() != null && c.getSubCollections().stream()
                                 .anyMatch(sc -> (sc.getId() != null && sc.getId().toHexString().equalsIgnoreCase(lookupId))
@@ -271,13 +284,18 @@ public class FastrrCatalogController {
 
         Optional<Product> prodOpt = Optional.empty();
         if (lookupId.matches("^\\d+$")) {
-            long targetNum = Long.parseLong(lookupId);
-            Criteria criteria = activeProductCriteria();
-            List<Product> candidates = mongoTemplate.find(Query.query(criteria), Product.class);
-            prodOpt = candidates.stream()
-                    .filter(p -> toNumericId(p.getId()) == targetNum
-                            || (p.getVariants() != null && p.getVariants().stream().anyMatch(v -> toNumericId(v.getId() != null ? v.getId() : p.getId() + "-v1") == targetNum)))
-                    .findFirst();
+            try {
+                long targetNum = Long.parseLong(lookupId);
+                Criteria criteria = activeProductCriteria();
+                List<Product> candidates = mongoTemplate.find(Query.query(criteria), Product.class);
+                prodOpt = candidates.stream()
+                        .filter(p -> toNumericId(p.getId()) == targetNum
+                                || (p.getVariants() != null && p.getVariants().stream().anyMatch(v ->
+                                toNumericId(v.getId() != null ? v.getId() : p.getId() + "-v1") == targetNum)))
+                        .findFirst();
+            } catch (NumberFormatException ignored) {
+                // An oversized numeric lookup cannot be a Fastrr numeric ID.
+            }
         }
         if (prodOpt.isEmpty()) {
             prodOpt = productRepository.findById(lookupId);
@@ -288,7 +306,7 @@ public class FastrrCatalogController {
         if (prodOpt.isEmpty()) {
             prodOpt = productRepository.findByProductCode(lookupId);
         }
-        if (prodOpt.isEmpty()) {
+        if (prodOpt.isEmpty() || !isFastrrVisible(prodOpt.get())) {
             return ResponseEntity.notFound().build();
         }
 
@@ -305,57 +323,125 @@ public class FastrrCatalogController {
     }
 
     /**
-     * 4. POST /api/v1/fastrr/order/webhook and /api/v1/shiprocket/webhook
-     * Webhook triggered by Fastrr when checkout completes.
+     * 4. POST /api/v1/fastrr/order/webhook
+     * The Fastrr order callback is intentionally unavailable until its provider contract
+     * and a real order processor are implemented. A mapped preview is not an accepted order.
      */
-    @PostMapping({"/fastrr/order/webhook", "/shiprocket/webhook", "/fastrr/webhook"})
-    @Operation(summary = "Fastrr Order Webhook", description = "Receives completed orders from Fastrr 1-Click checkout")
-    public ResponseEntity<Map<String, Object>> handleOrderWebhook(@RequestBody(required = false) Map<String, Object> payload) {
-        log.info("[FASTRR-WEBHOOK] Received order webhook payload: {}", payload);
-
-        String orderId = payload != null && payload.containsKey("order_id") ? String.valueOf(payload.get("order_id")) : "UNKNOWN";
-        String status = payload != null && payload.containsKey("status") ? String.valueOf(payload.get("status")) : "SUCCESS";
-
+    @PostMapping({"/fastrr/order/webhook", "/fastrr/webhook"})
+    @Operation(summary = "Fastrr Order Webhook", description = "Unavailable until provider contract and order persistence are implemented")
+    public ResponseEntity<Map<String, Object>> handleOrderWebhook(
+            @RequestHeader(name = "X-Fastrr-Signature", required = false) String fastrrSig,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        log.info("[FASTRR-WEBHOOK] Webhook rejected: integration credentials and order contract are not configured");
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "SUCCESS");
-        response.put("message", "Order webhook received and processed successfully");
-        response.put("order_id", orderId);
-        response.put("webhook_status", status);
+        response.put("status", "UNAVAILABLE");
+        response.put("message", "Order webhook integration is not configured; no order was accepted");
         response.put("timestamp", Instant.now().toString());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.status(503).body(response);
     }
 
     /**
-     * 5. Loyalty Points endpoints (optional Fastrr catalog endpoints)
+     * Dedicated Shiprocket courier tracking webhook.
+     * Receives live tracking updates (AWB status scans) and updates shipment & carrier handover status.
+     */
+    @PostMapping({"/shiprocket/tracking/webhook", "/shiprocket/webhook"})
+    @Operation(summary = "Shiprocket tracking webhook", description = "Receives live AWB courier tracking scans and marks carrier handover")
+    public ResponseEntity<Map<String, Object>> handleShiprocketTrackingWebhook(
+            @RequestHeader(name = "x-api-key", required = false) String apiKey,
+            @RequestBody(required = false) Map<String, Object> payload) {
+        if (shiprocketWebhookToken == null || shiprocketWebhookToken.isBlank()) {
+            return ResponseEntity.status(503).body(Map.of("status", "UNAVAILABLE", "message", "Shiprocket webhook token is not configured"));
+        }
+        if (apiKey == null || !java.security.MessageDigest.isEqual(
+                shiprocketWebhookToken.getBytes(StandardCharsets.UTF_8),
+                apiKey.getBytes(StandardCharsets.UTF_8))) {
+            return ResponseEntity.status(401).body(Map.of("status", "UNAUTHORIZED", "message", "Invalid webhook token"));
+        }
+        if (payload == null || payload.get("awb") == null || String.valueOf(payload.get("awb")).isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("status", "BAD_REQUEST", "message", "Missing awb in payload"));
+        }
+        String awb = String.valueOf(payload.get("awb")).trim();
+        String currentStatus = String.valueOf(payload.getOrDefault("current_status", "")).trim().toUpperCase(Locale.ROOT);
+
+        Query query = Query.query(Criteria.where("sellerFulfillments.shipments.trackingNumber").is(awb));
+        Order order = mongoTemplate.findOne(query, Order.class);
+        if (order == null) {
+            return ResponseEntity.ok(Map.of("status", "IGNORED", "message", "No order found for AWB " + awb));
+        }
+
+        Object rawStatusId = payload.get("current_status_id");
+        int statusId = rawStatusId instanceof Number number ? number.intValue() : parseStatusId(rawStatusId);
+        boolean isHandover = statusId == 42 || statusId == 51
+                || List.of("PICKED UP", "PICKED_UP", "HANDOVER TO COURIER", "HANDOVER_TO_COURIER").contains(currentStatus);
+        if (!isHandover) {
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Shiprocket tracking scan received; no handover transition applied"));
+        }
+        if (orderLifecycle == null) {
+            return ResponseEntity.status(503).body(Map.of("status", "UNAVAILABLE", "message", "Order lifecycle service is unavailable"));
+        }
+        if (order.getSellerFulfillments() != null) {
+            for (Order.SellerFulfillment f : order.getSellerFulfillments()) {
+                boolean matchesAwb = f.getShipments() != null && f.getShipments().stream().anyMatch(s -> awb.equals(s.getTrackingNumber()));
+                if (matchesAwb) {
+                    orderLifecycle.recordCarrierHandover(order.getId(), f.getId(), awb, LocalDateTime.now());
+                    return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Shiprocket pickup scan recorded for AWB " + awb));
+                }
+            }
+        }
+
+        return ResponseEntity.ok(Map.of("status", "IGNORED", "message", "No matching fulfillment shipment found for AWB " + awb));
+    }
+
+    private int parseStatusId(Object value) {
+        if (value == null) return -1;
+        try { return Integer.parseInt(String.valueOf(value)); }
+        catch (NumberFormatException ignored) { return -1; }
+    }
+
+    /**
+     * 5. Loyalty Points endpoints (Fastrr catalog endpoints)
      */
     @PostMapping("/fastrr/loyalty/points")
+    @Operation(summary = "Fetch Loyalty Points", description = "Unavailable until the Fastrr loyalty contract and credentials are configured")
     public ResponseEntity<Map<String, Object>> fetchLoyaltyPoints(@RequestBody(required = false) Map<String, Object> payload) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("mobile_number", payload != null ? payload.getOrDefault("mobile_number", "") : "");
-        data.put("available_points", 0);
-        data.put("applicable_points", 0);
-
-        Map<String, Object> res = new LinkedHashMap<>();
-        res.put("data", data);
-        return ResponseEntity.ok(res);
+        return loyaltyIntegrationUnavailable();
     }
 
     @PostMapping("/fastrr/loyalty/block-points")
+    @Operation(summary = "Block Loyalty Points", description = "Unavailable until the Fastrr loyalty contract and credentials are configured")
     public ResponseEntity<Map<String, Object>> blockLoyaltyPoints(@RequestBody(required = false) Map<String, Object> payload) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("available_points", 0);
-        data.put("debited_points", 0);
-        data.put("status", true);
-        data.put("message", "Valid Customer Id");
-        data.put("transaction_id", UUID.randomUUID().toString().replace("-", ""));
+        return loyaltyIntegrationUnavailable();
+    }
 
-        Map<String, Object> res = new LinkedHashMap<>();
-        res.put("data", data);
-        return ResponseEntity.ok(res);
+    @PostMapping({"/fastrr/loyalty/unblock-points", "/fastrr/loyalty/unblockPoints"})
+    @Operation(summary = "Unblock Loyalty Points", description = "Unavailable until the Fastrr loyalty contract and credentials are configured")
+    public ResponseEntity<Map<String, Object>> unblockLoyaltyPoints(@RequestBody(required = false) Map<String, Object> payload) {
+        return loyaltyIntegrationUnavailable();
+    }
+
+    private ResponseEntity<Map<String, Object>> loyaltyIntegrationUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "status", "UNAVAILABLE",
+                "message", "Fastrr loyalty integration is not configured; no points were changed"));
     }
 
     private Criteria activeProductCriteria() {
+        List<String> activeSellerIds = mongoTemplate.find(
+                        Query.query(new Criteria().andOperator(
+                                Criteria.where("role").is(UserRole.ROLE_SELLER),
+                                Criteria.where("status").regex("^ACTIVE$", "i"),
+                                Criteria.where("isBlocked").ne(true),
+                                Criteria.where("isDeleted").ne(true))),
+                        User.class)
+                .stream()
+                .map(User::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        Criteria sellerVisibility = new Criteria().orOperator(
+                Criteria.where("sellerId").in(activeSellerIds),
+                Criteria.where("sellerId").is(null),
+                Criteria.where("sellerId").exists(false));
         return new Criteria().andOperator(
                 Criteria.where("status").regex("^ACTIVE$", "i"),
                 Criteria.where("isAvailable").is(true),
@@ -363,8 +449,24 @@ public class FastrrCatalogController {
                         Criteria.where("isDeleted").is(false),
                         Criteria.where("isDeleted").is(null),
                         Criteria.where("isDeleted").exists(false)
-                )
+                ),
+                sellerVisibility
         );
+    }
+
+    private boolean isFastrrVisible(Product product) {
+        boolean productVisible = product != null
+                && "ACTIVE".equalsIgnoreCase(product.getStatus())
+                && Boolean.TRUE.equals(product.getIsAvailable())
+                && !Boolean.TRUE.equals(product.getIsDeleted());
+        if (!productVisible || product.getSellerId() == null || product.getSellerId().isBlank()) {
+            return productVisible;
+        }
+        User seller = mongoTemplate.findById(product.getSellerId(), User.class);
+        return seller != null && seller.getRole() == UserRole.ROLE_SELLER
+                && "ACTIVE".equalsIgnoreCase(seller.getStatus())
+                && !Boolean.TRUE.equals(seller.getIsBlocked())
+                && !Boolean.TRUE.equals(seller.getIsDeleted());
     }
 
     private Map<String, Object> mapToFastrrProduct(Product product, String currentSellerName) {
@@ -481,11 +583,16 @@ public class FastrrCatalogController {
         m.put("updated_at", updatedAtStr);
 
         Map<String, Object> imgObj = new LinkedHashMap<>();
+        String imageUrl = null;
         if (collection.getImage() != null && !collection.getImage().isBlank()) {
-            imgObj.put("src", collection.getImage());
-        } else {
-            imgObj.put("src", "https://ebskrishidukaan.com/icons/Icon-192.png");
+            try {
+                imageUrl = imageStorage.createCollectionImageReadUrl(
+                        collection.getId() != null ? collection.getId() : "fastrr", collection.getImage());
+            } catch (RuntimeException ex) {
+                log.warn("[FASTRR] Failed to resolve collection image URL for {}: {}", collection.getId(), ex.getMessage());
+            }
         }
+        imgObj.put("src", imageUrl != null ? imageUrl : "https://ebskrishidukaan.com/icons/Icon-192.png");
         m.put("image", imgObj);
 
         return m;

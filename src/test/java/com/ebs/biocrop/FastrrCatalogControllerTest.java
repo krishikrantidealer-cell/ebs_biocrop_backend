@@ -4,6 +4,7 @@ import com.ebs.biocrop.controller.FastrrCatalogController;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.entity.ProductVariant;
+import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.service.GcsImageStorageService;
@@ -26,6 +27,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -58,6 +60,7 @@ class FastrrCatalogControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter())
                 .build();
+        lenient().when(mongoTemplate.find(any(Query.class), eq(User.class))).thenReturn(List.of());
     }
 
     @Test
@@ -144,22 +147,55 @@ class FastrrCatalogControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/fastrr/order/webhook succeeds with 200")
-    void testOrderWebhook() throws Exception {
-        String payload = """
-                {
-                    "order_id": "test_order_123",
-                    "status": "SUCCESS",
-                    "phone": "9999999999",
-                    "total_amount_payable": 500.0
-                }
-                """;
-
+    @DisplayName("POST /api/v1/fastrr/order/webhook fails closed until the provider contract is configured")
+    void testOrderWebhookIsDisabledUntilConfigured() throws Exception {
         mockMvc.perform(post("/api/v1/fastrr/order/webhook")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content("{\"order_id\":\"untrusted\",\"status\":\"SUCCESS\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("Order webhook integration is not configured; no order was accepted"));
+    }
+
+    @Test
+    @DisplayName("Fastrr loyalty endpoints fail closed until the provider integration is configured")
+    void loyaltyEndpointsAreUnavailableUntilConfigured() throws Exception {
+        String body = "{\"mobile_number\":\"9999999999\",\"points\":50}";
+
+        for (String path : List.of(
+                "/api/v1/fastrr/loyalty/points",
+                "/api/v1/fastrr/loyalty/block-points",
+                "/api/v1/fastrr/loyalty/unblock-points")) {
+            mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.status").value("UNAVAILABLE"))
+                    .andExpect(jsonPath("$.message").value(
+                            "Fastrr loyalty integration is not configured; no points were changed"));
+        }
+    }
+
+    @Test
+    @DisplayName("Shiprocket webhook alias uses the authenticated tracking handler, not the Fastrr handler")
+    void testShiprocketWebhookAliasFailsClosedWithoutToken() throws Exception {
+        mockMvc.perform(post("/api/v1/shiprocket/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"awb\":\"TEST-AWB\",\"current_status_id\":42}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("Shiprocket webhook token is not configured"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/fastrr/collections clamps invalid page and limit safely")
+    void testCollectionsPaginationClampsInvalidValues() throws Exception {
+        ProductCollection col = new ProductCollection();
+        col.setId("col_1");
+        col.setName("Shop by Crop");
+        when(collectionRepository.findByIsActiveTrueOrderByPriorityAscNameAsc()).thenReturn(List.of(col));
+
+        mockMvc.perform(get("/api/v1/fastrr/collections?page=-1&limit=-50"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SUCCESS"))
-                .andExpect(jsonPath("$.order_id").value("test_order_123"));
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.collections.length()").value(1));
     }
 }
