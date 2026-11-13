@@ -65,7 +65,9 @@ public class Product {
 
     @Field(write = Field.Write.ALWAYS)
     private String status;
+    @Field(write = Field.Write.ALWAYS)
     private Boolean isDeleted = false;
+    @Field(write = Field.Write.ALWAYS)
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

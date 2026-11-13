@@ -5,6 +5,7 @@ import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.service.RedisJsonCache;
+import com.ebs.biocrop.service.ShiprocketService;
 import com.ebs.biocrop.websocket.WebSocketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +43,7 @@ class OrderLifecycleServiceImplTest {
     @Mock private MongoTemplate mongoTemplate;
     @Mock private RedisJsonCache redisCache;
     @Mock private WebSocketService webSocketService;
+    @Mock private ShiprocketService shiprocketService;
 
     private OrderLifecycleServiceImpl lifecycleService;
     private Order multiSellerOrder;
@@ -267,14 +269,22 @@ class OrderLifecycleServiceImplTest {
     @Test
     @DisplayName("Shiprocket: Book shipment embeds into sellerFulfillments[].shipments[] without separate order documents")
     void testBookSellerFulfillmentShipmentEmbedded() {
+        lifecycleService = new OrderLifecycleServiceImpl(orders, mongoTemplate, redisCache, webSocketService, shiprocketService);
+        makeItemsPrepaidForShiprocket(multiSellerOrder, List.of(ITEM_1_ID));
         when(orders.findByIdAndSellerFulfillmentsSellerId(ORDER_ID, SELLER_1_ID))
                 .thenReturn(Optional.of(multiSellerOrder));
+        when(shiprocketService.createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class)))
+                .thenReturn(new com.ebs.biocrop.dto.response.ShiprocketOrderResult(
+                        123L, 456L, "SRK12345678IN", "Test Courier", "10",
+                        "https://shiprocket.co/tracking/SRK12345678IN", "READY_FOR_PICKUP"));
 
         // Accept fulfillment 1 first
         multiSellerOrder.getSellerFulfillments().get(0).setStatus("ACCEPTED");
         multiSellerOrder.getSellerFulfillments().get(0).setDispatchSlaDeadlineAt(LocalDateTime.now().plusHours(48));
 
-        Order updated = lifecycleService.bookSellerFulfillmentShipment(SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID);
+        Order updated = lifecycleService.bookSellerFulfillmentShipment(SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID,
+                null, packageDetails());
 
         // Verify fulfillment 1 is PACKED and has embedded shipment
         Order.SellerFulfillment f1 = updated.getSellerFulfillments().get(0);
@@ -293,6 +303,115 @@ class OrderLifecycleServiceImplTest {
     }
 
     @Test
+    @DisplayName("Shiprocket: fulfillment items can be split across packages and cannot be booked twice")
+    void testFulfillmentItemsCanBeSplitAcrossShipmentsWithoutOverlap() {
+        lifecycleService = new OrderLifecycleServiceImpl(orders, mongoTemplate, redisCache, webSocketService, shiprocketService);
+        makeItemsPrepaidForShiprocket(multiSellerOrder, List.of(ITEM_1_ID));
+        when(orders.findByIdAndSellerFulfillmentsSellerId(ORDER_ID, SELLER_1_ID))
+                .thenReturn(Optional.of(multiSellerOrder));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        fulfillment.setStatus("ACCEPTED");
+        fulfillment.setDispatchSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+        OrderItem extraItem = new OrderItem();
+        extraItem.setItemOrderId("item-1b");
+        extraItem.setSellerFulfillmentId(FULFILLMENT_1_ID);
+        extraItem.setSellerId(SELLER_1_ID);
+        extraItem.setItemStatus("PROCESSING");
+        multiSellerOrder.getItems().add(extraItem);
+        fulfillment.setItemOrderIds(List.of(ITEM_1_ID, "item-1b"));
+        when(shiprocketService.createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class)))
+                .thenReturn(new com.ebs.biocrop.dto.response.ShiprocketOrderResult(
+                        123L, 456L, "SRK11111111IN", "Test Courier", "10", "https://tracking.test/1", "READY_FOR_PICKUP"));
+        when(shiprocketService.createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of("item-1b")), any(Order.Shipment.class)))
+                .thenReturn(new com.ebs.biocrop.dto.response.ShiprocketOrderResult(
+                        124L, 457L, "SRK22222222IN", "Test Courier", "10", "https://tracking.test/2", "READY_FOR_PICKUP"));
+
+        lifecycleService.bookSellerFulfillmentShipment(SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID,
+                List.of(ITEM_1_ID), packageDetails());
+        assertEquals("ACCEPTED", fulfillment.getStatus(), "The group stays open while a seller item is not yet packaged");
+        lifecycleService.bookSellerFulfillmentShipment(SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID,
+                List.of("item-1b"), packageDetails());
+
+        assertEquals("PACKED", fulfillment.getStatus());
+        assertEquals(2, fulfillment.getShipments().size());
+        assertEquals(List.of(ITEM_1_ID), fulfillment.getShipments().get(0).getItemOrderIds());
+        assertEquals(List.of("item-1b"), fulfillment.getShipments().get(1).getItemOrderIds());
+        assertThrows(AppException.class, () -> lifecycleService.bookSellerFulfillmentShipment(
+                SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID, List.of(ITEM_1_ID), packageDetails()));
+        verify(shiprocketService, times(2)).createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                anyList(), any(Order.Shipment.class));
+    }
+
+    @Test
+    @DisplayName("Shiprocket: missing integration fails closed instead of fabricating an AWB")
+    void testBookSellerFulfillmentShipmentFailsWhenShiprocketMissing() {
+        when(orders.findByIdAndSellerFulfillmentsSellerId(ORDER_ID, SELLER_1_ID))
+                .thenReturn(Optional.of(multiSellerOrder));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        fulfillment.setStatus("ACCEPTED");
+        fulfillment.setDispatchSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+
+        assertThrows(AppException.class,
+                () -> lifecycleService.bookSellerFulfillmentShipment(SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID,
+                        null, packageDetails()));
+        assertTrue(fulfillment.getShipments() == null || fulfillment.getShipments().isEmpty());
+        verify(orders, never()).save(any(Order.class));
+    }
+
+    @Test
+    @DisplayName("Shiprocket: an ambiguous booking result stays reserved and cannot be blindly retried")
+    void testAmbiguousShipmentBookingRequiresReconciliation() {
+        lifecycleService = new OrderLifecycleServiceImpl(orders, mongoTemplate, redisCache, webSocketService, shiprocketService);
+        makeItemsPrepaidForShiprocket(multiSellerOrder, List.of(ITEM_1_ID));
+        when(orders.findByIdAndSellerFulfillmentsSellerId(ORDER_ID, SELLER_1_ID))
+                .thenReturn(Optional.of(multiSellerOrder));
+        when(orders.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(shiprocketService.createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class)))
+                .thenThrow(new IllegalStateException("simulated timeout after remote request"));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        fulfillment.setStatus("ACCEPTED");
+        fulfillment.setDispatchSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+
+        assertThrows(AppException.class, () -> lifecycleService.bookSellerFulfillmentShipment(
+                SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID, List.of(ITEM_1_ID), packageDetails()));
+
+        assertEquals("BOOKING_REQUIRES_RECONCILIATION", fulfillment.getShipments().get(0).getStatus());
+        assertNotNull(fulfillment.getShipments().get(0).getBookingReference());
+        assertThrows(AppException.class, () -> lifecycleService.bookSellerFulfillmentShipment(
+                SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID, List.of(ITEM_1_ID), packageDetails()));
+        verify(shiprocketService, times(1)).createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class));
+        verify(orders, times(2)).save(multiSellerOrder);
+    }
+
+    @Test
+    @DisplayName("Shiprocket: partial COD booking is allowed with its captured advance and remaining balance")
+    void partialCodShipmentCarriesItsCapturedAdvanceAndBalance() {
+        lifecycleService = new OrderLifecycleServiceImpl(orders, mongoTemplate, redisCache, webSocketService, shiprocketService);
+        when(orders.findByIdAndSellerFulfillmentsSellerId(ORDER_ID, SELLER_1_ID))
+                .thenReturn(Optional.of(multiSellerOrder));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        fulfillment.setStatus("ACCEPTED");
+        fulfillment.setDispatchSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+        multiSellerOrder.getItems().get(0).setAdvanceAllocatedAtCheckout(new BigDecimal("20.00"));
+        multiSellerOrder.getItems().get(0).setCodDueAtCheckout(new BigDecimal("190.00"));
+        when(shiprocketService.createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class)))
+                .thenReturn(new com.ebs.biocrop.dto.response.ShiprocketOrderResult(
+                        123L, 456L, "AWB-PARTIAL-123", "Test Courier", "10", "https://tracking.test/partial", "READY_FOR_PICKUP"));
+
+        Order updated = lifecycleService.bookSellerFulfillmentShipment(
+                SELLER_1_ID, ORDER_ID, FULFILLMENT_1_ID, List.of(ITEM_1_ID), packageDetails());
+
+        assertEquals("AWB-PARTIAL-123", updated.getSellerFulfillments().get(0).getShipments().get(0).getTrackingNumber());
+        verify(shiprocketService).createFulfillmentShipment(eq(multiSellerOrder), eq(FULFILLMENT_1_ID),
+                eq(List.of(ITEM_1_ID)), any(Order.Shipment.class));
+    }
+
+    @Test
     @DisplayName("Shiprocket: Carrier handover confirms pickup timestamp and marks fulfillment/items DISPATCHED")
     void testCarrierHandoverMarksHandoverAndDispatch() {
         when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
@@ -304,6 +423,7 @@ class OrderLifecycleServiceImplTest {
         shipment.setShipmentId("sr-12345");
         shipment.setTrackingNumber("SRK12345678IN");
         shipment.setStatus("READY_FOR_PICKUP");
+        shipment.setItemOrderIds(List.of(ITEM_1_ID));
         f1.setShipments(new ArrayList<>(List.of(shipment)));
 
         LocalDateTime handoverTime = LocalDateTime.now();
@@ -319,5 +439,74 @@ class OrderLifecycleServiceImplTest {
         // Fulfillment 2 and item 2 are unaffected
         assertEquals("AWAITING_SELLER_RESPONSE", updated.getSellerFulfillments().get(1).getStatus());
         assertEquals("AWAITING_SELLER_RESPONSE", updated.getItems().get(1).getItemStatus());
+    }
+
+    @Test
+    @DisplayName("Shiprocket: tracking advances only the package items and is repeat/out-of-order safe")
+    void testCarrierTrackingProgressesOnePackageWithoutRegressing() {
+        when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        fulfillment.setStatus("PACKED");
+        Order.Shipment shipment = new Order.Shipment();
+        shipment.setShipmentId("sr-12345");
+        shipment.setTrackingNumber("SRK12345678IN");
+        shipment.setStatus("READY_FOR_PICKUP");
+        shipment.setItemOrderIds(List.of(ITEM_1_ID));
+        fulfillment.setShipments(new ArrayList<>(List.of(shipment)));
+
+        LocalDateTime pickedUp = LocalDateTime.now();
+        lifecycleService.recordCarrierTrackingStatus(ORDER_ID, FULFILLMENT_1_ID, "SRK12345678IN", 42, "PICKED UP", pickedUp);
+        lifecycleService.recordCarrierTrackingStatus(ORDER_ID, FULFILLMENT_1_ID, "SRK12345678IN", 17, "OUT FOR DELIVERY", pickedUp.plusHours(1));
+        lifecycleService.recordCarrierTrackingStatus(ORDER_ID, FULFILLMENT_1_ID, "SRK12345678IN", 7, "DELIVERED", pickedUp.plusHours(2));
+
+        assertEquals("DELIVERED", shipment.getStatus());
+        assertEquals(pickedUp.plusHours(2), shipment.getDeliveredAt());
+        assertEquals("DELIVERED", multiSellerOrder.getItems().get(0).getItemStatus());
+        assertEquals("AWAITING_SELLER_RESPONSE", multiSellerOrder.getItems().get(1).getItemStatus());
+        assertEquals("PARTIALLY_SHIPPED", multiSellerOrder.getOverallStatus());
+        int historySize = multiSellerOrder.getStatusHistory().size();
+
+        lifecycleService.recordCarrierTrackingStatus(ORDER_ID, FULFILLMENT_1_ID, "SRK12345678IN", 42, "PICKED UP", pickedUp);
+        assertEquals("DELIVERED", shipment.getStatus());
+        assertEquals(historySize, multiSellerOrder.getStatusHistory().size());
+    }
+
+    @Test
+    @DisplayName("Shiprocket: delivery delay events are retained without falsely marking delivery or changing item ownership")
+    void carrierDelayEventIsRetainedForTheTargetShipment() {
+        when(orders.findById(ORDER_ID)).thenReturn(Optional.of(multiSellerOrder));
+        Order.SellerFulfillment fulfillment = multiSellerOrder.getSellerFulfillments().get(0);
+        Order.Shipment shipment = new Order.Shipment();
+        shipment.setTrackingNumber("SRK-DELAY-1");
+        shipment.setStatus("IN_TRANSIT");
+        shipment.setItemOrderIds(List.of(ITEM_1_ID));
+        shipment.setLastTrackingUpdateAt(LocalDateTime.now().minusHours(1));
+        fulfillment.setShipments(new ArrayList<>(List.of(shipment)));
+
+        LocalDateTime delayedAt = LocalDateTime.now();
+        lifecycleService.recordCarrierTrackingStatus(ORDER_ID, FULFILLMENT_1_ID, "SRK-DELAY-1", 22, "DELAYED", delayedAt);
+
+        assertEquals("DELAYED", shipment.getStatus());
+        assertEquals("DISPATCHED", multiSellerOrder.getItems().get(0).getItemStatus());
+        assertEquals("AWAITING_SELLER_RESPONSE", multiSellerOrder.getItems().get(1).getItemStatus());
+        assertEquals("DELAYED", shipment.getLastTrackingDescription());
+    }
+
+    private Order.Shipment packageDetails() {
+        Order.Shipment details = new Order.Shipment();
+        details.setPackageWeightKg(1.0);
+        details.setLengthCm(20.0);
+        details.setBreadthCm(10.0);
+        details.setHeightCm(10.0);
+        return details;
+    }
+
+    private void makeItemsPrepaidForShiprocket(Order order, List<String> itemOrderIds) {
+        for (OrderItem item : order.getItems()) {
+            if (itemOrderIds.contains(item.getItemOrderId())) {
+                item.setAdvanceAllocatedAtCheckout(item.getLineTotal());
+                item.setCodDueAtCheckout(BigDecimal.ZERO);
+            }
+        }
     }
 }

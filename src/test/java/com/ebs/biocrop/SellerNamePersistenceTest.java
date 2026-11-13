@@ -4,6 +4,7 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.OrderSellerSnapshot;
 import com.ebs.biocrop.entity.Product;
+import com.ebs.biocrop.entity.ProductVariant;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
@@ -38,6 +39,30 @@ class SellerNamePersistenceTest {
         converter.write(current, document);
         assertEquals("Current Shop", document.getString("sellerName"));
         assertFalse(document.containsKey("vendor"));
+    }
+
+    @Test
+    void productAndVariantWriteSchemaFieldsWithNullOrDefaultValues() throws Exception {
+        MappingMongoConverter converter = converter();
+        Product product = new Product();
+        ProductVariant variant = new ProductVariant();
+        product.setVariants(java.util.List.of(variant));
+
+        Document document = new Document();
+        converter.write(product, document);
+
+        assertTrue(document.containsKey("brandName"));
+        assertNull(document.get("brandName"));
+        assertEquals(0L, document.get("totalReviews"));
+        assertEquals(Boolean.FALSE, document.get("isDeleted"));
+        assertTrue(document.containsKey("deletedAt"));
+        assertNull(document.get("deletedAt"));
+
+        Document storedVariant = document.getList("variants", Document.class).getFirst();
+        assertTrue(storedVariant.containsKey("displayOrder"));
+        assertNull(storedVariant.get("displayOrder"));
+        assertEquals(10.0, storedVariant.get("minimumPartialPaymentPercentage"));
+        assertEquals(30.0, storedVariant.get("codCharge"));
     }
 
     @Test

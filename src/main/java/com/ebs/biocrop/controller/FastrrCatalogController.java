@@ -38,6 +38,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * Implements Shiprocket / Fastrr Headless & Custom Website Catalog integration APIs
@@ -55,6 +56,8 @@ public class FastrrCatalogController {
 
     private static final Logger log = LoggerFactory.getLogger(FastrrCatalogController.class);
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+    private static final Pattern VARIANT_SKU_PATTERN = Pattern.compile("^S(\\d{4})-P(\\d{6})-V(\\d{2})$");
+    private static final Pattern PRODUCT_SKU_PATTERN = Pattern.compile("^S(\\d{4})-P(\\d{6})$");
 
     private final ProductRepository productRepository;
     private final ProductCollectionRepository collectionRepository;
@@ -108,6 +111,36 @@ public class FastrrCatalogController {
         }
     }
 
+    private static long toFastrrProductId(Product product) {
+        String sku = product == null ? null : product.getSku();
+        Matcher productMatch = sku == null ? null : PRODUCT_SKU_PATTERN.matcher(sku);
+        if (productMatch != null && productMatch.matches()) {
+            return Long.parseLong("1" + productMatch.group(1) + productMatch.group(2));
+        }
+        // Legacy products may only have a variant SKU; derive the product key from it.
+        if (product != null && product.getVariants() != null) {
+            for (ProductVariant variant : product.getVariants()) {
+                Matcher variantMatch = variant == null || variant.getSku() == null
+                        ? null : VARIANT_SKU_PATTERN.matcher(variant.getSku());
+                if (variantMatch != null && variantMatch.matches()) {
+                    return Long.parseLong("1" + variantMatch.group(1) + variantMatch.group(2));
+                }
+            }
+        }
+        return toNumericId(product == null ? null : product.getId());
+    }
+
+    private static long toFastrrVariantId(Product product, ProductVariant variant, int index) {
+        String sku = variant == null ? null : variant.getSku();
+        Matcher variantMatch = sku == null ? null : VARIANT_SKU_PATTERN.matcher(sku);
+        if (variantMatch != null && variantMatch.matches()) {
+            return Long.parseLong("2" + variantMatch.group(1) + variantMatch.group(2) + variantMatch.group(3));
+        }
+        String rawId = variant != null && variant.getId() != null && !variant.getId().isBlank()
+                ? variant.getId() : (product.getId() + "-v" + index);
+        return toNumericId(rawId);
+    }
+
     /**
      * 1. GET /api/v1/fastrr/products?page=1&limit=12
      */
@@ -117,7 +150,7 @@ public class FastrrCatalogController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "12") int limit) {
 
-        int pageIndex = Math.max(0, page - 1);
+        int pageIndex = oneBasedPageIndex(page);
         int pageSize = Math.min(Math.max(1, limit), 100);
         Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -190,7 +223,7 @@ public class FastrrCatalogController {
                 ? collectionId
                 : (paramCollectionId != null && !paramCollectionId.isBlank() ? paramCollectionId : paramCollectionIdCamel);
 
-        int pageIndex = Math.max(0, page - 1);
+        int pageIndex = oneBasedPageIndex(page);
         int pageSize = Math.min(Math.max(1, limit), 100);
         Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -289,9 +322,9 @@ public class FastrrCatalogController {
                 Criteria criteria = activeProductCriteria();
                 List<Product> candidates = mongoTemplate.find(Query.query(criteria), Product.class);
                 prodOpt = candidates.stream()
-                        .filter(p -> toNumericId(p.getId()) == targetNum
-                                || (p.getVariants() != null && p.getVariants().stream().anyMatch(v ->
-                                toNumericId(v.getId() != null ? v.getId() : p.getId() + "-v1") == targetNum)))
+                        .filter(p -> toFastrrProductId(p) == targetNum
+                                || (p.getVariants() != null && java.util.stream.IntStream.range(0, p.getVariants().size()).anyMatch(index ->
+                                toFastrrVariantId(p, p.getVariants().get(index), index + 1) == targetNum)))
                         .findFirst();
             } catch (NumberFormatException ignored) {
                 // An oversized numeric lookup cannot be a Fastrr numeric ID.
@@ -344,8 +377,8 @@ public class FastrrCatalogController {
      * Dedicated Shiprocket courier tracking webhook.
      * Receives live tracking updates (AWB status scans) and updates shipment & carrier handover status.
      */
-    @PostMapping({"/shiprocket/tracking/webhook", "/shiprocket/webhook"})
-    @Operation(summary = "Shiprocket tracking webhook", description = "Receives live AWB courier tracking scans and marks carrier handover")
+    @PostMapping({"/carrier/tracking/webhook", "/shiprocket/tracking/webhook", "/shiprocket/webhook"})
+    @Operation(summary = "Carrier tracking webhook", description = "Shiprocket callback URL: /api/v1/carrier/tracking/webhook. Receives live AWB tracking scans.")
     public ResponseEntity<Map<String, Object>> handleShiprocketTrackingWebhook(
             @RequestHeader(name = "x-api-key", required = false) String apiKey,
             @RequestBody(required = false) Map<String, Object> payload) {
@@ -369,13 +402,11 @@ public class FastrrCatalogController {
             return ResponseEntity.ok(Map.of("status", "IGNORED", "message", "No order found for AWB " + awb));
         }
 
-        Object rawStatusId = payload.get("current_status_id");
+        Object rawStatusId = payload.containsKey("current_status_id")
+                ? payload.get("current_status_id") : payload.get("shipment_status_id");
         int statusId = rawStatusId instanceof Number number ? number.intValue() : parseStatusId(rawStatusId);
-        boolean isHandover = statusId == 42 || statusId == 51
-                || List.of("PICKED UP", "PICKED_UP", "HANDOVER TO COURIER", "HANDOVER_TO_COURIER").contains(currentStatus);
-        if (!isHandover) {
-            return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Shiprocket tracking scan received; no handover transition applied"));
-        }
+        if (currentStatus.isBlank()) currentStatus = String.valueOf(payload.getOrDefault("shipment_status", "")).trim().toUpperCase(Locale.ROOT);
+        LocalDateTime eventTime = parseCarrierEventTime(payload);
         if (orderLifecycle == null) {
             return ResponseEntity.status(503).body(Map.of("status", "UNAVAILABLE", "message", "Order lifecycle service is unavailable"));
         }
@@ -383,8 +414,8 @@ public class FastrrCatalogController {
             for (Order.SellerFulfillment f : order.getSellerFulfillments()) {
                 boolean matchesAwb = f.getShipments() != null && f.getShipments().stream().anyMatch(s -> awb.equals(s.getTrackingNumber()));
                 if (matchesAwb) {
-                    orderLifecycle.recordCarrierHandover(order.getId(), f.getId(), awb, LocalDateTime.now());
-                    return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Shiprocket pickup scan recorded for AWB " + awb));
+                    orderLifecycle.recordCarrierTrackingStatus(order.getId(), f.getId(), awb, statusId, currentStatus, eventTime);
+                    return ResponseEntity.ok(Map.of("status", "SUCCESS", "message", "Shiprocket tracking scan recorded for AWB " + awb));
                 }
             }
         }
@@ -396,6 +427,21 @@ public class FastrrCatalogController {
         if (value == null) return -1;
         try { return Integer.parseInt(String.valueOf(value)); }
         catch (NumberFormatException ignored) { return -1; }
+    }
+
+    private LocalDateTime parseCarrierEventTime(Map<String, Object> payload) {
+        for (String field : List.of("current_timestamp", "date", "timestamp", "updated_at", "scan_date")) {
+            Object value = payload.get(field);
+            if (value == null || String.valueOf(value).isBlank()) continue;
+            String text = String.valueOf(value).trim();
+            try { return java.time.OffsetDateTime.parse(text).atZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime(); }
+            catch (java.time.format.DateTimeParseException ignored) { }
+            try { return LocalDateTime.parse(text.replace(' ', 'T')); }
+            catch (java.time.format.DateTimeParseException ignored) { }
+            try { return LocalDateTime.parse(text, java.time.format.DateTimeFormatter.ofPattern("dd MM yyyy HH:mm:ss", Locale.ROOT)); }
+            catch (java.time.format.DateTimeParseException ignored) { }
+        }
+        return LocalDateTime.now();
     }
 
     /**
@@ -454,6 +500,10 @@ public class FastrrCatalogController {
         );
     }
 
+    private int oneBasedPageIndex(int page) {
+        return page <= 1 ? 0 : page - 1;
+    }
+
     private boolean isFastrrVisible(Product product) {
         boolean productVisible = product != null
                 && "ACTIVE".equalsIgnoreCase(product.getStatus())
@@ -471,7 +521,7 @@ public class FastrrCatalogController {
 
     private Map<String, Object> mapToFastrrProduct(Product product, String currentSellerName) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", toNumericId(product.getId()));
+        m.put("id", toFastrrProductId(product));
         m.put("title", product.getTitle() != null ? product.getTitle() : "Product " + product.getSku());
 
         String desc = product.getDescription() != null ? product.getDescription() : "";
@@ -524,10 +574,7 @@ public class FastrrCatalogController {
             int vIndex = 1;
             for (ProductVariant v : product.getVariants()) {
                 Map<String, Object> vm = new LinkedHashMap<>();
-                String rawVarKey = v.getId() != null && !v.getId().isBlank()
-                        ? v.getId()
-                        : (product.getId() + "-v" + vIndex);
-                vm.put("id", toNumericId(rawVarKey));
+                vm.put("id", toFastrrVariantId(product, v, vIndex));
                 vm.put("title", v.getLabel() != null ? v.getLabel() : (v.getPackSize() != null ? v.getPackSize() + " " + v.getPackSizeUnit() : "Standard"));
                 double price = v.getDisplayRate() != null ? v.getDisplayRate() : 0.0;
                 vm.put("price", String.format(Locale.ROOT, "%.2f", price));

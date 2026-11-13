@@ -3,6 +3,7 @@ package com.ebs.biocrop.service;
 import com.ebs.biocrop.dto.response.ShiprocketOrderResult;
 import com.ebs.biocrop.dto.response.ShiprocketServiceabilityResponse;
 import com.ebs.biocrop.entity.Order;
+import java.util.List;
 
 /**
  * Service for Shiprocket logistics, order dispatching, AWB allocation, and tracking.
@@ -24,6 +25,12 @@ public interface ShiprocketService {
      * allocating courier & AWB, embedded into the unified order's sellerFulfillments[].shipments[].
      */
     ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId);
+
+    /** Creates one package containing exactly the selected fulfillment item IDs. */
+    ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId, List<String> itemOrderIds);
+
+    ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId, List<String> itemOrderIds,
+                                                     Order.Shipment packageDetails);
 
     /**
      * Retrieves tracking activities for a given AWB or order.

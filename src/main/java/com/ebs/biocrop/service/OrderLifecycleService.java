@@ -17,11 +17,16 @@ public interface OrderLifecycleService {
      * embedding the shipment inside the seller's fulfillment without creating separate order documents.
      */
     Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId);
+    Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId, List<String> itemOrderIds);
+    Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId,
+                                        List<String> itemOrderIds, Order.Shipment packageDetails);
     /**
      * Records carrier pickup handover event for a booked fulfillment shipment,
      * transitioning fulfillment and items to DISPATCHED.
      */
     Order recordCarrierHandover(String orderId, String fulfillmentId, String trackingNumber, LocalDateTime handoverTime);
+    Order recordCarrierTrackingStatus(String orderId, String fulfillmentId, String trackingNumber,
+                                      Integer statusId, String status, LocalDateTime eventTime);
     Order resolveCustomerDecisionWindow(String customerId, String orderId, String decisionWindowId,
                                         String decision, List<String> itemOrderIds);
 }

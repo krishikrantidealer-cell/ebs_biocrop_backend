@@ -96,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/fastrr/**",
+                                "/api/v1/carrier/tracking/webhook",
                                 "/api/v1/shiprocket/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",

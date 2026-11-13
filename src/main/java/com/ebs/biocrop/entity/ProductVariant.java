@@ -14,6 +14,7 @@ public class ProductVariant {
     @MongoId(FieldType.STRING)
     private String id;
 
+    @Field(write = Field.Write.ALWAYS)
     private Integer displayOrder;
     @Field(write = Field.Write.ALWAYS)
     private Boolean isDefault = false;

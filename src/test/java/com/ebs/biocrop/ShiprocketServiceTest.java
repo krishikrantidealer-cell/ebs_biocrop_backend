@@ -11,12 +11,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mock.env.MockEnvironment;
 
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -91,6 +96,57 @@ class ShiprocketServiceTest {
     }
 
     @Test
+    @DisplayName("partial COD shipment sends the paid advance as partial_cod_collected and only leaves the remainder collectible")
+    void partialCodAmountIsPassedToShiprocket() throws Exception {
+        AtomicReference<String> adhocRequestBody = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/auth/login", exchange -> respond(exchange, "{\"token\":\"test-token\"}"));
+        server.createContext("/orders/create/adhoc", exchange -> {
+            adhocRequestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, "{\"order_id\":123,\"shipment_id\":456,\"status\":\"NEW\"}");
+        });
+        server.createContext("/courier/assign/awb", exchange -> respond(exchange,
+                "{\"response\":{\"data\":{\"awb_code\":\"AWB-PARTIAL-123\"}}}"));
+        server.start();
+        try {
+            ReflectionTestUtils.setField(shiprocketService, "enabled", true);
+            ReflectionTestUtils.setField(shiprocketService, "email", "test@example.com");
+            ReflectionTestUtils.setField(shiprocketService, "password", "test-password");
+            ReflectionTestUtils.setField(shiprocketService, "pickupLocation", "Test Pickup");
+            ReflectionTestUtils.setField(shiprocketService, "baseUrl", "http://127.0.0.1:" + server.getAddress().getPort());
+
+            Order order = buildSampleOrder();
+            OrderItem item = order.getItems().get(0);
+            item.setLineTotal(new java.math.BigDecimal("200.00"));
+            item.setAdvanceAllocatedAtCheckout(new java.math.BigDecimal("20.00"));
+            item.setCodDueAtCheckout(new java.math.BigDecimal("190.00")); // includes the order's COD charge
+            Order.SellerFulfillment fulfillment = new Order.SellerFulfillment();
+            fulfillment.setId("ful-partial");
+            fulfillment.setItemOrderIds(List.of("item-1"));
+            order.setSellerFulfillments(List.of(fulfillment));
+            Order.Shipment packageDetails = new Order.Shipment();
+            packageDetails.setBookingReference("ORD-1-PKG-1");
+            packageDetails.setPackageWeightKg(1.0);
+            packageDetails.setLengthCm(20.0);
+            packageDetails.setBreadthCm(10.0);
+            packageDetails.setHeightCm(10.0);
+
+            ShiprocketOrderResult result = shiprocketService.createFulfillmentShipment(
+                    order, "ful-partial", List.of("item-1"), packageDetails);
+
+            assertEquals("AWB-PARTIAL-123", result.awbCode());
+            com.fasterxml.jackson.databind.JsonNode payload = new ObjectMapper().readTree(adhocRequestBody.get());
+            assertEquals("COD", payload.path("payment_method").asText());
+            assertEquals(0, new java.math.BigDecimal("210.00").compareTo(payload.path("sub_total").decimalValue()));
+            assertEquals(0, new java.math.BigDecimal("20.00").compareTo(payload.path("partial_cod_collected").decimalValue()));
+            assertEquals(0, new java.math.BigDecimal("190.00").compareTo(payload.path("sub_total").decimalValue()
+                    .subtract(payload.path("partial_cod_collected").decimalValue())));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     @DisplayName("unconfigured non-dev profile does not fabricate serviceability or shipment success")
     void testUnconfiguredProductionFailsClosed() {
         MockEnvironment productionEnvironment = new MockEnvironment();
@@ -145,5 +201,14 @@ class ShiprocketServiceTest {
 
         order.setItems(List.of(i1, i2));
         return order;
+    }
+
+    private void respond(com.sun.net.httpserver.HttpExchange exchange, String body) throws java.io.IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (var output = exchange.getResponseBody()) {
+            output.write(bytes);
+        }
     }
 }

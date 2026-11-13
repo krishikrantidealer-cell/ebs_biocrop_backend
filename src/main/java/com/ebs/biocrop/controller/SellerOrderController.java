@@ -5,6 +5,7 @@ import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.dto.response.OrderResponse;
+import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.OrderQueryService;
 import com.ebs.biocrop.service.OrderLifecycleService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -85,27 +87,39 @@ public class SellerOrderController {
                 OrderResponse.forSeller(updated, seller.getId())));
     }
 
-    @PostMapping("/{orderId}/fulfillments/{fulfillmentId}/shipment")
-    @Operation(summary = "Book Shiprocket courier shipment and generate AWB label for this seller's fulfillment")
+    @PostMapping({"/{orderId}/fulfillments/{fulfillmentId}/shipment", "/{orderId}/fulfillments/{fulfillmentId}/shipments"})
+    @Operation(summary = "Book a Shiprocket package for selected unassigned items in this seller's fulfillment")
     public ResponseEntity<ApiResponse<OrderResponse>> bookFulfillmentShipment(
             @AuthenticationPrincipal CustomUserDetails seller,
             @PathVariable String orderId,
-            @PathVariable String fulfillmentId) {
-        Order updated = orderLifecycle.bookSellerFulfillmentShipment(seller.getId(), orderId, fulfillmentId);
+            @PathVariable String fulfillmentId,
+            @RequestBody(required = false) ShipmentBookingRequest request) {
+        Order.Shipment packageDetails = null;
+        if (request != null) {
+            packageDetails = new Order.Shipment();
+            packageDetails.setPackageWeightKg(request.packageWeightKg());
+            packageDetails.setLengthCm(request.lengthCm());
+            packageDetails.setBreadthCm(request.breadthCm());
+            packageDetails.setHeightCm(request.heightCm());
+        }
+        Order updated = orderLifecycle.bookSellerFulfillmentShipment(seller.getId(), orderId, fulfillmentId,
+                request == null ? null : request.itemOrderIds(), packageDetails);
         return ResponseEntity.ok(ApiResponse.ok("Shipment booked successfully in Shiprocket",
                 OrderResponse.forSeller(updated, seller.getId())));
     }
 
+    public record ShipmentBookingRequest(java.util.List<String> itemOrderIds, Double packageWeightKg,
+                                         Double lengthCm, Double breadthCm, Double heightCm) { }
+
     @PostMapping("/{orderId}/fulfillments/{fulfillmentId}/handover")
-    @Operation(summary = "Confirm carrier pickup handover for a booked fulfillment shipment")
+    @Operation(summary = "Deprecated: carrier handover is confirmed by the Shiprocket tracking webhook")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmCarrierHandover(
             @AuthenticationPrincipal CustomUserDetails seller,
             @PathVariable String orderId,
             @PathVariable String fulfillmentId,
             @RequestParam(required = false) String trackingNumber) {
-        Order updated = orderLifecycle.recordCarrierHandover(orderId, fulfillmentId, trackingNumber, java.time.LocalDateTime.now());
-        return ResponseEntity.ok(ApiResponse.ok("Carrier handover confirmed; fulfillment dispatched",
-                OrderResponse.forSeller(updated, seller.getId())));
+        throw new AppException("Carrier pickup can only be confirmed by the authenticated Shiprocket tracking webhook",
+                org.springframework.http.HttpStatus.CONFLICT);
     }
 
 }

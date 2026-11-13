@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
@@ -195,7 +196,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
 
     @Override
     public ShiprocketOrderResult createOrderAndShipment(Order order) {
-        return doCreateShiprocketShipment(order, null, order.getItems() != null ? order.getItems() : List.of());
+        return doCreateShiprocketShipment(order, null, order.getItems() != null ? order.getItems() : List.of(), null);
     }
 
     @Override
@@ -206,36 +207,73 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                 .orElseThrow(() -> new IllegalArgumentException("Seller fulfillment [" + fulfillmentId + "] not found in order " + order.getId()));
 
         List<String> itemIds = fulfillment.getItemOrderIds() == null ? List.of() : fulfillment.getItemOrderIds();
-        List<OrderItem> items = (order.getItems() == null ? List.<OrderItem>of() : order.getItems()).stream()
-                .filter(item -> itemIds.contains(item.getItemOrderId()))
-                .toList();
-
-        return doCreateShiprocketShipment(order, fulfillment, items);
+        return createFulfillmentShipment(order, fulfillmentId, itemIds);
     }
 
-    private ShiprocketOrderResult doCreateShiprocketShipment(Order order, Order.SellerFulfillment fulfillment, List<OrderItem> items) {
+    @Override
+    public ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId, List<String> itemIds) {
+        return createFulfillmentShipment(order, fulfillmentId, itemIds, null);
+    }
+
+    @Override
+    public ShiprocketOrderResult createFulfillmentShipment(Order order, String fulfillmentId, List<String> itemIds,
+                                                            Order.Shipment packageDetails) {
+        Order.SellerFulfillment fulfillment = (order.getSellerFulfillments() == null ? List.<Order.SellerFulfillment>of() : order.getSellerFulfillments()).stream()
+                .filter(f -> Objects.equals(f.getId(), fulfillmentId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Seller fulfillment [" + fulfillmentId + "] not found in order " + order.getId()));
+        List<OrderItem> items = (order.getItems() == null ? List.<OrderItem>of() : order.getItems()).stream()
+                .filter(item -> itemIds != null && itemIds.contains(item.getItemOrderId()))
+                .toList();
+
+        return doCreateShiprocketShipment(order, fulfillment, items, packageDetails);
+    }
+
+    private ShiprocketOrderResult doCreateShiprocketShipment(Order order, Order.SellerFulfillment fulfillment,
+                                                             List<OrderItem> items, Order.Shipment packageDetails) {
         String token = getAuthToken();
         OrderAddressSnapshot address = order.getShippingAddress();
         if (address == null) {
             address = order.getBillingAddress();
         }
 
-        String recipientName = (address != null && address.getName() != null) ? address.getName() : "Valued Customer";
-        String recipientPhone = (address != null && address.getPhoneNumber() != null) ? address.getPhoneNumber() : "9876543210";
-        String pincode = (address != null && address.getPincode() != null) ? address.getPincode() : pickupPincode;
-        String city = (address != null && address.getCityTehsil() != null) ? address.getCityTehsil() : "Karnal";
-        String state = (address != null && address.getState() != null) ? address.getState() : "Haryana";
-        String village = (address != null && address.getVillageArea() != null) ? address.getVillageArea() : "Main Farm Road";
+        String recipientName = address == null ? null : address.getName();
+        String recipientPhone = address == null ? null : address.getPhoneNumber();
+        String pincode = address == null ? null : address.getPincode();
+        String city = address == null ? null : address.getCityTehsil();
+        String state = address == null ? null : address.getState();
+        String village = address == null ? null : address.getVillageArea();
 
-        String externalOrderId = fulfillment != null && fulfillment.getId() != null
+        String externalOrderId = packageDetails != null && packageDetails.getBookingReference() != null
+                ? packageDetails.getBookingReference()
+                : fulfillment != null && fulfillment.getId() != null
                 ? order.getOrderNumber() + "-F" + fulfillment.getId().substring(Math.max(0, fulfillment.getId().length() - 6))
                 : order.getOrderNumber();
 
         if (token != null) {
             try {
+                requireNonBlank(order.getOrderNumber(), "Order number");
+                requireNonBlank(pickupLocation, "Shiprocket pickup location");
+                requireNonBlank(recipientName, "Shipping recipient name");
+                requireNonBlank(recipientPhone, "Shipping recipient phone");
+                requireNonBlank(pincode, "Shipping pincode");
+                requireNonBlank(city, "Shipping city");
+                requireNonBlank(state, "Shipping state");
+                requireNonBlank(village, "Shipping address line");
+                if (order.getPlacedAt() == null) {
+                    throw new AppException("Order placement timestamp is required for Shiprocket booking", HttpStatus.BAD_REQUEST);
+                }
+                if (items == null || items.isEmpty()) {
+                    throw new AppException("A shipment must contain at least one order item", HttpStatus.BAD_REQUEST);
+                }
+                if (packageDetails == null || !isPositive(packageDetails.getPackageWeightKg())
+                        || !isPositive(packageDetails.getLengthCm()) || !isPositive(packageDetails.getBreadthCm())
+                        || !isPositive(packageDetails.getHeightCm())) {
+                    throw new AppException("Package weight and dimensions are required for Shiprocket booking", HttpStatus.BAD_REQUEST);
+                }
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("order_id", externalOrderId);
-                payload.put("order_date", order.getPlacedAt() != null ? order.getPlacedAt().format(DATE_FORMATTER) : "2026-11-11 12:00");
+                payload.put("order_date", order.getPlacedAt().format(DATE_FORMATTER));
                 payload.put("pickup_location", pickupLocation);
 
                 payload.put("billing_customer_name", recipientName);
@@ -251,30 +289,50 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                 payload.put("shipping_is_billing", true);
 
                 List<Map<String, Object>> itemMaps = new ArrayList<>();
-                double itemsSubtotal = 0.0;
+                BigDecimal amountAlreadyCollected = BigDecimal.ZERO;
+                BigDecimal amountDueAtDelivery = BigDecimal.ZERO;
                 for (OrderItem item : items) {
                     Map<String, Object> itemMap = new LinkedHashMap<>();
                     String itemTitle = item.getProductSnapshot() == null ? null : item.getProductSnapshot().getTitle();
                     String itemSku = item.getVariantSku() != null ? item.getVariantSku() : item.getProductSku();
-                    itemMap.put("name", itemTitle != null ? itemTitle : "Agri Product");
-                    itemMap.put("sku", itemSku != null ? itemSku : item.getProductCode());
-                    int qty = item.getQuantity() != null ? item.getQuantity() : 1;
-                    double unitPrice = item.getUnitPrice() != null ? item.getUnitPrice().doubleValue() : 100.0;
+                    requireNonBlank(itemTitle, "Order item product title");
+                    requireNonBlank(itemSku, "Order item SKU");
+                    itemMap.put("name", itemTitle);
+                    itemMap.put("sku", itemSku);
+                    int qty = item.getQuantity() == null ? 0 : item.getQuantity();
+                    if (qty <= 0 || item.getUnitPrice() == null || item.getUnitPrice().signum() < 0) {
+                        throw new AppException("Order item quantity and price must be valid for Shiprocket booking", HttpStatus.BAD_REQUEST);
+                    }
+                    double unitPrice = item.getUnitPrice().doubleValue();
                     itemMap.put("units", qty);
                     itemMap.put("selling_price", unitPrice);
                     itemMap.put("discount", 0);
                     itemMaps.add(itemMap);
-                    itemsSubtotal += (unitPrice * qty);
+                    amountAlreadyCollected = amountAlreadyCollected.add(item.getAdvanceAllocatedAtCheckout() == null
+                            ? BigDecimal.ZERO : item.getAdvanceAllocatedAtCheckout());
+                    amountDueAtDelivery = amountDueAtDelivery.add(item.getCodDueAtCheckout() == null
+                            ? BigDecimal.ZERO : item.getCodDueAtCheckout());
                 }
                 payload.put("order_items", itemMaps);
 
                 boolean hasCodDue = items.stream().anyMatch(i -> i.getCodDueAtCheckout() != null && i.getCodDueAtCheckout().signum() > 0);
                 payload.put("payment_method", hasCodDue ? "COD" : "Prepaid");
-                payload.put("sub_total", itemsSubtotal > 0 ? itemsSubtotal : (order.getTotalAmount() != null ? order.getTotalAmount() : 0.0));
-                payload.put("length", 12);
-                payload.put("breadth", 12);
-                payload.put("height", 12);
-                payload.put("weight", Math.max(0.5, (itemMaps.size() * 0.4)));
+                // Use the exact amount due for this package: already-collected advance plus the
+                // package's COD balance (which includes any per-item COD charge allocated at checkout).
+                BigDecimal shipmentTotal = amountAlreadyCollected.add(amountDueAtDelivery).setScale(2, java.math.RoundingMode.HALF_UP);
+                payload.put("sub_total", shipmentTotal);
+                if (hasCodDue && amountAlreadyCollected.signum() > 0) {
+                    if (amountAlreadyCollected.compareTo(shipmentTotal) >= 0) {
+                        throw new AppException("The partial COD advance must be less than the package total", HttpStatus.BAD_REQUEST);
+                    }
+                    // Supported by Shiprocket's adhoc order API: the courier collects
+                    // sub_total minus partial_cod_collected at delivery.
+                    payload.put("partial_cod_collected", amountAlreadyCollected.setScale(2, java.math.RoundingMode.HALF_UP));
+                }
+                payload.put("length", packageDetails.getLengthCm());
+                payload.put("breadth", packageDetails.getBreadthCm());
+                payload.put("height", packageDetails.getHeightCm());
+                payload.put("weight", packageDetails.getPackageWeightKg());
 
                 String json = objectMapper.writeValueAsString(payload);
                 HttpRequest request = HttpRequest.newBuilder()
@@ -334,6 +392,16 @@ public class ShiprocketServiceImpl implements ShiprocketService {
         );
     }
 
+    private void requireNonBlank(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new AppException(field + " is required for Shiprocket booking", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private boolean isPositive(Double value) {
+        return value != null && Double.isFinite(value) && value > 0;
+    }
+
     private String assignAwb(long shipmentId, String token) {
         try {
             Map<String, Object> payload = Map.of("shipment_id", shipmentId);
@@ -358,7 +426,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
         } catch (Exception e) {
             log.warn("Shiprocket AWB assignment error: {}", e.getMessage());
         }
-        return "SRK" + System.currentTimeMillis() % 100000000L + "IN";
+        return null;
     }
 
     @Override

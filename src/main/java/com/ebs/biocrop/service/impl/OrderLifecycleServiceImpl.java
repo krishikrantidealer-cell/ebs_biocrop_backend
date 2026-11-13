@@ -28,6 +28,10 @@ import java.util.Objects;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.stream.Collectors;
 
 /** Supports the safe pre-payment cancellation operation in the initial order slice. */
 @Service
@@ -254,8 +258,19 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
     }
 
     @Override
-    @Transactional
     public Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId) {
+        return bookSellerFulfillmentShipment(sellerId, orderId, fulfillmentId, null);
+    }
+
+    @Override
+    public Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId,
+                                               List<String> requestedItemOrderIds) {
+        return bookSellerFulfillmentShipment(sellerId, orderId, fulfillmentId, requestedItemOrderIds, null);
+    }
+
+    @Override
+    public Order bookSellerFulfillmentShipment(String sellerId, String orderId, String fulfillmentId,
+                                               List<String> requestedItemOrderIds, Order.Shipment packageDetails) {
         Order order = orders.findByIdAndSellerFulfillmentsSellerId(orderId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
         Order.SellerFulfillment fulfillment = order.getSellerFulfillments().stream()
@@ -272,102 +287,301 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
             throw new AppException("Dispatch SLA has expired; the fulfillment requires admin review", HttpStatus.CONFLICT);
         }
 
-        if ("ACCEPTED".equals(fulfillment.getStatus())) {
-            fulfillment.setStatus("PACKED");
+        Set<String> assignedItemIds = fulfillment.getShipments() == null ? new HashSet<>()
+                : fulfillment.getShipments().stream()
+                .filter(Objects::nonNull)
+                .filter(shipment -> shipment.getItemOrderIds() != null)
+                .flatMap(shipment -> shipment.getItemOrderIds().stream())
+                .collect(Collectors.toSet());
+        Set<String> activeItemIds = (order.getItems() == null ? List.<OrderItem>of() : order.getItems()).stream()
+                .filter(item -> Objects.equals(item.getSellerFulfillmentId(), fulfillmentId))
+                .filter(item -> !String.valueOf(item.getItemStatus()).startsWith("CANCELLED"))
+                .map(OrderItem::getItemOrderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<String> packageItemIds = requestedItemOrderIds == null
+                ? activeItemIds.stream().filter(id -> !assignedItemIds.contains(id)).toList()
+                : new ArrayList<>(requestedItemOrderIds);
+        if (packageItemIds.isEmpty()) {
+            throw new AppException("No unassigned active items remain for this fulfillment", HttpStatus.CONFLICT);
         }
-
-        com.ebs.biocrop.dto.response.ShiprocketOrderResult result = null;
-        if (shiprocketService != null) {
-            result = shiprocketService.createFulfillmentShipment(order, fulfillmentId);
+        if (new HashSet<>(packageItemIds).size() != packageItemIds.size()
+                || !activeItemIds.containsAll(packageItemIds)
+                || packageItemIds.stream().anyMatch(assignedItemIds::contains)) {
+            throw new AppException("Shipment items must be unique, active, owned by this fulfillment, and not already assigned",
+                    HttpStatus.BAD_REQUEST);
         }
-        if (result == null) {
-            long mockSrId = 10000000L + Math.abs((order.getOrderNumber() + fulfillmentId).hashCode() % 8999999L);
-            String mockAwb = "SRK" + (mockSrId % 100000000L) + "IN";
-            result = new com.ebs.biocrop.dto.response.ShiprocketOrderResult(
-                    mockSrId, mockSrId + 1, mockAwb, "Delhivery Surface (Shiprocket)", "10",
-                    "https://shiprocket.co/tracking/" + mockAwb, "READY_FOR_PICKUP");
+        if (packageDetails == null || !isPositive(packageDetails.getPackageWeightKg())
+                || !isPositive(packageDetails.getLengthCm()) || !isPositive(packageDetails.getBreadthCm())
+                || !isPositive(packageDetails.getHeightCm())) {
+            throw new AppException("Package weight and all three package dimensions are required and must be positive",
+                    HttpStatus.BAD_REQUEST);
         }
-
+        if (shiprocketService == null) {
+            throw new AppException("Shiprocket shipment booking is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
         LocalDateTime now = LocalDateTime.now();
         Order.Shipment shipment = new Order.Shipment();
-        shipment.setShipmentId(String.valueOf(result.shipmentId()));
-        shipment.setItemOrderIds(new ArrayList<>(fulfillment.getItemOrderIds()));
-        shipment.setStatus("READY_FOR_PICKUP");
-        shipment.setCarrier(result.courierName());
-        shipment.setTrackingNumber(result.awbCode());
-        shipment.setLabelReference(result.trackingUrl());
-        shipment.setLabelCreatedAt(now);
+        String bookingReference = shipmentBookingReference(order, fulfillmentId, packageItemIds);
+        shipment.setShipmentId("PENDING-" + bookingReference);
+        shipment.setBookingReference(bookingReference);
+        shipment.setItemOrderIds(new ArrayList<>(packageItemIds));
+        shipment.setPackageWeightKg(packageDetails.getPackageWeightKg());
+        shipment.setLengthCm(packageDetails.getLengthCm());
+        shipment.setBreadthCm(packageDetails.getBreadthCm());
+        shipment.setHeightCm(packageDetails.getHeightCm());
+        shipment.setStatus("BOOKING_PENDING");
         shipment.setLastTrackingUpdateAt(now);
-        shipment.setLastTrackingDescription("Shipment booked via " + result.courierName() + "; AWB: " + result.awbCode());
+        shipment.setLastTrackingDescription("Shiprocket booking request started; reference " + bookingReference);
 
         if (fulfillment.getShipments() == null) fulfillment.setShipments(new ArrayList<>());
         fulfillment.getShipments().add(shipment);
+        Set<String> allAssignedItemIds = new HashSet<>(assignedItemIds);
+        allAssignedItemIds.addAll(packageItemIds);
+        if (allAssignedItemIds.containsAll(activeItemIds)) {
+            fulfillment.setStatus("PACKED");
+        }
 
         order.setUpdatedAt(now);
-        appendHistory(order, "SHIPMENT_BOOKED", sellerId,
-                "Shipment booked for fulfillment " + fulfillmentId + " via " + result.courierName() + " (AWB: " + result.awbCode() + ")");
+        appendHistory(order, "SHIPMENT_BOOKING_STARTED", sellerId,
+                "Shiprocket booking started for fulfillment " + fulfillmentId + " (reference: " + bookingReference + ")");
 
-        return orders.save(order);
+        // Commit the item reservation before the external call. @Version makes concurrent requests race on
+        // this save, so only one can reach Shiprocket for a given item set.
+        Order savedOrder = orders.save(order);
+        if (savedOrder != null) order = savedOrder;
+        Order.SellerFulfillment savedFulfillment = order.getSellerFulfillments().stream()
+                .filter(value -> Objects.equals(value.getId(), fulfillmentId))
+                .findFirst().orElseThrow(() -> new ResourceNotFoundException("Seller fulfillment", "id", fulfillmentId));
+        Order.Shipment pendingShipment = savedFulfillment.getShipments().stream()
+                .filter(value -> Objects.equals(value.getBookingReference(), bookingReference))
+                .findFirst().orElseThrow(() -> new AppException("Shipment booking reservation was not persisted", HttpStatus.CONFLICT));
+        packageDetails.setBookingReference(bookingReference);
+        try {
+            com.ebs.biocrop.dto.response.ShiprocketOrderResult result =
+                    shiprocketService.createFulfillmentShipment(order, fulfillmentId, packageItemIds, packageDetails);
+            if (result == null || result.shipmentId() <= 0 || result.awbCode() == null || result.awbCode().isBlank()) {
+                throw new AppException("Shiprocket did not return a valid shipment ID and AWB", HttpStatus.BAD_GATEWAY);
+            }
+            pendingShipment.setShipmentId(String.valueOf(result.shipmentId()));
+            pendingShipment.setStatus("READY_FOR_PICKUP");
+            pendingShipment.setCarrier(result.courierName());
+            pendingShipment.setTrackingNumber(result.awbCode());
+            pendingShipment.setLabelReference(result.trackingUrl());
+            pendingShipment.setLabelCreatedAt(LocalDateTime.now());
+            pendingShipment.setLastTrackingUpdateAt(LocalDateTime.now());
+            pendingShipment.setLastTrackingDescription("Shipment booked via " + result.courierName() + "; AWB: " + result.awbCode());
+            order.setUpdatedAt(LocalDateTime.now());
+            appendHistory(order, "SHIPMENT_BOOKED", sellerId,
+                    "Shipment booked for fulfillment " + fulfillmentId + " via " + result.courierName() + " (AWB: " + result.awbCode() + ")");
+            Order completed = orders.save(order);
+            return completed == null ? order : completed;
+        } catch (RuntimeException ex) {
+            pendingShipment.setStatus("BOOKING_REQUIRES_RECONCILIATION");
+            pendingShipment.setLastTrackingUpdateAt(LocalDateTime.now());
+            pendingShipment.setLastTrackingDescription("Shiprocket booking result is uncertain; reconcile reference " + bookingReference
+                    + " before attempting another booking");
+            order.setUpdatedAt(LocalDateTime.now());
+            appendHistory(order, "SHIPMENT_BOOKING_REQUIRES_RECONCILIATION", "SYSTEM",
+                    "Shiprocket booking outcome requires reconciliation for reference " + bookingReference);
+            orders.save(order);
+            if (ex instanceof AppException appException) throw appException;
+            throw new AppException("Shiprocket booking outcome is uncertain; reconcile the booking before retrying", HttpStatus.BAD_GATEWAY);
+        }
+    }
+
+    private String shipmentBookingReference(Order order, String fulfillmentId, List<String> itemOrderIds) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            String canonical = order.getId() + "|" + fulfillmentId + "|" + itemOrderIds.stream().sorted().collect(Collectors.joining(","));
+            String suffix = java.util.HexFormat.of().formatHex(digest.digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8)), 0, 6);
+            return order.getOrderNumber() + "-" + suffix;
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private boolean isPositive(Double value) {
+        return value != null && Double.isFinite(value) && value > 0;
     }
 
     @Override
     @Transactional
     public Order recordCarrierHandover(String orderId, String fulfillmentId, String trackingNumber, LocalDateTime handoverTime) {
+        return recordCarrierTrackingStatus(orderId, fulfillmentId, trackingNumber, 42, "PICKED UP", handoverTime);
+    }
+
+    @Override
+    @Transactional
+    public Order recordCarrierTrackingStatus(String orderId, String fulfillmentId, String trackingNumber,
+                                             Integer statusId, String carrierStatus, LocalDateTime eventTime) {
         Order order = orders.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
         Order.SellerFulfillment fulfillment = order.getSellerFulfillments().stream()
                 .filter(value -> Objects.equals(value.getId(), fulfillmentId))
                 .findFirst().orElseThrow(() -> new ResourceNotFoundException("Seller fulfillment", "id", fulfillmentId));
-
-        if (!List.of("PACKED", "ACCEPTED", "IN_DELAY_REVIEW").contains(fulfillment.getStatus())) {
-            if ("DISPATCHED".equals(fulfillment.getStatus()) || "DELIVERED".equals(fulfillment.getStatus())) {
-                return order; // idempotent repeat-safe
-            }
-            throw new AppException("Fulfillment in status [" + fulfillment.getStatus() + "] cannot be marked dispatched", HttpStatus.CONFLICT);
+        if (trackingNumber == null || trackingNumber.isBlank()) {
+            throw new AppException("Carrier tracking number is required to confirm a shipment handover", HttpStatus.BAD_REQUEST);
+        }
+        Order.Shipment shipment = (fulfillment.getShipments() == null ? List.<Order.Shipment>of() : fulfillment.getShipments()).stream()
+                .filter(value -> Objects.equals(value.getTrackingNumber(), trackingNumber))
+                .findFirst().orElseThrow(() -> new ResourceNotFoundException("Shipment", "trackingNumber", trackingNumber));
+        String nextStatus = mapShiprocketStatus(statusId, carrierStatus);
+        LocalDateTime appliedAt = eventTime == null ? LocalDateTime.now() : eventTime;
+        if (nextStatus == null) {
+            // Unknown scans are retained for support visibility but cannot advance order state.
+            if (shipment.getLastTrackingUpdateAt() != null && !appliedAt.isAfter(shipment.getLastTrackingUpdateAt())) return order;
+            shipment.setLastTrackingUpdateAt(appliedAt);
+            shipment.setLastTrackingDescription(carrierStatus == null ? "Unmapped Shiprocket status ID: " + statusId : carrierStatus);
+            order.setUpdatedAt(appliedAt);
+            return orders.save(order);
+        }
+        int currentRank = shipmentStatusRank(shipment.getStatus());
+        int nextRank = shipmentStatusRank(nextStatus);
+        if ((nextRank > 0 && currentRank > nextRank)
+                || (currentRank >= 4 && nextRank == 0)
+                || (Objects.equals(shipment.getStatus(), nextStatus))
+                || (shipment.getLastTrackingUpdateAt() != null
+                && !appliedAt.isAfter(shipment.getLastTrackingUpdateAt()))) {
+            return order; // Duplicate or out-of-order carrier callbacks are safe no-ops.
         }
 
-        LocalDateTime eventTime = handoverTime != null ? handoverTime : LocalDateTime.now();
-        fulfillment.setStatus("DISPATCHED");
-        fulfillment.setDispatchedAt(eventTime);
-
-        // Update matching shipment
-        if (fulfillment.getShipments() != null) {
-            for (Order.Shipment shipment : fulfillment.getShipments()) {
-                if (trackingNumber == null || trackingNumber.isBlank() || Objects.equals(shipment.getTrackingNumber(), trackingNumber)) {
-                    shipment.setStatus("IN_TRANSIT");
-                    shipment.setPickupConfirmedAt(eventTime);
-                    shipment.setLastTrackingUpdateAt(eventTime);
-                    shipment.setLastTrackingDescription("Carrier handover confirmed; parcel in transit");
-                }
-            }
+        String previousStatus = shipment.getStatus();
+        shipment.setStatus(nextStatus);
+        shipment.setLastTrackingUpdateAt(appliedAt);
+        shipment.setLastTrackingDescription(carrierStatus == null ? nextStatus : carrierStatus);
+        if ("IN_TRANSIT".equals(nextStatus) && shipment.getPickupConfirmedAt() == null) {
+            shipment.setPickupConfirmedAt(appliedAt);
         }
 
-        // Transition items in this fulfillment group to DISPATCHED
-        List<String> affectedItems = fulfillment.getItemOrderIds() == null ? List.of() : fulfillment.getItemOrderIds();
+        List<String> affectedItems = shipment.getItemOrderIds() == null ? List.of() : shipment.getItemOrderIds();
         if (order.getItems() != null) {
+            String itemStatus = "DELIVERED".equals(nextStatus) ? "DELIVERED"
+                    : "OUT_FOR_DELIVERY".equals(nextStatus) ? "OUT_FOR_DELIVERY" : "DISPATCHED";
             for (OrderItem item : order.getItems()) {
-                if (affectedItems.contains(item.getItemOrderId()) && !"CANCELLED_BY_CUSTOMER".equals(item.getItemStatus())
-                        && !"CANCELLED_BY_SELLER".equals(item.getItemStatus())) {
-                    item.setItemStatus("DISPATCHED");
+                if (affectedItems.contains(item.getItemOrderId()) && !String.valueOf(item.getItemStatus()).startsWith("CANCELLED")) {
+                    item.setItemStatus(itemStatus);
                 }
             }
         }
+        if ("DELIVERED".equals(nextStatus) && shipment.getDeliveredAt() == null) shipment.setDeliveredAt(appliedAt);
 
-        // If all active fulfillments in this unified order are now DISPATCHED (or DELIVERED), advance overallStatus
-        boolean allActiveDispatched = order.getSellerFulfillments().stream()
-                .filter(f -> !"CANCELLED".equals(f.getStatus()) && !"REJECTED".equals(f.getStatus()) && !"EXPIRED_TIMEOUT".equals(f.getStatus()))
-                .allMatch(f -> "DISPATCHED".equals(f.getStatus()) || "DELIVERED".equals(f.getStatus()));
-
-        if (allActiveDispatched) {
-            order.setOverallStatus("DISPATCHED");
+        List<OrderItem> allOrderItems = order.getItems() == null ? List.of() : order.getItems();
+        List<OrderItem> fulfillmentItems = allOrderItems.stream()
+                .filter(item -> Objects.equals(item.getSellerFulfillmentId(), fulfillmentId))
+                .filter(item -> !String.valueOf(item.getItemStatus()).startsWith("CANCELLED"))
+                .toList();
+        boolean fulfillmentAllDelivered = !fulfillmentItems.isEmpty() && fulfillmentItems.stream().allMatch(i -> "DELIVERED".equals(i.getItemStatus()));
+        boolean allDispatched = !fulfillmentItems.isEmpty() && fulfillmentItems.stream().allMatch(i ->
+                List.of("DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED").contains(i.getItemStatus()));
+        if (fulfillmentAllDelivered) {
+            fulfillment.setStatus("DELIVERED");
+        } else if (allDispatched) {
+            fulfillment.setStatus("DISPATCHED");
+            if (fulfillment.getDispatchedAt() == null) fulfillment.setDispatchedAt(appliedAt);
         }
 
-        order.setUpdatedAt(eventTime);
-        appendHistory(order, "CARRIER_HANDOVER_CONFIRMED", "CARRIER",
-                "Carrier handover confirmed for fulfillment " + fulfillmentId + (trackingNumber != null ? " (AWB: " + trackingNumber + ")" : ""));
+        List<OrderItem> activeOrderItems = allOrderItems.stream()
+                .filter(item -> !String.valueOf(item.getItemStatus()).startsWith("CANCELLED"))
+                .toList();
+        boolean anyShipped = activeOrderItems.stream().anyMatch(i -> List.of("DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED").contains(i.getItemStatus()));
+        boolean allDelivered = !activeOrderItems.isEmpty() && activeOrderItems.stream().allMatch(i -> "DELIVERED".equals(i.getItemStatus()));
+        boolean allShipped = !activeOrderItems.isEmpty() && activeOrderItems.stream().allMatch(i ->
+                List.of("DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED").contains(i.getItemStatus()));
+        if (allDelivered) {
+            order.setOverallStatus("DELIVERED");
+        } else if (allShipped) {
+            order.setOverallStatus("DISPATCHED");
+        } else if (anyShipped) {
+            order.setOverallStatus("PARTIALLY_SHIPPED");
+        }
+
+        order.setUpdatedAt(appliedAt);
+        appendHistory(order, "SHIPMENT_STATUS_UPDATED", "SHIPROCKET",
+                "Shipment " + shipment.getShipmentId() + " status changed from " + previousStatus + " to " + nextStatus
+                        + " (AWB: " + trackingNumber + ")");
 
         return orders.save(order);
+    }
+
+    private String mapShiprocketStatus(Integer statusId, String carrierStatus) {
+        if (statusId != null) {
+            return switch (statusId) {
+                case 42, 51, 6, 18 -> "IN_TRANSIT";
+                case 17 -> "OUT_FOR_DELIVERY";
+                case 7, 26 -> "DELIVERED";
+                case 8 -> "CANCELLED_BY_CARRIER";
+                case 9 -> "RTO_INITIATED";
+                case 10 -> "RTO_DELIVERED";
+                case 12 -> "LOST";
+                case 13, 20 -> "PICKUP_EXCEPTION";
+                case 14 -> "RTO_ACKNOWLEDGED";
+                case 15 -> "PICKUP_RESCHEDULED";
+                case 16 -> "CANCELLATION_REQUESTED";
+                case 19 -> "OUT_FOR_PICKUP";
+                case 21 -> "UNDELIVERED";
+                case 22 -> "DELAYED";
+                case 23 -> "PARTIALLY_DELIVERED";
+                case 24 -> "DESTROYED";
+                case 25 -> "DAMAGED";
+                case 27, 52 -> "PICKUP_BOOKED";
+                case 38 -> "REACHED_DESTINATION_HUB";
+                case 39 -> "MISROUTED";
+                case 40 -> "RTO_NDR";
+                case 41 -> "RTO_OUT_FOR_DELIVERY";
+                case 43 -> "SELF_FULFILLED";
+                case 44 -> "DISPOSED_OFF";
+                case 45 -> "CANCELLED_BEFORE_DISPATCHED";
+                case 46 -> "RTO_IN_TRANSIT";
+                case 47 -> "QC_FAILED";
+                case 48 -> "REACHED_WAREHOUSE";
+                case 49 -> "CUSTOMS_CLEARED";
+                case 50, 54 -> "IN_TRANSIT";
+                case 55 -> "CONNECTION_ALIGNED";
+                case 56 -> "REACHED_OVERSEAS_WAREHOUSE";
+                case 57 -> "CUSTOMS_CLEARED_OVERSEAS";
+                case 59 -> "BOX_PACKING";
+                case 60 -> "FC_ALLOCATED";
+                case 61 -> "PICKLIST_GENERATED";
+                case 62 -> "READY_TO_PACK";
+                case 63 -> "PACKED";
+                case 67 -> "FC_MANIFEST_GENERATED";
+                case 68 -> "PROCESSED_AT_WAREHOUSE";
+                case 71 -> "HANDOVER_EXCEPTION";
+                case 72 -> "PACKED_EXCEPTION";
+                case 75 -> "RTO_LOCK";
+                case 76 -> "UNTRACEABLE";
+                case 77 -> "ISSUE_RELATED_TO_RECIPIENT";
+                case 78 -> "REACHED_BACK_AT_SELLER_CITY";
+                default -> null;
+            };
+        }
+        if (carrierStatus == null) return null;
+        return switch (carrierStatus.trim().toUpperCase(java.util.Locale.ROOT).replace('_', ' ')) {
+            case "PICKED UP", "HANDOVER TO COURIER", "SHIPPED", "IN TRANSIT" -> "IN_TRANSIT";
+            case "OUT FOR DELIVERY" -> "OUT_FOR_DELIVERY";
+            case "DELIVERED" -> "DELIVERED";
+            case "CANCELLED", "CANCELED" -> "CANCELLED_BY_CARRIER";
+            case "RTO INITIATED", "RTO ACKNOWLEDGED", "RTO IN TRANSIT", "RTO NDR", "RTO OFD" -> "RETURN_TO_ORIGIN";
+            case "RTO DELIVERED", "REACHED BACK AT SELLER CITY" -> "RTO_DELIVERED";
+            case "LOST", "DESTROYED", "DAMAGED", "UNTRACEABLE" -> "DELIVERY_EXCEPTION";
+            case "PICKUP ERROR", "PICKUP EXCEPTION", "HANDOVER EXCEPTION" -> "PICKUP_EXCEPTION";
+            case "UNDELIVERED", "DELAYED", "MISROUTED", "ISSUE RELATED TO THE RECIPIENT" -> "DELIVERY_EXCEPTION";
+            case "PARTIAL DELIVERED", "PARTIALLY DELIVERED" -> "PARTIALLY_DELIVERED";
+            default -> null;
+        };
+    }
+
+    private int shipmentStatusRank(String status) {
+        if (status == null) return 0;
+        return switch (status) {
+            case "READY_FOR_PICKUP" -> 1;
+            case "IN_TRANSIT" -> 2;
+            case "OUT_FOR_DELIVERY" -> 3;
+            case "DELIVERED" -> 4;
+            default -> 0;
+        };
     }
 
     @Override

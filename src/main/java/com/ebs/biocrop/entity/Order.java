@@ -200,7 +200,12 @@ public class Order {
 
     public static class Shipment {
         @Field(write = Field.Write.ALWAYS) private String shipmentId;
+        @Field(write = Field.Write.ALWAYS) private String bookingReference;
         @Field(write = Field.Write.ALWAYS) private List<String> itemOrderIds = new ArrayList<>();
+        @Field(write = Field.Write.ALWAYS) private Double packageWeightKg;
+        @Field(write = Field.Write.ALWAYS) private Double lengthCm;
+        @Field(write = Field.Write.ALWAYS) private Double breadthCm;
+        @Field(write = Field.Write.ALWAYS) private Double heightCm;
         @Field(write = Field.Write.ALWAYS) private String status = "NOT_CREATED";
         @Field(write = Field.Write.ALWAYS) private String carrier;
         @Field(write = Field.Write.ALWAYS) private String trackingNumber;
@@ -212,8 +217,18 @@ public class Order {
         @Field(write = Field.Write.ALWAYS) private LocalDateTime deliveredAt;
         public String getShipmentId() { return shipmentId; }
         public void setShipmentId(String value) { shipmentId = value; }
+        public String getBookingReference() { return bookingReference; }
+        public void setBookingReference(String value) { bookingReference = value; }
         public List<String> getItemOrderIds() { return itemOrderIds; }
         public void setItemOrderIds(List<String> values) { itemOrderIds = values == null ? new ArrayList<>() : values; }
+        public Double getPackageWeightKg() { return packageWeightKg; }
+        public void setPackageWeightKg(Double value) { packageWeightKg = value; }
+        public Double getLengthCm() { return lengthCm; }
+        public void setLengthCm(Double value) { lengthCm = value; }
+        public Double getBreadthCm() { return breadthCm; }
+        public void setBreadthCm(Double value) { breadthCm = value; }
+        public Double getHeightCm() { return heightCm; }
+        public void setHeightCm(Double value) { heightCm = value; }
         public String getStatus() { return status; }
         public void setStatus(String value) { status = value; }
         public String getCarrier() { return carrier; }
