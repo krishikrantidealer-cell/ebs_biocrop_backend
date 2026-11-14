@@ -150,14 +150,6 @@ public class CartServiceImpl implements CartService {
             ProductResolution resolution = resolveProductAndVariant(item.getVariantId());
             Product product = resolution.product;
             ProductVariant variant = resolution.variant;
-            
-            int minOrder = 1;
-
-            if (quantity < minOrder) {
-                throw new AppException(String.format(
-                        "Minimum order quantity for product '%s' is %d. Set quantity to 0 to remove item.",
-                        product.getTitle(), minOrder), HttpStatus.BAD_REQUEST);
-            }
 
             int availableStock = variant.getStock() != null ? variant.getStock() : 0;
 

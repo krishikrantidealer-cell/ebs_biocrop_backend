@@ -76,8 +76,12 @@ public class AdminProductController {
 
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
                                   SellerShopNameLookup sellerNames) {
-        this(products, rateLimitGuard, sellerNames, null, new ObjectMapper(),
-                jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator());
+        this(products, rateLimitGuard, sellerNames, null, new ObjectMapper(), null);
+    }
+
+    public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
+                                  SellerShopNameLookup sellerNames, Validator validator) {
+        this(products, rateLimitGuard, sellerNames, null, new ObjectMapper(), validator);
     }
 
 
@@ -364,10 +368,12 @@ public class AdminProductController {
             throw new AppException("Invalid product JSON payload: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
-        Set<ConstraintViolation<AdminProductWriteRequest>> violations = validator.validate(writeRequest);
-        if (!violations.isEmpty()) {
-            ConstraintViolation<AdminProductWriteRequest> firstViolation = violations.iterator().next();
-            throw new AppException(firstViolation.getPropertyPath() + ": " + firstViolation.getMessage(), HttpStatus.BAD_REQUEST);
+        if (validator != null) {
+            Set<ConstraintViolation<AdminProductWriteRequest>> violations = validator.validate(writeRequest);
+            if (!violations.isEmpty()) {
+                ConstraintViolation<AdminProductWriteRequest> firstViolation = violations.iterator().next();
+                throw new AppException(firstViolation.getPropertyPath() + ": " + firstViolation.getMessage(), HttpStatus.BAD_REQUEST);
+            }
         }
 
         return writeRequest;

@@ -228,7 +228,10 @@ public class SellerProductServiceImpl implements SellerProductService {
             throw badRequest("Minimum partial payment percentage must be from 10 through 99");
         }
         try {
-            Math.multiplyExact(variant.getPackSize().longValue(), variant.getPackQuantity().longValue());
+            long combinedQuantity = Math.multiplyExact(variant.getPackSize().longValue(), variant.getPackQuantity().longValue());
+            if (combinedQuantity <= 0) {
+                throw badRequest("Combined package quantity must be positive");
+            }
         } catch (ArithmeticException exception) {
             throw badRequest("Combined package quantity is too large");
         }

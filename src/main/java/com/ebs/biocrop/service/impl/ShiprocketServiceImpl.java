@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -39,7 +40,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
     private final Environment environment;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
-    private volatile HttpClient httpClient;
+    private final HttpClient httpClient;
 
     @Value("${app.shiprocket.enabled:false}")
     private boolean enabled;
@@ -59,26 +60,20 @@ public class ShiprocketServiceImpl implements ShiprocketService {
     @Value("${app.shiprocket.pickup-pincode:}")
     private String pickupPincode = "";
 
+    @Autowired
     public ShiprocketServiceImpl(Environment environment, ObjectMapper objectMapper, StringRedisTemplate redisTemplate) {
+        this(environment, objectMapper, redisTemplate, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build());
+    }
+
+    public ShiprocketServiceImpl(Environment environment, ObjectMapper objectMapper, StringRedisTemplate redisTemplate, HttpClient httpClient) {
         this.environment = environment;
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
-    }
-
-    private HttpClient httpClient() {
-        HttpClient client = httpClient;
-        if (client == null) {
-            synchronized (this) {
-                client = httpClient;
-                if (client == null) {
-                    client = HttpClient.newBuilder()
-                            .connectTimeout(Duration.ofSeconds(10))
-                            .build();
-                    httpClient = client;
-                }
-            }
-        }
-        return client;
+        this.httpClient = httpClient != null ? httpClient : HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     @Override
@@ -113,7 +108,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 JsonNode root = objectMapper.readTree(response.body());
                 String token = root.path("token").asText();
@@ -151,7 +146,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .GET()
                         .build();
 
-                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     JsonNode root = objectMapper.readTree(response.body());
                     JsonNode data = root.path("data");
@@ -343,7 +338,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
 
-                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     JsonNode root = objectMapper.readTree(response.body());
                     long srOrderId = root.path("order_id").asLong();
@@ -415,7 +410,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 JsonNode root = objectMapper.readTree(response.body());
                 JsonNode awb = root.path("response").path("data").path("awb_code");
@@ -442,7 +437,7 @@ public class ShiprocketServiceImpl implements ShiprocketService {
                         .GET()
                         .build();
 
-                HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     return response.body();
                 }

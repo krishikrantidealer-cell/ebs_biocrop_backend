@@ -268,7 +268,7 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
         if (saved.getCustomerId() != null) {
             webSocketService.sendToUser(saved.getCustomerId(), "orders:refund_processed", Map.of(
                     "orderId", saved.getId(),
-                    "refundId", refundId,
+                    "refundId", refundId != null ? refundId : "",
                     "amount", refund,
                     "reason", reason != null ? reason : "Gateway refund"));
         }
