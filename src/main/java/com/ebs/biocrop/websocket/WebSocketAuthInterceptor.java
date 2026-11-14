@@ -5,6 +5,7 @@ import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.jwt.JwtTokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,7 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
     private final UserRepository userRepository;
     private final boolean allowQueryToken;
 
+    @Autowired
     public WebSocketAuthInterceptor(
             JwtTokenProvider jwtTokenProvider,
             UserRepository userRepository,
@@ -45,10 +47,6 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userRepository = userRepository;
         this.allowQueryToken = allowQueryToken;
-    }
-
-    public WebSocketAuthInterceptor(JwtTokenProvider jwtTokenProvider, UserRepository userRepository) {
-        this(jwtTokenProvider, userRepository, false);
     }
 
     @Override
