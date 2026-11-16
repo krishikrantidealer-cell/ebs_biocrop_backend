@@ -23,7 +23,6 @@ public class AdminProductVariantWriteRequest {
     @PositiveOrZero private Double swg;
     @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @NotNull @PositiveOrZero private Double displayRate;
-    @PositiveOrZero private Double perUnitPrice;
     @PositiveOrZero private Double printedMrp;
     @PositiveOrZero private Double amountYouWillReceive;
     @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
@@ -32,11 +31,11 @@ public class AdminProductVariantWriteRequest {
     @PositiveOrZero private Double discountOnMrpRs;
     @PositiveOrZero @DecimalMax("100") private Double discountPercentage;
     @NotNull @PositiveOrZero private Integer stock;
-    private PaymentMethod paymentMethod = PaymentMethod.ONLINE;
+    private PaymentMethod paymentMethod = PaymentMethod.PREPAID;
     private Boolean isPrepaidAllowed = true;
     private Boolean isPartialPaymentAllowed = true;
     @DecimalMin("10") @DecimalMax("99") private Double minimumPartialPaymentPercentage = 10.0;
-    @PositiveOrZero private Double codCharge = 30.0;
+    @PositiveOrZero private Double codCharge = 60.0;
     private Boolean isDefault;
     @JsonIgnore @Size(max = 80) private String sku;
 
@@ -46,7 +45,7 @@ public class AdminProductVariantWriteRequest {
         value.setLabel(label); value.setUnit(unit); value.setPackSize(packSize);
         value.setPackSizeUnit(packSizeUnit); value.setPackQuantity(packQuantity);
         value.setShippedBy(shippedBy); value.setShippingThrough(shippingThrough); value.setSwg(swg); value.setDimensions(dimensions);
-        value.setDisplayRate(displayRate); value.setPerUnitPrice(perUnitPrice); value.setPrintedMrp(printedMrp);
+        value.setDisplayRate(displayRate); value.setPrintedMrp(printedMrp);
         value.setAmountYouWillReceive(amountYouWillReceive);
         value.setCommissionPercentage(commissionPercentage); value.setCourierCharges(courierCharges);
         value.setGstPercentage(gstPercentage); value.setDiscountOnMrpRs(discountOnMrpRs);
@@ -68,7 +67,6 @@ public class AdminProductVariantWriteRequest {
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
     public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
-    public Double getPerUnitPrice() { return perUnitPrice; } public void setPerUnitPrice(Double v) { perUnitPrice=v; }
     public Double getDiscountOnMrpRs() { return discountOnMrpRs; } public void setDiscountOnMrpRs(Double v) { discountOnMrpRs=v; }
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Double getAmountYouWillReceive() { return amountYouWillReceive; } public void setAmountYouWillReceive(Double v) { amountYouWillReceive=v; }

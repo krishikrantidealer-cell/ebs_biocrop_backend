@@ -13,6 +13,7 @@ public record PublicProductResponse(
         String sku,
         String productCode,
         String hsnCode,
+        Double gst,
         String title,
         String brandName,
         String technicalName,
@@ -33,7 +34,7 @@ public record PublicProductResponse(
     public static PublicProductResponse from(Product product, String currentSellerName,
                                              GcsImageStorageService imageStorage) {
         return new PublicProductResponse(
-                product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
+                product.getId(), product.getSellerId(), product.getSku(), product.getProductCode(), product.getHsnCode(), product.getGst(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
                 currentSellerName, product.getDescription(),
                 product.getProductImages() == null
                         ? List.of()
@@ -79,7 +80,6 @@ public record PublicProductResponse(
             Double swg,
             List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
             Double displayRate,
-            Double perUnitPrice,
             Double printedMrp,
             Double courierCharges,
             Double discountOnMrpRs,
@@ -98,7 +98,7 @@ public record PublicProductResponse(
             return new PublicVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(), variant.getPackSize(),
                     variant.getPackSizeUnit(), variant.getPackQuantity(),
                     variant.getShippedBy(), variant.getShippingThrough(), variant.getSwg(), variant.getDimensions(),
-                    variant.getDisplayRate(), variant.getPerUnitPrice(), variant.getPrintedMrp(), variant.getCourierCharges(), variant.getDiscountOnMrpRs(),
+                    variant.getDisplayRate(), variant.getPrintedMrp(), variant.getCourierCharges(), variant.getDiscountOnMrpRs(),
                     variant.getGstPercentage(), variant.getDiscountPercentage(), variant.getPaymentMethod(),
                     variant.getIsPrepaidAllowed(), variant.getIsPartialPaymentAllowed(),
                     variant.getMinimumPartialPaymentPercentage(), variant.getCodCharge(), variant.getStock(),

@@ -171,6 +171,7 @@ public class SellerProductServiceImpl implements SellerProductService {
 
     private void validate(Product product) {
         if (product.getTitle() == null || product.getTitle().isBlank()) throw badRequest("Product title is required");
+        if (product.getGst() != null) validatePercentageField(product.getGst(), "GST percentage");
         if (product.getProductWeight() != null && !finiteNonnegative(product.getProductWeight())) throw badRequest("Product weight must be a finite nonnegative number");
         if (product.getProductWeightUnit() != null
                 && !Set.of("g", "kg").contains(product.getProductWeightUnit().trim().toLowerCase(Locale.ROOT))) {
@@ -217,15 +218,6 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) variant.setSwg(null);
         if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
-        validateMoneyField(variant.getPerUnitPrice(), "Per unit price");
-        if (variant.getPerUnitPrice() != null && variant.getPerUnitPrice() > 0
-                && (variant.getDisplayRate() == null || variant.getDisplayRate() <= 0)) {
-            int qty = variant.getPackQuantity() != null && variant.getPackQuantity() > 0 ? variant.getPackQuantity() : 1;
-            variant.setDisplayRate(BigDecimal.valueOf(variant.getPerUnitPrice())
-                    .multiply(BigDecimal.valueOf(qty))
-                    .setScale(2, RoundingMode.HALF_UP)
-                    .doubleValue());
-        }
         validateMoneyField(variant.getDisplayRate(), "Display rate");
         validateMoneyField(variant.getPrintedMrp(), "Printed MRP");
         validateMoneyField(variant.getAmountYouWillReceive(), "Amount you will receive");
@@ -352,7 +344,6 @@ public class SellerProductServiceImpl implements SellerProductService {
                     : normalizeDimensions(input.getDimensions()));
 
             clean.setDisplayRate(input.getDisplayRate());
-            clean.setPerUnitPrice(input.getPerUnitPrice());
             clean.setPrintedMrp(input.getPrintedMrp());
             clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
             clean.setCommissionPercentage(input.getCommissionPercentage());
@@ -361,8 +352,16 @@ public class SellerProductServiceImpl implements SellerProductService {
             clean.setDiscountOnMrpRs(input.getDiscountOnMrpRs());
             clean.setDiscountPercentage(input.getDiscountPercentage());
             clean.setPaymentMethod(input.getPaymentMethod());
-            clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
-            clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PREPAID) {
+                clean.setIsPrepaidAllowed(true);
+                clean.setIsPartialPaymentAllowed(false);
+            } else if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PARTIAL) {
+                clean.setIsPrepaidAllowed(true);
+                clean.setIsPartialPaymentAllowed(true);
+            } else {
+                clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
+                clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            }
             clean.setMinimumPartialPaymentPercentage(input.getMinimumPartialPaymentPercentage());
             clean.setCodCharge(input.getCodCharge());
             clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
@@ -383,7 +382,6 @@ public class SellerProductServiceImpl implements SellerProductService {
     private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
         target.setAmountYouWillReceive(source.getAmountYouWillReceive());
         target.setCommissionPercentage(source.getCommissionPercentage());
-        target.setPerUnitPrice(source.getPerUnitPrice());
         target.setCourierCharges(source.getCourierCharges());
         target.setPaymentMethod(source.getPaymentMethod());
         target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());

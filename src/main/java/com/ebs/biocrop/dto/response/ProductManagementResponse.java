@@ -11,7 +11,7 @@ import java.util.List;
 
 /** Management projection for admin and seller clients; omits persistence version metadata. */
 public record ProductManagementResponse(
-        String id, String sku, String productCode, String hsnCode, String sellerId,
+        String id, String sku, String productCode, String hsnCode, Double gst, String sellerId,
         String title, String brandName, String technicalName, String sellerName, String description,
         List<ManagementProductImage> productImages, String categoryId,
         List<String> assignedCollections,
@@ -32,7 +32,7 @@ public record ProductManagementResponse(
                         .toList();
 
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
-                product.getHsnCode(), product.getSellerId(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
+                product.getHsnCode(), product.getGst(), product.getSellerId(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
                 currentSellerName, product.getDescription(), managementImages, product.getCategoryId(), product.getAssignedCollections(),
                 product.getIsAvailable(), product.getIsFeatured(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
@@ -66,7 +66,7 @@ public record ProductManagementResponse(
     public record ManagementVariant(String id, String sku, String label, String unit, Integer packSize,
                                     String packSizeUnit, Integer packQuantity,
                                     String shippedBy, String shippingThrough, Double swg, List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
-                                    Double displayRate, Double perUnitPrice, Double printedMrp,
+                                    Double displayRate, Double printedMrp,
                                     Double amountYouWillReceive, Double commissionPercentage, Double courierCharges,
                                     Double discountOnMrpRs, Double gstPercentage, Double discountPercentage,
                                     com.ebs.biocrop.entity.enums.PaymentMethod paymentMethod,
@@ -78,7 +78,7 @@ public record ProductManagementResponse(
             return new ManagementVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(),
                     variant.getPackSize(), variant.getPackSizeUnit(), variant.getPackQuantity(),
                     variant.getShippedBy(), variant.getShippingThrough(), variant.getSwg(), variant.getDimensions(),
-                    variant.getDisplayRate(), variant.getPerUnitPrice(), variant.getPrintedMrp(),
+                    variant.getDisplayRate(), variant.getPrintedMrp(),
                     variant.getAmountYouWillReceive(), variant.getCommissionPercentage(), variant.getCourierCharges(),
                     variant.getDiscountOnMrpRs(), variant.getGstPercentage(), variant.getDiscountPercentage(),
                     variant.getPaymentMethod(), variant.getIsPrepaidAllowed(), variant.getIsPartialPaymentAllowed(),

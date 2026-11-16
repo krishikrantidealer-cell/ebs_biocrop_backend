@@ -29,6 +29,11 @@ public class AdminProductUpdateRequest {
     @Size(max = 32)
     private String hsnCode;
 
+    @PositiveOrZero
+    @DecimalMax("100")
+    @com.fasterxml.jackson.annotation.JsonAlias("gstPercentage")
+    private Double gst;
+
     @Size(max = 200)
     private String title;
 
@@ -65,6 +70,7 @@ public class AdminProductUpdateRequest {
         return (sellerId != null && !sellerId.isBlank())
                 || (sku != null && !sku.isBlank())
                 || hsnCode != null
+                || gst != null
                 || (title != null && !title.isBlank())
                 || brandName != null
                 || technicalName != null
@@ -85,6 +91,9 @@ public class AdminProductUpdateRequest {
 
     public String getHsnCode() { return hsnCode; }
     public void setHsnCode(String hsnCode) { this.hsnCode = hsnCode; }
+
+    public Double getGst() { return gst; }
+    public void setGst(Double gst) { this.gst = gst; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

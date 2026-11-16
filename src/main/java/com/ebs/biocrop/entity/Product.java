@@ -29,6 +29,8 @@ public class Product {
     private String productCode;
     @Field(write = Field.Write.ALWAYS)
     private String hsnCode;
+    @Field(write = Field.Write.ALWAYS)
+    private Double gst;
     @Indexed
     private String sellerId;
     private String title;
@@ -86,6 +88,8 @@ public class Product {
     public void setProductCode(String productCode) { this.productCode = productCode; }
     public String getHsnCode() { return hsnCode; }
     public void setHsnCode(String hsnCode) { this.hsnCode = hsnCode; }
+    public Double getGst() { return gst; }
+    public void setGst(Double gst) { this.gst = gst; }
     public String getSellerId() { return sellerId; }
     public void setSellerId(String sellerId) { this.sellerId = sellerId; }
     public String getTitle() { return title; }

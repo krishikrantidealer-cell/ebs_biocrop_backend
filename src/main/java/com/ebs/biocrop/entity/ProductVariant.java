@@ -49,8 +49,6 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Double displayRate;
     @Field(write = Field.Write.ALWAYS)
-    private Double perUnitPrice;
-    @Field(write = Field.Write.ALWAYS)
     private Double printedMrp;
     @Field(write = Field.Write.ALWAYS)
     private Double amountYouWillReceive;
@@ -67,7 +65,7 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Integer stock;
     @Field(write = Field.Write.ALWAYS)
-    private PaymentMethod paymentMethod = PaymentMethod.ONLINE;
+    private PaymentMethod paymentMethod = PaymentMethod.PREPAID;
     @Field(write = Field.Write.ALWAYS)
     private Boolean isPrepaidAllowed = true;
     @Field(write = Field.Write.ALWAYS)
@@ -75,7 +73,7 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Double minimumPartialPaymentPercentage = 10.0;
     @Field(write = Field.Write.ALWAYS)
-    private Double codCharge = 30.0;
+    private Double codCharge = 60.0;
 
     public ProductVariant() { }
 
@@ -111,8 +109,6 @@ public class ProductVariant {
     }
     public Double getDisplayRate() { return displayRate; }
     public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
-    public Double getPerUnitPrice() { return perUnitPrice; }
-    public void setPerUnitPrice(Double perUnitPrice) { this.perUnitPrice = perUnitPrice; }
     public Double getPrintedMrp() { return printedMrp; }
     public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
     public Double getAmountYouWillReceive() { return amountYouWillReceive; }

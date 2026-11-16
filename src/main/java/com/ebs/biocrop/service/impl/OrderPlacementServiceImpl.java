@@ -431,7 +431,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         snapshot.setTitle(line.product().getTitle());
         snapshot.setVariantLabel(variantLabel(line.variant()));
         snapshot.setHsnCode(line.product().getHsnCode());
-        snapshot.setTaxRatePercentage(line.variant().getGstPercentage() == null ? null : BigDecimal.valueOf(line.variant().getGstPercentage()));
+        Double effectiveGst = line.product().getGst() != null ? line.product().getGst() : line.variant().getGstPercentage();
+        snapshot.setTaxRatePercentage(effectiveGst == null ? null : BigDecimal.valueOf(effectiveGst));
         snapshot.setImageObjectName(line.product().getProductImages() == null || line.product().getProductImages().isEmpty()
                 ? null : line.product().getProductImages().getFirst().getMidObjectName());
         snapshot.setCategoryName(null);
@@ -490,17 +491,24 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
     private void validatePaymentOption(ProductVariant variant, PaymentMethod checkoutMethod,
                                        BigDecimal requestedPercentage, String productTitle) {
-        PaymentMethod configured = variant.getPaymentMethod() == null ? PaymentMethod.ONLINE : variant.getPaymentMethod();
-        boolean onlineSupported = configured == PaymentMethod.ONLINE || configured == PaymentMethod.BOTH;
-        boolean codSupported = configured == PaymentMethod.COD || configured == PaymentMethod.BOTH;
+        PaymentMethod configured = variant.getPaymentMethod() == null ? PaymentMethod.PREPAID : variant.getPaymentMethod();
+        boolean onlineSupported = configured == PaymentMethod.PREPAID
+                || configured == PaymentMethod.PARTIAL
+                || configured == PaymentMethod.ONLINE
+                || configured == PaymentMethod.BOTH;
+        boolean codSupported = configured == PaymentMethod.COD
+                || configured == PaymentMethod.BOTH
+                || configured == PaymentMethod.PARTIAL;
         switch (checkoutMethod) {
             case PREPAID -> {
-                if (!onlineSupported || !Boolean.TRUE.equals(variant.getIsPrepaidAllowed())) {
+                if (!onlineSupported || Boolean.FALSE.equals(variant.getIsPrepaidAllowed())) {
                     throw new AppException("Product '" + productTitle + "' does not allow prepaid online payment", HttpStatus.CONFLICT);
                 }
             }
             case PARTIAL -> {
-                if (!onlineSupported || !Boolean.TRUE.equals(variant.getIsPartialPaymentAllowed())) {
+                boolean partialSupported = configured == PaymentMethod.PARTIAL
+                        || (onlineSupported && Boolean.TRUE.equals(variant.getIsPartialPaymentAllowed()));
+                if (!partialSupported) {
                     throw new AppException("Product '" + productTitle + "' does not allow partial online payment", HttpStatus.CONFLICT);
                 }
                 BigDecimal minimum = variant.getMinimumPartialPaymentPercentage() == null ? ADVANCE_RATE

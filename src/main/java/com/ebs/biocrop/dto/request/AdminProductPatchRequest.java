@@ -13,6 +13,7 @@ import java.util.List;
 public class AdminProductPatchRequest {
     @JsonIgnore @Size(max = 80) private String sku;
     @Size(max = 32) private String hsnCode;
+    @PositiveOrZero @DecimalMax("100") @com.fasterxml.jackson.annotation.JsonAlias("gstPercentage") private Double gst;
     @Size(max = 200) private String title;
     @Size(max = 120) private String brandName;
     @Size(max = 300) private String technicalName;
@@ -26,6 +27,7 @@ public class AdminProductPatchRequest {
 
     public String getSku() { return sku; } public void setSku(String v) { sku=v; }
     public String getHsnCode() { return hsnCode; } public void setHsnCode(String v) { hsnCode=v; }
+    public Double getGst() { return gst; } public void setGst(Double v) { gst=v; }
     public String getTitle() { return title; } public void setTitle(String v) { title=v; }
     public String getBrandName() { return brandName; } public void setBrandName(String v) { brandName=v; }
     public String getTechnicalName() { return technicalName; } public void setTechnicalName(String v) { technicalName=v; }
@@ -38,7 +40,7 @@ public class AdminProductPatchRequest {
     public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; } public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> v) { variants=v; }
 
     public boolean hasChanges() {
-        return sku != null || hsnCode != null || title != null || brandName != null || technicalName != null
+        return sku != null || hsnCode != null || gst != null || title != null || brandName != null || technicalName != null
                 || description != null || categoryId != null
                 || refundPolicy != null || productWeight != null || productWeightUnit != null
                 || averageRating != null

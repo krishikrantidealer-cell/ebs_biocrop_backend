@@ -44,7 +44,7 @@ public enum PaymentMethod {
 
     /** Returns true if this is a product variant catalog acceptance mode. */
     public boolean isCatalogMode() {
-        return this == ONLINE || this == COD || this == BOTH;
+        return this == PREPAID || this == PARTIAL || this == ONLINE || this == COD || this == BOTH;
     }
 
     /** Returns true if this payment option involves online payment collection. */
@@ -59,13 +59,13 @@ public enum PaymentMethod {
 
     public static PaymentMethod fromString(String method) {
         if (method == null || method.isBlank()) {
-            return ONLINE;
+            return PREPAID;
         }
         for (PaymentMethod pm : values()) {
             if (pm.name().equalsIgnoreCase(method.trim()) || pm.displayValue.equalsIgnoreCase(method.trim())) {
                 return pm;
             }
         }
-        return ONLINE;
+        return PREPAID;
     }
 }

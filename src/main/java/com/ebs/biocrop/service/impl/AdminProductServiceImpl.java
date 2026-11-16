@@ -207,6 +207,7 @@ public class AdminProductServiceImpl implements AdminProductService {
 
         // Apply provided non-null fields
         if (request.getHsnCode() != null) current.setHsnCode(request.getHsnCode().trim());
+        if (request.getGst() != null) current.setGst(request.getGst());
         if (request.getTitle() != null) {
             if (request.getTitle().isBlank()) throw new AppException("Product title cannot be blank", HttpStatus.BAD_REQUEST);
             current.setTitle(request.getTitle().trim());
@@ -268,6 +269,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setSellerId(request.getSellerId());
         updateRequest.setSku(request.getSku());
         updateRequest.setHsnCode(request.getHsnCode());
+        updateRequest.setGst(request.getGst());
         updateRequest.setTitle(request.getTitle());
         updateRequest.setBrandName(request.getBrandName());
         updateRequest.setTechnicalName(request.getTechnicalName());
@@ -286,6 +288,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         AdminProductUpdateRequest updateRequest = new AdminProductUpdateRequest();
         updateRequest.setSku(request.getSku());
         updateRequest.setHsnCode(request.getHsnCode());
+        updateRequest.setGst(request.getGst());
         updateRequest.setTitle(request.getTitle());
         updateRequest.setBrandName(request.getBrandName());
         updateRequest.setTechnicalName(request.getTechnicalName());
@@ -357,7 +360,6 @@ public class AdminProductServiceImpl implements AdminProductService {
                     : normalizeDimensions(input.getDimensions()));
 
             clean.setDisplayRate(input.getDisplayRate());
-            clean.setPerUnitPrice(input.getPerUnitPrice());
             clean.setPrintedMrp(input.getPrintedMrp());
             clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
             clean.setCommissionPercentage(input.getCommissionPercentage());
@@ -366,8 +368,16 @@ public class AdminProductServiceImpl implements AdminProductService {
             clean.setDiscountOnMrpRs(input.getDiscountOnMrpRs());
             clean.setDiscountPercentage(input.getDiscountPercentage());
             clean.setPaymentMethod(input.getPaymentMethod());
-            clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
-            clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PREPAID) {
+                clean.setIsPrepaidAllowed(true);
+                clean.setIsPartialPaymentAllowed(false);
+            } else if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PARTIAL) {
+                clean.setIsPrepaidAllowed(true);
+                clean.setIsPartialPaymentAllowed(true);
+            } else {
+                clean.setIsPrepaidAllowed(input.getIsPrepaidAllowed());
+                clean.setIsPartialPaymentAllowed(input.getIsPartialPaymentAllowed());
+            }
             clean.setMinimumPartialPaymentPercentage(input.getMinimumPartialPaymentPercentage());
             clean.setCodCharge(input.getCodCharge());
             clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
@@ -451,7 +461,6 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (patch.getSwg()!=null) updated.setSwg(patch.getSwg());
         if (patch.getDimensions()!=null) updated.setDimensions(normalizeDimensions(patch.getDimensions()));
         if (patch.getDisplayRate()!=null) updated.setDisplayRate(patch.getDisplayRate());
-        if (patch.getPerUnitPrice()!=null) updated.setPerUnitPrice(patch.getPerUnitPrice());
         if (patch.getPrintedMrp()!=null) updated.setPrintedMrp(patch.getPrintedMrp());
         if (patch.getAmountYouWillReceive()!=null) updated.setAmountYouWillReceive(patch.getAmountYouWillReceive());
         if (patch.getCommissionPercentage()!=null) updated.setCommissionPercentage(patch.getCommissionPercentage());
@@ -599,7 +608,6 @@ public class AdminProductServiceImpl implements AdminProductService {
     private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
         target.setAmountYouWillReceive(source.getAmountYouWillReceive());
         target.setCommissionPercentage(source.getCommissionPercentage());
-        target.setPerUnitPrice(source.getPerUnitPrice());
         target.setCourierCharges(source.getCourierCharges());
         target.setPaymentMethod(source.getPaymentMethod());
         target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());

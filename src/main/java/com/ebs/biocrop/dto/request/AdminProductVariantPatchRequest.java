@@ -21,7 +21,6 @@ public class AdminProductVariantPatchRequest {
     @PositiveOrZero private Double swg;
     @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @PositiveOrZero private Double displayRate;
-    @PositiveOrZero private Double perUnitPrice;
     @PositiveOrZero private Double printedMrp;
     @PositiveOrZero private Double amountYouWillReceive;
     @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
@@ -40,7 +39,7 @@ public class AdminProductVariantPatchRequest {
 
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packSizeUnit != null || packQuantity != null
-                || shippedBy != null || shippingThrough != null || swg != null || dimensions != null || displayRate != null || perUnitPrice != null
+                || shippedBy != null || shippingThrough != null || swg != null || dimensions != null || displayRate != null
                 || printedMrp != null || amountYouWillReceive != null
                 || commissionPercentage != null || courierCharges != null || gstPercentage != null
                 || discountOnMrpRs != null || discountPercentage != null || paymentMethod != null || isPrepaidAllowed != null
@@ -57,7 +56,6 @@ public class AdminProductVariantPatchRequest {
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
     public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
-    public Double getPerUnitPrice() { return perUnitPrice; } public void setPerUnitPrice(Double v) { perUnitPrice=v; }
     public Double getDiscountOnMrpRs() { return discountOnMrpRs; } public void setDiscountOnMrpRs(Double v) { discountOnMrpRs=v; }
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Double getAmountYouWillReceive() { return amountYouWillReceive; } public void setAmountYouWillReceive(Double v) { amountYouWillReceive=v; }
