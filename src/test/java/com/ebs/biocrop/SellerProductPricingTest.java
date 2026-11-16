@@ -49,7 +49,6 @@ class SellerProductPricingTest {
         category.setId("category-1");
         category.setLevel(1);
         when(categories.findById("category-1")).thenReturn(Optional.of(category));
-        when(categories.hasActiveChildren("category-1")).thenReturn(false);
     }
 
     @Test

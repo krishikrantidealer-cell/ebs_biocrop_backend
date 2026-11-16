@@ -182,7 +182,6 @@ public class SellerProductServiceImpl implements SellerProductService {
                 .filter(item -> !Boolean.FALSE.equals(item.getIsActive()))
                 .filter(item -> item.getLevel() != null && item.getLevel() <= 2)
                 .orElseThrow(() -> badRequest("Selected category does not exist or is inactive"));
-        if (categories.hasActiveChildren(category.getId())) throw badRequest("Products must use a leaf category");
         if (product.getVariants() == null || product.getVariants().isEmpty()) throw badRequest("At least one product variant is required");
         for (ProductVariant variant : product.getVariants()) validateVariant(product, variant);
     }

@@ -735,10 +735,6 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (category == null) {
                 throw new AppException("Product category is missing, inactive, or outside the supported depth", HttpStatus.CONFLICT);
             }
-            boolean hasChildren = categories.hasActiveChildren(category.getId());
-            if (hasChildren) {
-                throw new AppException("Products must use a subcategory or a category without children", HttpStatus.CONFLICT);
-            }
             validatePublishReady(product);
         }
         product.setStatus(approved ? "ACTIVE" : "INACTIVE");
