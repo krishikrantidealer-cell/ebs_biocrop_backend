@@ -49,7 +49,6 @@ public class ProductCatalogQueryRepositoryImpl implements ProductCatalogQueryRep
     private Criteria publicCriteria() {
         return new Criteria().andOperator(
                 Criteria.where("status").regex("^ACTIVE$", "i"),
-                Criteria.where("sellerId").exists(true).nin(null, ""),
                 Criteria.where("isAvailable").is(true));
     }
 

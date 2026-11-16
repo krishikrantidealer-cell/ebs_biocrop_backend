@@ -65,6 +65,8 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final MongoTemplate mongoTemplate;
     private final CartService cartService;
     private final WebSocketService webSocketService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.FastrrCatalogSyncService fastrrCatalogSyncService;
 
     public AdminProductServiceImpl(
             ProductRepository products,
@@ -157,6 +159,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         Product created = sellerProducts.create(safeSellerId, request);
+        if (request != null && request.getAverageRating() != null) {
+            created.setAverageRating(normalizeAverageRating(request.getAverageRating()));
+            created = saveAndInvalidatePublicCatalog(created);
+        }
 
         if (!activeFiles.isEmpty()) {
             try {
@@ -217,6 +223,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (request.getProductWeightUnit() != null) {
             current.setProductWeightUnit(request.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         }
+        if (request.getAverageRating() != null) {
+            current.setAverageRating(normalizeAverageRating(request.getAverageRating()));
+        }
 
         // Variants update (if provided)
         if (request.getVariants() != null) {
@@ -267,6 +276,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
+        updateRequest.setAverageRating(request.getAverageRating());
         updateRequest.setVariants(request.getVariants());
         return update(id, updateRequest);
     }
@@ -284,8 +294,16 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
+        updateRequest.setAverageRating(request.getAverageRating());
         updateRequest.setVariants(request.getVariants());
         return update(id, updateRequest);
+    }
+
+    private Double normalizeAverageRating(Double value) {
+        if (value == null || !Double.isFinite(value) || value < 0.0 || value > 5.0) {
+            throw new AppException("Average rating must be between 0.0 and 5.0", HttpStatus.BAD_REQUEST);
+        }
+        return value;
     }
 
     private List<ProductDimensions> normalizeDimensions(List<ProductDimensions> values) {
@@ -301,6 +319,7 @@ public class AdminProductServiceImpl implements AdminProductService {
 
     private List<ProductVariant> sanitizeVariants(List<ProductVariant> submitted, List<ProductVariant> current, String productSku) {
         List<ProductVariant> currentList = current != null ? current : List.of();
+        boolean hasExplicitDefault = submitted.stream().anyMatch(v -> Boolean.TRUE.equals(v.getIsDefault()));
         Set<String> retainedIds = new HashSet<>();
         List<ProductVariant> result = new ArrayList<>();
         for (ProductVariant input : submitted) {
@@ -331,14 +350,15 @@ public class AdminProductServiceImpl implements AdminProductService {
             clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
             clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
             clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
+            clean.setShippingThrough(input.getShippingThrough() == null ? "" : input.getShippingThrough().trim());
             clean.setSwg(input.getSwg());
             clean.setDimensions(input.getDimensions() == null || input.getDimensions().isEmpty()
                     ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
                     : normalizeDimensions(input.getDimensions()));
 
             clean.setDisplayRate(input.getDisplayRate());
+            clean.setPerUnitPrice(input.getPerUnitPrice());
             clean.setPrintedMrp(input.getPrintedMrp());
-            clean.setCostPrice(input.getCostPrice());
             clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
             clean.setCommissionPercentage(input.getCommissionPercentage());
             clean.setCourierCharges(input.getCourierCharges());
@@ -352,7 +372,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             clean.setCodCharge(input.getCodCharge());
             clean.setStock(input.getStock() != null && input.getStock() >= 0 ? input.getStock() : 0);
             clean.setDisplayOrder(input.getDisplayOrder() != null ? input.getDisplayOrder() : (result.size() + 1));
-            clean.setIsDefault(input.getIsDefault());
+            clean.setIsDefault(hasExplicitDefault
+                    ? Boolean.TRUE.equals(input.getIsDefault())
+                    : (prior != null && Boolean.TRUE.equals(prior.getIsDefault())));
             result.add(clean);
         }
         return List.copyOf(result);
@@ -425,11 +447,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (patch.getPackSizeUnit()!=null) updated.setPackSizeUnit(patch.getPackSizeUnit());
         if (patch.getPackQuantity()!=null) updated.setPackQuantity(patch.getPackQuantity());
         if (patch.getShippedBy()!=null) updated.setShippedBy(patch.getShippedBy());
+        if (patch.getShippingThrough()!=null) updated.setShippingThrough(patch.getShippingThrough());
         if (patch.getSwg()!=null) updated.setSwg(patch.getSwg());
         if (patch.getDimensions()!=null) updated.setDimensions(normalizeDimensions(patch.getDimensions()));
         if (patch.getDisplayRate()!=null) updated.setDisplayRate(patch.getDisplayRate());
+        if (patch.getPerUnitPrice()!=null) updated.setPerUnitPrice(patch.getPerUnitPrice());
         if (patch.getPrintedMrp()!=null) updated.setPrintedMrp(patch.getPrintedMrp());
-        if (patch.getCostPrice()!=null) updated.setCostPrice(patch.getCostPrice());
         if (patch.getAmountYouWillReceive()!=null) updated.setAmountYouWillReceive(patch.getAmountYouWillReceive());
         if (patch.getCommissionPercentage()!=null) updated.setCommissionPercentage(patch.getCommissionPercentage());
         if (patch.getCourierCharges()!=null) updated.setCourierCharges(patch.getCourierCharges());
@@ -566,7 +589,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         copy.setLabel(source.getLabel()); copy.setUnit(source.getUnit()); copy.setPackSize(source.getPackSize());
         copy.setPackSizeUnit(source.getPackSizeUnit()); copy.setPackQuantity(source.getPackQuantity());
         copy.setShippedBy(source.getShippedBy()); copy.setSwg(source.getSwg()); copy.setDimensions(normalizeDimensions(source.getDimensions()));
-        copy.setDisplayRate(source.getDisplayRate()); copy.setPrintedMrp(source.getPrintedMrp()); copy.setCostPrice(source.getCostPrice());
+        copy.setDisplayRate(source.getDisplayRate()); copy.setPrintedMrp(source.getPrintedMrp());
         copy.setDiscountOnMrpRs(source.getDiscountOnMrpRs()); copy.setGstPercentage(source.getGstPercentage());
         copy.setDiscountPercentage(source.getDiscountPercentage()); copy.setStock(source.getStock());
         copyVariantPricingSettings(source, copy);
@@ -576,11 +599,13 @@ public class AdminProductServiceImpl implements AdminProductService {
     private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
         target.setAmountYouWillReceive(source.getAmountYouWillReceive());
         target.setCommissionPercentage(source.getCommissionPercentage());
+        target.setPerUnitPrice(source.getPerUnitPrice());
         target.setCourierCharges(source.getCourierCharges());
         target.setPaymentMethod(source.getPaymentMethod());
         target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());
         target.setIsPartialPaymentAllowed(source.getIsPartialPaymentAllowed());
         target.setMinimumPartialPaymentPercentage(source.getMinimumPartialPaymentPercentage());
+        target.setShippingThrough(source.getShippingThrough());
         target.setCodCharge(source.getCodCharge());
     }
 
@@ -980,6 +1005,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
         invalidatePublicCatalog();
         webSocketService.broadcast("products:update", saved);
+        if (fastrrCatalogSyncService != null) {
+            fastrrCatalogSyncService.syncProductAsync(saved);
+        }
         return saved;
     }
 

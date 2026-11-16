@@ -73,7 +73,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/orders/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/collections/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**", "/api/v1/admin/technical-names/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/seller/technical-names/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
                         .requestMatchers("/api/v1/seller/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/checkout/serviceability").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/checkout/webhook").permitAll()
@@ -89,6 +93,8 @@ public class SecurityConfig {
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",
                                 "/api/v1/collections/**",
+                                "/api/v1/technical-names/**",
+                                "/api/v1/variant-labels/**",
                                 "/api/v1/blogs",
                                 "/api/v1/blogs/**",
                                 "/api/v1/checkout/serviceability",

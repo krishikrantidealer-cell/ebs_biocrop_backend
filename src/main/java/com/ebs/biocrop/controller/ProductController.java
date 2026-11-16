@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -71,7 +72,9 @@ public class ProductController {
                             : null;
                     return PublicProductResponse.from(product, shopName, imageStorage);
                 });
-        return ResponseEntity.ok(ApiResponse.ok("Product retrieved successfully", response));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .body(ApiResponse.ok("Product retrieved successfully", response));
     }
 
     // List available products in a category subtree.
@@ -106,14 +109,24 @@ public class ProductController {
         PagedResponse<PublicProductResponse> response = redisCache.getOrLoad(
                 "public-products", queryKey, responseType, Duration.ofSeconds(30),
                 () -> mapPage(loader.get()));
-        return ResponseEntity.ok(ApiResponse.ok(message, response));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .body(ApiResponse.ok(message, response));
     }
 
     private PagedResponse<PublicProductResponse> mapPage(Page<Product> products) {
         Map<String, String> currentSellerNames = sellerNames.findCurrentShopNames(products.getContent().stream()
-                .map(Product::getSellerId).filter(java.util.Objects::nonNull).distinct().toList());
+                .map(Product::getSellerId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList());
         List<PublicProductResponse> content = products.getContent().stream()
-                .map(product -> PublicProductResponse.from(product, currentSellerNames.get(product.getSellerId()), imageStorage))
+                .map(product -> {
+                    String sellerName = (product.getSellerId() != null && !product.getSellerId().isBlank())
+                            ? currentSellerNames.get(product.getSellerId())
+                            : null;
+                    return PublicProductResponse.from(product, sellerName, imageStorage);
+                })
                 .toList();
         return new PagedResponse<>(content, products.getNumber(), products.getSize(),
                 products.getTotalElements(), products.getTotalPages(), products.isFirst(), products.isLast());

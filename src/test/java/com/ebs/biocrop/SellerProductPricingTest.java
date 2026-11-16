@@ -105,7 +105,7 @@ class SellerProductPricingTest {
         assertNull(created.getSellerId());
         assertEquals("ACTIVE", created.getStatus());
         assertEquals(Boolean.TRUE, created.getIsAvailable());
-        assertEquals(Boolean.TRUE, created.getIsFeatured());
+        assertEquals(Boolean.FALSE, created.getIsFeatured());
         verifyNoInteractions(mongoTemplate, sellerCodeService);
     }
 

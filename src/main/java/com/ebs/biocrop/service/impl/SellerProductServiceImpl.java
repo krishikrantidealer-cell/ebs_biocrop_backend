@@ -43,6 +43,8 @@ public class SellerProductServiceImpl implements SellerProductService {
     private final ProductRepository products;
     private final CategoryRepository categories;
     private final MongoTemplate mongoTemplate;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.FastrrCatalogSyncService fastrrCatalogSyncService;
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
     private final SellerCodeService sellerCodeService;
@@ -83,7 +85,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         copySellerFields(request, listing, null);
         listing.setStatus("ACTIVE");
         listing.setIsAvailable(true);
-        listing.setIsFeatured(true);
+        listing.setIsFeatured(false);
         listing.setAverageRating(null);
         listing.setCreatedAt(LocalDateTime.now());
         listing.setUpdatedAt(listing.getCreatedAt());
@@ -140,6 +142,9 @@ public class SellerProductServiceImpl implements SellerProductService {
             redisCache.invalidateRegion("public-products");
             redisCache.invalidateRegion("public-collections");
             webSocketService.broadcast("products:update", saved);
+            if (fastrrCatalogSyncService != null) {
+                fastrrCatalogSyncService.syncProductAsync(saved);
+            }
             return saved;
         } catch (DuplicateKeyException exception) {
             throw new AppException("SKU is already in use", HttpStatus.CONFLICT);
@@ -212,9 +217,17 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) variant.setSwg(null);
         if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
+        validateMoneyField(variant.getPerUnitPrice(), "Per unit price");
+        if (variant.getPerUnitPrice() != null && variant.getPerUnitPrice() > 0
+                && (variant.getDisplayRate() == null || variant.getDisplayRate() <= 0)) {
+            int qty = variant.getPackQuantity() != null && variant.getPackQuantity() > 0 ? variant.getPackQuantity() : 1;
+            variant.setDisplayRate(BigDecimal.valueOf(variant.getPerUnitPrice())
+                    .multiply(BigDecimal.valueOf(qty))
+                    .setScale(2, RoundingMode.HALF_UP)
+                    .doubleValue());
+        }
         validateMoneyField(variant.getDisplayRate(), "Display rate");
         validateMoneyField(variant.getPrintedMrp(), "Printed MRP");
-        validateMoneyField(variant.getCostPrice(), "Cost price");
         validateMoneyField(variant.getAmountYouWillReceive(), "Amount you will receive");
         validateMoneyField(variant.getCourierCharges(), "Courier charges");
         validateMoneyField(variant.getCodCharge(), "COD charge");
@@ -332,14 +345,15 @@ public class SellerProductServiceImpl implements SellerProductService {
             clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
             clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
             clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
+            clean.setShippingThrough(input.getShippingThrough() == null ? "" : input.getShippingThrough().trim());
             clean.setSwg(input.getSwg());
             clean.setDimensions(input.getDimensions() == null || input.getDimensions().isEmpty()
                     ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
                     : normalizeDimensions(input.getDimensions()));
 
             clean.setDisplayRate(input.getDisplayRate());
+            clean.setPerUnitPrice(input.getPerUnitPrice());
             clean.setPrintedMrp(input.getPrintedMrp());
-            clean.setCostPrice(input.getCostPrice());
             clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
             clean.setCommissionPercentage(input.getCommissionPercentage());
             clean.setCourierCharges(input.getCourierCharges());
@@ -369,11 +383,13 @@ public class SellerProductServiceImpl implements SellerProductService {
     private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
         target.setAmountYouWillReceive(source.getAmountYouWillReceive());
         target.setCommissionPercentage(source.getCommissionPercentage());
+        target.setPerUnitPrice(source.getPerUnitPrice());
         target.setCourierCharges(source.getCourierCharges());
         target.setPaymentMethod(source.getPaymentMethod());
         target.setIsPrepaidAllowed(source.getIsPrepaidAllowed());
         target.setIsPartialPaymentAllowed(source.getIsPartialPaymentAllowed());
         target.setMinimumPartialPaymentPercentage(source.getMinimumPartialPaymentPercentage());
+        target.setShippingThrough(source.getShippingThrough());
         target.setCodCharge(source.getCodCharge());
     }
 

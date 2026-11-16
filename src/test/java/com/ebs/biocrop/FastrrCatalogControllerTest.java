@@ -9,6 +9,7 @@ import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.repository.ProductRepository;
+import com.ebs.biocrop.service.FastrrCheckoutService;
 import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.OrderLifecycleService;
 import com.ebs.biocrop.service.SellerShopNameLookup;
@@ -313,5 +314,69 @@ class FastrrCatalogControllerTest {
         mockMvc.perform(get("/api/v1/fastrr/products?page=-2147483648&limit=12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.products.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/fastrr/checkout/token generates signed checkout token when configured")
+    void testCreateCheckoutTokenSuccess() throws Exception {
+        FastrrCheckoutService checkoutService = org.mockito.Mockito.mock(FastrrCheckoutService.class);
+        ReflectionTestUtils.setField(controller, "fastrrCheckoutService", checkoutService);
+
+        Product p = new Product();
+        p.setId("prod_1");
+        p.setTitle("Test Agri Product");
+        p.setIsAvailable(true);
+        ProductVariant v = new ProductVariant();
+        v.setId("var_1");
+        v.setDisplayRate(500.0);
+        p.setVariants(List.of(v));
+
+        when(checkoutService.isConfigured()).thenReturn(true);
+        when(productRepository.findById("prod_1")).thenReturn(java.util.Optional.of(p));
+        when(checkoutService.createCheckoutToken(any(), any())).thenReturn(Map.of(
+                "token", "fastrr_tok_123",
+                "apiKey", "tN8q17T2A92fQtLD",
+                "storeUrl", "https://ebskrishidukaan.com"
+        ));
+
+        mockMvc.perform(post("/api/v1/fastrr/checkout/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"productId\":\"prod_1\",\"variantId\":\"var_1\",\"quantity\":2}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.token").value("fastrr_tok_123"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/fastrr/order/webhook rejects invalid HMAC signature and processes valid webhook")
+    void testFastrrOrderWebhookSignatureAndOrderCreation() throws Exception {
+        FastrrCheckoutService checkoutService = org.mockito.Mockito.mock(FastrrCheckoutService.class);
+        ReflectionTestUtils.setField(controller, "fastrrCheckoutService", checkoutService);
+        when(checkoutService.isConfigured()).thenReturn(true);
+
+        String body = "{\"order_id\":\"FASTRR-999\",\"payment_type\":\"PREPAID\"}";
+        when(checkoutService.verifyWebhookSignature(body, "bad-sig")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/fastrr/order/webhook")
+                        .header("X-Api-HMAC-SHA256", "bad-sig")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value("UNAUTHORIZED"));
+
+        when(checkoutService.verifyWebhookSignature(body, "valid-sig")).thenReturn(true);
+        when(checkoutService.processOrderWebhook(any())).thenReturn(new java.util.LinkedHashMap<>(Map.of(
+                "status", "SUCCESS",
+                "orderId", "ord_123",
+                "orderNumber", "FASTRR-FASTRR-999"
+        )));
+
+        mockMvc.perform(post("/api/v1/fastrr/order/webhook")
+                        .header("X-Api-HMAC-SHA256", "valid-sig")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.orderId").value("ord_123"));
     }
 }

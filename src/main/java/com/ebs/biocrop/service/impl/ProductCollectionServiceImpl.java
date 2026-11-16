@@ -12,6 +12,7 @@ import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
+import com.ebs.biocrop.service.CatalogWebhookService;
 import com.ebs.biocrop.service.ProductCollectionService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import org.bson.types.ObjectId;
@@ -26,6 +27,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,6 +45,10 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
     private final com.ebs.biocrop.service.GcsImageStorageService imageStorage;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CatalogWebhookService catalogWebhookService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.FastrrCatalogSyncService fastrrCatalogSyncService;
 
     public ProductCollectionServiceImpl(ProductCollectionRepository collections, MongoTemplate mongoTemplate,
                                         RedisJsonCache redisCache, WebSocketService webSocketService) {
@@ -194,8 +201,9 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         for (ProductCollection collection : targetCollections) {
             allTokens.addAll(tokens(collection.getId(), collection.getName(), collection.getSlug(), collection.getSubCollections()));
             collections.delete(collection);
-            broadcastCollectionDelete(collection.getId());
-            deletedIds.add(collection.getId());
+            String deletedId = collection.getId();
+            runAfterCommit(() -> broadcastCollectionDelete(deletedId));
+            deletedIds.add(deletedId);
         }
 
         if (!allTokens.isEmpty()) {
@@ -205,7 +213,7 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
                     Product.class);
         }
 
-        redisCache.invalidateRegion("public-collections");
+        invalidatePublicCollectionsCache();
         redisCache.invalidateRegion("public-products");
 
         return deletedIds;
@@ -274,9 +282,11 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
         collection.setUpdatedAt(Instant.now());
         collections.save(collection);
         removeProductAssignments(requested);
-        redisCache.invalidateRegion("public-collections");
+        invalidatePublicCollectionsCache();
         redisCache.invalidateRegion("public-products");
-        broadcastCollectionUpdate(collection, response(collection, false));
+        CollectionResponse res = response(collection, false);
+        CollectionResponse publicRes = !Boolean.FALSE.equals(collection.getIsActive()) ? response(collection, true) : null;
+        runAfterCommit(() -> broadcastCollectionUpdate(collection, res, publicRes));
         return List.copyOf(requested);
     }
 
@@ -365,13 +375,39 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
     private CollectionResponse save(ProductCollection collection) {
         try {
             ProductCollection saved = collections.save(collection);
-            redisCache.invalidateRegion("public-collections");
+            invalidatePublicCollectionsCache();
             CollectionResponse res = response(saved, false);
-            broadcastCollectionUpdate(saved, res);
+            CollectionResponse publicRes = !Boolean.FALSE.equals(saved.getIsActive()) ? response(saved, true) : null;
+            runAfterCommit(() -> {
+                broadcastCollectionUpdate(saved, res, publicRes);
+                if (fastrrCatalogSyncService != null) {
+                    fastrrCatalogSyncService.syncCollectionAsync(saved);
+                }
+            });
             return res;
         } catch (DuplicateKeyException duplicate) {
             throw new AppException("A collection with this slug already exists", HttpStatus.CONFLICT);
         }
+    }
+
+    private void invalidatePublicCollectionsCache() {
+        redisCache.invalidateRegion("public-collections");
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            redisCache.invalidateRegionAfterCommit("public-collections");
+        }
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     private CollectionResponse response(ProductCollection collection, boolean publicView) {
@@ -525,18 +561,31 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
 
     private AppException badRequest(String message) { return new AppException(message, HttpStatus.BAD_REQUEST); }
 
-    private void broadcastCollectionUpdate(ProductCollection collection, CollectionResponse res) {
+    private void broadcastCollectionUpdate(ProductCollection collection, CollectionResponse res, CollectionResponse publicRes) {
         if (collection == null || collection.getId() == null) return;
-        Map<String, Object> payload = Map.of(
-                "collectionId", collection.getId(),
-                "title", collection.getName() != null ? collection.getName() : "",
-                "productCount", res != null && res.productCount() != null ? res.productCount() : 0
-        );
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("collectionId", collection.getId());
+        payload.put("title", collection.getName() != null ? collection.getName() : "");
+        payload.put("slug", collection.getSlug() != null ? collection.getSlug() : "");
+        payload.put("isActive", !Boolean.FALSE.equals(collection.getIsActive()));
+        payload.put("productCount", res != null && res.productCount() != null ? res.productCount() : 0);
+        payload.put("subCollectionCount", publicRes != null && publicRes.subCollections() != null ? publicRes.subCollections().size() : 0);
+        payload.put("updatedAt", collection.getUpdatedAt() != null ? collection.getUpdatedAt().toString() : Instant.now().toString());
+        if (publicRes != null) {
+            payload.put("collection", publicRes);
+        }
         webSocketService.broadcast("collections:update", payload);
+        if (catalogWebhookService != null) {
+            catalogWebhookService.publishCollectionEvent("collections:update", payload);
+        }
     }
 
     private void broadcastCollectionDelete(String collectionId) {
         if (collectionId == null || collectionId.isBlank()) return;
-        webSocketService.broadcast("collections:delete", Map.of("collectionId", collectionId));
+        Map<String, Object> payload = Map.of("collectionId", collectionId);
+        webSocketService.broadcast("collections:delete", payload);
+        if (catalogWebhookService != null) {
+            catalogWebhookService.publishCollectionEvent("collections:delete", payload);
+        }
     }
 }

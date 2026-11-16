@@ -1,5 +1,7 @@
 package com.ebs.biocrop.dto.request;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -19,6 +21,7 @@ public class AdminProductPatchRequest {
     @Size(max = 2000) private String refundPolicy;
     @PositiveOrZero private Double productWeight;
     @Size(max = 10) private String productWeightUnit;
+    @DecimalMin("0.0") @DecimalMax("5.0") private Double averageRating;
     @Size(max = 50) @Valid private List<SellerProductWriteRequest.VariantWriteRequest> variants;
 
     public String getSku() { return sku; } public void setSku(String v) { sku=v; }
@@ -31,12 +34,14 @@ public class AdminProductPatchRequest {
     public String getRefundPolicy() { return refundPolicy; } public void setRefundPolicy(String v) { refundPolicy=v; }
     public Double getProductWeight() { return productWeight; } public void setProductWeight(Double v) { productWeight=v; }
     public String getProductWeightUnit() { return productWeightUnit; } public void setProductWeightUnit(String v) { productWeightUnit=v; }
+    public Double getAverageRating() { return averageRating; } public void setAverageRating(Double v) { averageRating=v; }
     public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; } public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> v) { variants=v; }
 
     public boolean hasChanges() {
         return sku != null || hsnCode != null || title != null || brandName != null || technicalName != null
                 || description != null || categoryId != null
                 || refundPolicy != null || productWeight != null || productWeightUnit != null
+                || averageRating != null
                 || (variants != null && !variants.isEmpty());
     }
 }

@@ -12,7 +12,7 @@ public class CollectionWriteRequest {
     @NotBlank @Size(max = 120) private String name;
     @Size(max = 140) private String slug;
     @Size(max = 2000) private String description;
-    @Size(max = 2048) private String image;
+    @Size(max = 2097152) private String image;
     private Boolean isActive;
     @Min(0) private Integer priority;
     @Size(max = 100) @Valid private List<SubCollectionInput> subCollections;
@@ -40,7 +40,7 @@ public class CollectionWriteRequest {
         @NotBlank @Size(max = 120) private String name;
         @Size(max = 140) private String slug;
         private Boolean isActive;
-        @Size(max = 2048) private String image;
+        @Size(max = 2097152) private String image;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }

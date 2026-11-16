@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,7 +64,9 @@ public class CategoryController {
                     return new PagedResponse<>(content, result.getNumber(), result.getSize(),
                             result.getTotalElements(), result.getTotalPages(), result.isFirst(), result.isLast());
                 });
-        return ResponseEntity.ok(ApiResponse.ok("Categories retrieved successfully", response));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .body(ApiResponse.ok("Categories retrieved successfully", response));
     }
 
     // Get active category by ID.
@@ -73,6 +76,8 @@ public class CategoryController {
         CategoryResponse response = redisCache.getOrLoad(
                 "public-categories", "id=" + id, typeFactory.constructType(CategoryResponse.class),
                 Duration.ofMinutes(10), () -> CategoryResponse.from(categoryService.getPublic(id), imageStorage));
-        return ResponseEntity.ok(ApiResponse.ok("Category retrieved successfully", response));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .body(ApiResponse.ok("Category retrieved successfully", response));
     }
 }

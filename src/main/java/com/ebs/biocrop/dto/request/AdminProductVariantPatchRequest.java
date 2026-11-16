@@ -17,11 +17,12 @@ public class AdminProductVariantPatchRequest {
     @Pattern(regexp = ".*\\S.*", message = "Pack size unit cannot be blank") @Size(max = 20) private String packSizeUnit;
     @Positive private Integer packQuantity;
     @Size(max = 120) private String shippedBy;
+    @Size(max = 80) private String shippingThrough;
     @PositiveOrZero private Double swg;
     @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @PositiveOrZero private Double displayRate;
+    @PositiveOrZero private Double perUnitPrice;
     @PositiveOrZero private Double printedMrp;
-    @PositiveOrZero private Double costPrice;
     @PositiveOrZero private Double amountYouWillReceive;
     @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
     @PositiveOrZero private Double courierCharges;
@@ -39,8 +40,8 @@ public class AdminProductVariantPatchRequest {
 
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packSizeUnit != null || packQuantity != null
-                || shippedBy != null || swg != null || dimensions != null || displayRate != null
-                || printedMrp != null || costPrice != null || amountYouWillReceive != null
+                || shippedBy != null || shippingThrough != null || swg != null || dimensions != null || displayRate != null || perUnitPrice != null
+                || printedMrp != null || amountYouWillReceive != null
                 || commissionPercentage != null || courierCharges != null || gstPercentage != null
                 || discountOnMrpRs != null || discountPercentage != null || paymentMethod != null || isPrepaidAllowed != null
                 || isPartialPaymentAllowed != null || minimumPartialPaymentPercentage != null || codCharge != null
@@ -52,14 +53,15 @@ public class AdminProductVariantPatchRequest {
     public String getPackSizeUnit() { return packSizeUnit; } public void setPackSizeUnit(String v) { packSizeUnit=v; }
     public Integer getPackQuantity() { return packQuantity; } public void setPackQuantity(Integer v) { packQuantity=v; }
     public String getShippedBy() { return shippedBy; } public void setShippedBy(String v) { shippedBy=v; }
+    public String getShippingThrough() { return shippingThrough; } public void setShippingThrough(String v) { shippingThrough=v; }
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
     public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
+    public Double getPerUnitPrice() { return perUnitPrice; } public void setPerUnitPrice(Double v) { perUnitPrice=v; }
     public Double getDiscountOnMrpRs() { return discountOnMrpRs; } public void setDiscountOnMrpRs(Double v) { discountOnMrpRs=v; }
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
     public Double getAmountYouWillReceive() { return amountYouWillReceive; } public void setAmountYouWillReceive(Double v) { amountYouWillReceive=v; }
     public Double getPrintedMrp() { return printedMrp; } public void setPrintedMrp(Double v) { printedMrp=v; }
-    public Double getCostPrice() { return costPrice; } public void setCostPrice(Double v) { costPrice=v; }
     public Double getCommissionPercentage() { return commissionPercentage; } public void setCommissionPercentage(Double v) { commissionPercentage=v; }
     public Double getCourierCharges() { return courierCharges; } public void setCourierCharges(Double v) { courierCharges=v; }
     public Double getGstPercentage() { return gstPercentage; } public void setGstPercentage(Double v) { gstPercentage=v; }

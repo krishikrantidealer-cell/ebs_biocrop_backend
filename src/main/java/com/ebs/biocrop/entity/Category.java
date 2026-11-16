@@ -66,6 +66,6 @@ public class Category {
     public void setCataloguePdf(String cataloguePdf) { this.cataloguePdf = cataloguePdf; }
     public String getCategoryImageUri() { return categoryImageUri; }
     public void setCategoryImageUri(String categoryImageUri) { this.categoryImageUri = categoryImageUri; }
-    public String getBannerTitle() { return bannerTitle; }
+    public String getBannerTitle() { return bannerTitle; }  
     public void setBannerTitle(String bannerTitle) { this.bannerTitle = bannerTitle; }
 }

@@ -72,11 +72,12 @@ public class SellerProductWriteRequest {
         @NotBlank @Size(max = 20) private String packSizeUnit;
         @NotNull @Positive private Integer packQuantity;
         @Size(max = 120) private String shippedBy;
+        @Size(max = 80) private String shippingThrough;
         @PositiveOrZero private Double swg;
         @Size(max = 10) @Valid private List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
         @NotNull @PositiveOrZero private Double displayRate;
+        @PositiveOrZero private Double perUnitPrice;
         @PositiveOrZero private Double printedMrp;
-        @PositiveOrZero private Double costPrice;
         @PositiveOrZero private Double amountYouWillReceive;
         @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
         @PositiveOrZero private Double courierCharges;
@@ -84,6 +85,8 @@ public class SellerProductWriteRequest {
         @PositiveOrZero private Double discountOnMrpRs;
         @PositiveOrZero @DecimalMax("100") private Double discountPercentage;
         @NotNull @PositiveOrZero private Integer stock;
+         private Integer displayOrder;
+        private Boolean isDefault;
         private PaymentMethod paymentMethod = PaymentMethod.ONLINE;
         private Boolean isPrepaidAllowed = true;
         private Boolean isPartialPaymentAllowed = true;
@@ -97,8 +100,8 @@ public class SellerProductWriteRequest {
             variant.setId(id);
             variant.setLabel(label); variant.setUnit(unit); variant.setPackSize(packSize);
             variant.setPackSizeUnit(packSizeUnit); variant.setPackQuantity(packQuantity);
-            variant.setShippedBy(shippedBy); variant.setSwg(swg); variant.setDimensions(dimensions);
-            variant.setDisplayRate(displayRate); variant.setPrintedMrp(printedMrp); variant.setCostPrice(costPrice);
+            variant.setShippedBy(shippedBy); variant.setShippingThrough(shippingThrough); variant.setSwg(swg); variant.setDimensions(dimensions);
+            variant.setDisplayRate(displayRate); variant.setPerUnitPrice(perUnitPrice); variant.setPrintedMrp(printedMrp);
             variant.setAmountYouWillReceive(amountYouWillReceive);
             variant.setCommissionPercentage(commissionPercentage); variant.setCourierCharges(courierCharges);
             variant.setGstPercentage(gstPercentage); variant.setDiscountOnMrpRs(discountOnMrpRs);
@@ -106,6 +109,8 @@ public class SellerProductWriteRequest {
             variant.setIsPrepaidAllowed(isPrepaidAllowed); variant.setIsPartialPaymentAllowed(isPartialPaymentAllowed);
             variant.setMinimumPartialPaymentPercentage(minimumPartialPaymentPercentage);
             variant.setCodCharge(codCharge);
+            if (displayOrder != null) variant.setDisplayOrder(displayOrder);
+            if (isDefault != null) variant.setIsDefault(isDefault);
             return variant;
         }
 
@@ -123,6 +128,8 @@ public class SellerProductWriteRequest {
         public void setPackQuantity(Integer packQuantity) { this.packQuantity = packQuantity; }
         public String getShippedBy() { return shippedBy; }
         public void setShippedBy(String shippedBy) { this.shippedBy = shippedBy; }
+        public String getShippingThrough() { return shippingThrough; }
+        public void setShippingThrough(String shippingThrough) { this.shippingThrough = shippingThrough; }
         public Double getSwg() { return swg; }
         public void setSwg(Double swg) { this.swg = swg; }
         public List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; }
@@ -131,14 +138,14 @@ public class SellerProductWriteRequest {
         public void setAmountYouWillReceive(Double amountYouWillReceive) { this.amountYouWillReceive = amountYouWillReceive; }
         public Double getDisplayRate() { return displayRate; }
         public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
+        public Double getPerUnitPrice() { return perUnitPrice; }
+        public void setPerUnitPrice(Double perUnitPrice) { this.perUnitPrice = perUnitPrice; }
         public Double getDiscountOnMrpRs() { return discountOnMrpRs; }
         public void setDiscountOnMrpRs(Double discountOnMrpRs) { this.discountOnMrpRs = discountOnMrpRs; }
         public Double getDiscountPercentage() { return discountPercentage; }
         public void setDiscountPercentage(Double discountPercentage) { this.discountPercentage = discountPercentage; }
         public Double getPrintedMrp() { return printedMrp; }
         public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
-        public Double getCostPrice() { return costPrice; }
-        public void setCostPrice(Double costPrice) { this.costPrice = costPrice; }
         public Double getCommissionPercentage() { return commissionPercentage; }
         public void setCommissionPercentage(Double commissionPercentage) { this.commissionPercentage = commissionPercentage; }
         public Double getCourierCharges() { return courierCharges; }
@@ -157,6 +164,10 @@ public class SellerProductWriteRequest {
         public void setCodCharge(Double codCharge) { this.codCharge = codCharge; }
         public Integer getStock() { return stock; }
         public void setStock(Integer stock) { this.stock = stock; }
+        public Integer getDisplayOrder() { return displayOrder; }
+        public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder; }
+        public Boolean getIsDefault() { return isDefault; }
+        public void setIsDefault(Boolean isDefault) { this.isDefault = isDefault; }
         public String getSku() { return sku; }
         public void setSku(String sku) { this.sku = sku; }
     }

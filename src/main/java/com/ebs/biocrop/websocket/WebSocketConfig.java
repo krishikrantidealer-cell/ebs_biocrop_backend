@@ -20,14 +20,17 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final RealtimeWebSocketHandler webSocketHandler;
     private final WebSocketAuthInterceptor authInterceptor;
+    private final PublicWebSocketHandshakeInterceptor publicInterceptor;
     private final List<String> allowedOrigins;
 
     public WebSocketConfig(
             RealtimeWebSocketHandler webSocketHandler,
             WebSocketAuthInterceptor authInterceptor,
+            PublicWebSocketHandshakeInterceptor publicInterceptor,
             @Value("${app.cors.allowed-origins:}") String allowedOrigins) {
         this.webSocketHandler = webSocketHandler;
         this.authInterceptor = authInterceptor;
+        this.publicInterceptor = publicInterceptor;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
@@ -44,9 +47,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
         originPatterns.add("http://127.0.0.1:*");
         originPatterns.add("https://ebskrishidukaan.com");
         originPatterns.add("https://*.ebskrishidukaan.com");
+        String[] patterns = originPatterns.toArray(new String[0]);
 
         registry.addHandler(webSocketHandler, "/ws")
                 .addInterceptors(authInterceptor)
-                .setAllowedOriginPatterns(originPatterns.toArray(new String[0]));
+                .setAllowedOriginPatterns(patterns);
+        registry.addHandler(webSocketHandler, "/ws/public")
+                .addInterceptors(publicInterceptor)
+                .setAllowedOriginPatterns(patterns);
     }
 }

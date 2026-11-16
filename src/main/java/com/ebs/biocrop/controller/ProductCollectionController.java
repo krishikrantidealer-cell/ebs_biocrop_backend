@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,7 +42,10 @@ public class ProductCollectionController {
         JavaType type = typeFactory.constructParametricType(CountedListResponse.class, CollectionResponse.class);
         CountedListResponse<CollectionResponse> result = redisCache.getOrLoad("public-collections", "all",
                 type, Duration.ofMinutes(5), () -> CountedListResponse.from(collections.listPublic()));
-        return ResponseEntity.ok(ApiResponse.ok("Collections retrieved", result));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .header("Pragma", "no-cache")
+                .body(ApiResponse.ok("Collections retrieved", result));
     }
 
     // Get an active collection by slug.
@@ -52,6 +56,9 @@ public class ProductCollectionController {
         CollectionResponse result = redisCache.getOrLoad("public-collections", key,
                 typeFactory.constructType(CollectionResponse.class), Duration.ofMinutes(5),
                 () -> collections.getPublicBySlug(slug));
-        return ResponseEntity.ok(ApiResponse.ok("Collection retrieved", result));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore().mustRevalidate())
+                .header("Pragma", "no-cache")
+                .body(ApiResponse.ok("Collection retrieved", result));
     }
 }

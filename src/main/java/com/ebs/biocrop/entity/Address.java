@@ -39,7 +39,7 @@ public class Address {
 
     public String getCityTehsil() {
         return cityTehsil;
-    }
+    }  
 
     public void setCityTehsil(String cityTehsil) {
         this.cityTehsil = cityTehsil != null ? cityTehsil.trim() : null;

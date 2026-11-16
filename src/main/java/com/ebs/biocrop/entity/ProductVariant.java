@@ -37,6 +37,8 @@ public class ProductVariant {
     private Integer packQuantity;
     @Field(write = Field.Write.ALWAYS)
     private String shippedBy;
+    @Field(write = Field.Write.ALWAYS)
+    private String shippingThrough;
     /** SWG is stored as provided; interpreted as shipping weight grams, without rate calculation. */
     @Field(write = Field.Write.ALWAYS)
     private Double swg;
@@ -47,9 +49,9 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Double displayRate;
     @Field(write = Field.Write.ALWAYS)
-    private Double printedMrp;
+    private Double perUnitPrice;
     @Field(write = Field.Write.ALWAYS)
-    private Double costPrice;
+    private Double printedMrp;
     @Field(write = Field.Write.ALWAYS)
     private Double amountYouWillReceive;
     @Field(write = Field.Write.ALWAYS)
@@ -99,6 +101,8 @@ public class ProductVariant {
     public void setPackQuantity(Integer packQuantity) { this.packQuantity = packQuantity; }
     public String getShippedBy() { return shippedBy; }
     public void setShippedBy(String shippedBy) { this.shippedBy = shippedBy; }
+    public String getShippingThrough() { return shippingThrough; }
+    public void setShippingThrough(String shippingThrough) { this.shippingThrough = shippingThrough; }
     public Double getSwg() { return swg; }
     public void setSwg(Double swg) { this.swg = swg; }
     public java.util.List<ProductDimensions> getDimensions() { return dimensions; }
@@ -107,10 +111,10 @@ public class ProductVariant {
     }
     public Double getDisplayRate() { return displayRate; }
     public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
+    public Double getPerUnitPrice() { return perUnitPrice; }
+    public void setPerUnitPrice(Double perUnitPrice) { this.perUnitPrice = perUnitPrice; }
     public Double getPrintedMrp() { return printedMrp; }
     public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
-    public Double getCostPrice() { return costPrice; }
-    public void setCostPrice(Double costPrice) { this.costPrice = costPrice; }
     public Double getAmountYouWillReceive() { return amountYouWillReceive; }
     public void setAmountYouWillReceive(Double amountYouWillReceive) { this.amountYouWillReceive = amountYouWillReceive; }
     public Double getCommissionPercentage() { return commissionPercentage; }

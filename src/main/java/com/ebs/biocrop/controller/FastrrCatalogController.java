@@ -1,5 +1,6 @@
 package com.ebs.biocrop.controller;
 
+import com.ebs.biocrop.dto.response.ApiResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
@@ -9,9 +10,13 @@ import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.repository.ProductRepository;
+import com.ebs.biocrop.service.FastrrCheckoutService;
 import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.OrderLifecycleService;
 import com.ebs.biocrop.service.SellerShopNameLookup;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -71,6 +76,12 @@ public class FastrrCatalogController {
     @Autowired(required = false)
     private OrderLifecycleService orderLifecycle;
 
+    @Autowired(required = false)
+    private FastrrCheckoutService fastrrCheckoutService;
+
+    @Autowired(required = false)
+    private ObjectMapper objectMapper;
+
     public FastrrCatalogController(ProductRepository productRepository,
                                    ProductCollectionRepository collectionRepository,
                                    GcsImageStorageService imageStorage,
@@ -111,7 +122,7 @@ public class FastrrCatalogController {
         }
     }
 
-    private static long toFastrrProductId(Product product) {
+    public static long toFastrrProductId(Product product) {
         String sku = product == null ? null : product.getSku();
         Matcher productMatch = sku == null ? null : PRODUCT_SKU_PATTERN.matcher(sku);
         if (productMatch != null && productMatch.matches()) {
@@ -130,7 +141,7 @@ public class FastrrCatalogController {
         return toNumericId(product == null ? null : product.getId());
     }
 
-    private static long toFastrrVariantId(Product product, ProductVariant variant, int index) {
+    public static long toFastrrVariantId(Product product, ProductVariant variant, int index) {
         String sku = variant == null ? null : variant.getSku();
         Matcher variantMatch = sku == null ? null : VARIANT_SKU_PATTERN.matcher(sku);
         if (variantMatch != null && variantMatch.matches()) {
@@ -356,21 +367,132 @@ public class FastrrCatalogController {
     }
 
     /**
+     * 3b. POST /api/v1/fastrr/checkout/token
+     * Generates a server-signed Fastrr 1-Click Checkout access token for the given cart items.
+     */
+    @PostMapping("/fastrr/checkout/token")
+    @Operation(summary = "Generate Fastrr Checkout Token", description = "Signs cart payload with HMAC-SHA256 and returns a Fastrr checkout access token")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createCheckoutToken(
+            @RequestBody(required = false) Map<String, Object> request) {
+        if (fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(ApiResponse.error("Fastrr Checkout integration is not configured"));
+        }
+        if (request == null || !(request.get("items") instanceof List<?> rawItems) || rawItems.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("At least one item is required for Fastrr checkout"));
+        }
+
+        List<Map<String, Object>> fastrrItems = new ArrayList<>();
+        for (Object itemObj : rawItems) {
+            if (!(itemObj instanceof Map<?, ?> itemMap)) continue;
+            String productId = itemMap.get("productId") != null ? String.valueOf(itemMap.get("productId")).trim() : "";
+            String variantId = itemMap.get("variantId") != null ? String.valueOf(itemMap.get("variantId")).trim() : "";
+            int quantity = 1;
+            if (itemMap.get("quantity") instanceof Number n) {
+                quantity = Math.max(1, n.intValue());
+            }
+
+            if (productId.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Each item must include productId"));
+            }
+            Product product = productRepository.findById(productId).orElse(null);
+            if (product == null || !isFastrrVisible(product)) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Product not available: " + productId));
+            }
+
+            long numericVariantId;
+            List<ProductVariant> variants = product.getVariants();
+            if (variants != null && !variants.isEmpty()) {
+                int matchedIdx = 0;
+                if (!variantId.isEmpty()) {
+                    for (int i = 0; i < variants.size(); i++) {
+                        if (variantId.equals(variants.get(i).getId())) {
+                            matchedIdx = i;
+                            break;
+                        }
+                    }
+                }
+                numericVariantId = toFastrrVariantId(product, variants.get(matchedIdx), matchedIdx);
+            } else {
+                numericVariantId = toFastrrProductId(product);
+            }
+
+            Map<String, Object> fastrrItem = new LinkedHashMap<>();
+            fastrrItem.put("variant_id", String.valueOf(numericVariantId));
+            fastrrItem.put("quantity", quantity);
+            fastrrItems.add(fastrrItem);
+        }
+
+        if (fastrrItems.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("No valid items provided for Fastrr checkout"));
+        }
+
+        String redirectUrl = request.get("redirectUrl") != null ? String.valueOf(request.get("redirectUrl")) : null;
+        Map<String, Object> tokenData = fastrrCheckoutService.createCheckoutToken(fastrrItems, redirectUrl);
+        return ResponseEntity.ok(ApiResponse.ok("Fastrr checkout token generated", tokenData));
+    }
+
+    /**
      * 4. POST /api/v1/fastrr/order/webhook
-     * The Fastrr order callback is intentionally unavailable until its provider contract
-     * and a real order processor are implemented. A mapped preview is not an accepted order.
+     * Verifies HMAC-SHA256 signature and creates an idempotent Order in MongoDB.
      */
     @PostMapping({"/fastrr/order/webhook", "/fastrr/webhook"})
-    @Operation(summary = "Fastrr Order Webhook", description = "Unavailable until provider contract and order persistence are implemented")
+    @Operation(summary = "Fastrr Order Webhook", description = "Verifies HMAC-SHA256 signature and persists Fastrr orders")
     public ResponseEntity<Map<String, Object>> handleOrderWebhook(
+            @RequestHeader(name = "X-Api-HMAC-SHA256", required = false) String hmacHeader,
             @RequestHeader(name = "X-Fastrr-Signature", required = false) String fastrrSig,
-            @RequestBody(required = false) Map<String, Object> payload) {
-        log.info("[FASTRR-WEBHOOK] Webhook rejected: integration credentials and order contract are not configured");
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "UNAVAILABLE");
-        response.put("message", "Order webhook integration is not configured; no order was accepted");
-        response.put("timestamp", Instant.now().toString());
-        return ResponseEntity.status(503).body(response);
+            HttpServletRequest httpRequest) {
+        if (fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
+            log.info("[FASTRR-WEBHOOK] Webhook rejected: integration credentials are not configured");
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("status", "UNAVAILABLE");
+            response.put("message", "Order webhook integration is not configured; no order was accepted");
+            response.put("timestamp", Instant.now().toString());
+            return ResponseEntity.status(503).body(response);
+        }
+
+        String rawBody;
+        try {
+            rawBody = new String(httpRequest.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "BAD_REQUEST",
+                    "message", "Unable to read Fastrr webhook request body",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+
+        String signature = (hmacHeader != null && !hmacHeader.isBlank()) ? hmacHeader : fastrrSig;
+        if (rawBody.isBlank() || !fastrrCheckoutService.verifyWebhookSignature(rawBody, signature)) {
+            log.warn("[FASTRR-WEBHOOK] Rejected webhook with missing or invalid HMAC signature");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "status", "UNAUTHORIZED",
+                    "message", "Invalid or missing Fastrr webhook signature",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+
+        try {
+            ObjectMapper mapper = objectMapper != null ? objectMapper : new ObjectMapper();
+            Map<String, Object> payload = mapper.readValue(rawBody, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> result = fastrrCheckoutService.processOrderWebhook(payload);
+            result.put("timestamp", Instant.now().toString());
+            return ResponseEntity.ok(result);
+        } catch (com.ebs.biocrop.exception.AppException ex) {
+            return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                    "status", "ERROR",
+                    "message", ex.getMessage(),
+                    "timestamp", Instant.now().toString()
+            ));
+        } catch (Exception ex) {
+            log.error("[FASTRR-WEBHOOK] Failed to process order webhook: {}", ex.getMessage(), ex);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "BAD_REQUEST",
+                    "message", "Invalid Fastrr webhook payload: " + ex.getMessage(),
+                    "timestamp", Instant.now().toString()
+            ));
+        }
     }
 
     /**
@@ -520,129 +642,13 @@ public class FastrrCatalogController {
     }
 
     private Map<String, Object> mapToFastrrProduct(Product product, String currentSellerName) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", toFastrrProductId(product));
-        m.put("title", product.getTitle() != null ? product.getTitle() : "Product " + product.getSku());
-
-        String desc = product.getDescription() != null ? product.getDescription() : "";
-        m.put("body_html", desc.startsWith("<") ? desc : "<p>" + desc + "</p>");
-        m.put("vendor", currentSellerName != null && !currentSellerName.isBlank() ? currentSellerName : (product.getSellerName() != null ? product.getSellerName() : "EBS BioCrop"));
-        m.put("product_type", product.getTechnicalName() != null ? product.getTechnicalName() : "Agricultural Input");
-
-        String createdAtStr = formatTimestamp(product.getCreatedAt());
-        String updatedAtStr = formatTimestamp(product.getUpdatedAt());
-        m.put("created_at", createdAtStr);
-        m.put("updated_at", updatedAtStr);
-
-        String handle = product.getTitle() != null
-                ? product.getTitle().toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "")
-                : (product.getSku() != null ? product.getSku().toLowerCase() : String.valueOf(toNumericId(product.getId())));
-        m.put("handle", handle);
-
-        String tags = (product.getTechnicalName() != null ? product.getTechnicalName() + ", " : "") +
-                (product.getSellerName() != null ? product.getSellerName() : "EBS BioCrop");
-        m.put("tags", tags);
-        m.put("status", "active");
-
-        String primaryImageUrl = null;
-        String sellerFolder = product.getSellerId() != null && !product.getSellerId().isBlank()
-                ? product.getSellerId()
-                : "platform";
-        if (product.getProductImages() != null && !product.getProductImages().isEmpty()) {
-            ProductImage primaryImg = product.getProductImages().get(0);
-            try {
-                if (primaryImg.getMidObjectName() != null) {
-                    primaryImageUrl = imageStorage.createReadUrl(sellerFolder, product.getId(), primaryImg.getMidObjectName());
-                } else if (primaryImg.getLowObjectName() != null) {
-                    primaryImageUrl = imageStorage.createReadUrl(sellerFolder, product.getId(), primaryImg.getLowObjectName());
-                }
-            } catch (Exception ex) {
-                log.warn("[FASTRR] Failed to resolve image URL for product {}: {}", product.getId(), ex.getMessage());
-            }
-        }
-
-        Map<String, Object> imgObj = new LinkedHashMap<>();
-        if (primaryImageUrl != null) {
-            imgObj.put("src", primaryImageUrl);
-        } else {
-            imgObj.put("src", "https://ebskrishidukaan.com/icons/Icon-192.png");
-        }
-        m.put("image", imgObj);
-
-        List<Map<String, Object>> variants = new ArrayList<>();
-        if (product.getVariants() != null && !product.getVariants().isEmpty()) {
-            int vIndex = 1;
-            for (ProductVariant v : product.getVariants()) {
-                Map<String, Object> vm = new LinkedHashMap<>();
-                vm.put("id", toFastrrVariantId(product, v, vIndex));
-                vm.put("title", v.getLabel() != null ? v.getLabel() : (v.getPackSize() != null ? v.getPackSize() + " " + v.getPackSizeUnit() : "Standard"));
-                double price = v.getDisplayRate() != null ? v.getDisplayRate() : 0.0;
-                vm.put("price", String.format(Locale.ROOT, "%.2f", price));
-                vm.put("sku", v.getSku() != null ? v.getSku() : product.getSku());
-                vm.put("created_at", createdAtStr);
-                vm.put("updated_at", updatedAtStr);
-                vm.put("taxable", true);
-
-                int grams = v.getSwg() != null && v.getSwg() > 0 ? v.getSwg().intValue()
-                        : (v.getPackSize() != null ? v.getPackSize() : 500);
-                vm.put("grams", grams);
-                vm.put("weight", grams / 1000.0);
-                vm.put("weight_unit", "kg");
-                vm.put("image", imgObj);
-                variants.add(vm);
-                vIndex++;
-            }
-        } else {
-            Map<String, Object> vm = new LinkedHashMap<>();
-            vm.put("id", toNumericId(product.getId() + "-v1"));
-            vm.put("title", "Standard");
-            vm.put("price", "0.00");
-            vm.put("sku", product.getSku() != null ? product.getSku() : product.getId());
-            vm.put("created_at", createdAtStr);
-            vm.put("updated_at", updatedAtStr);
-            vm.put("taxable", true);
-            vm.put("grams", 500);
-            vm.put("weight", 0.5);
-            vm.put("weight_unit", "kg");
-            vm.put("image", imgObj);
-            variants.add(vm);
-        }
-        m.put("variants", variants);
-
-        return m;
+        return com.ebs.biocrop.service.FastrrCatalogSyncService.toFastrrProductPayload(
+                product, currentSellerName, imageStorage, true);
     }
 
     private Map<String, Object> mapToFastrrCollection(ProductCollection collection) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", toNumericId(collection.getId()));
-        m.put("title", collection.getName() != null ? collection.getName() : "Collection");
-        m.put("handle", collection.getSlug() != null ? collection.getSlug() : String.valueOf(toNumericId(collection.getId())));
-        m.put("body_html", collection.getDescription() != null ? (collection.getDescription().startsWith("<") ? collection.getDescription() : "<p>" + collection.getDescription() + "</p>") : "");
-
-        String createdAtStr = collection.getCreatedAt() != null
-                ? ISO_FORMATTER.format(collection.getCreatedAt().atOffset(ZoneOffset.UTC))
-                : ISO_FORMATTER.format(Instant.now().atOffset(ZoneOffset.UTC));
-        String updatedAtStr = collection.getUpdatedAt() != null
-                ? ISO_FORMATTER.format(collection.getUpdatedAt().atOffset(ZoneOffset.UTC))
-                : createdAtStr;
-
-        m.put("created_at", createdAtStr);
-        m.put("updated_at", updatedAtStr);
-
-        Map<String, Object> imgObj = new LinkedHashMap<>();
-        String imageUrl = null;
-        if (collection.getImage() != null && !collection.getImage().isBlank()) {
-            try {
-                imageUrl = imageStorage.createCollectionImageReadUrl(
-                        collection.getId() != null ? collection.getId() : "fastrr", collection.getImage());
-            } catch (RuntimeException ex) {
-                log.warn("[FASTRR] Failed to resolve collection image URL for {}: {}", collection.getId(), ex.getMessage());
-            }
-        }
-        imgObj.put("src", imageUrl != null ? imageUrl : "https://ebskrishidukaan.com/icons/Icon-192.png");
-        m.put("image", imgObj);
-
-        return m;
+        return com.ebs.biocrop.service.FastrrCatalogSyncService.toFastrrCollectionPayload(
+                collection, imageStorage);
     }
 
     private String formatTimestamp(LocalDateTime dateTime) {

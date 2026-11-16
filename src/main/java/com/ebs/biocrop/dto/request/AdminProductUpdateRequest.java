@@ -2,6 +2,8 @@ package com.ebs.biocrop.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -51,6 +53,10 @@ public class AdminProductUpdateRequest {
     @Size(max = 10)
     private String productWeightUnit;
 
+    @DecimalMin("0.0")
+    @DecimalMax("5.0")
+    private Double averageRating;
+
     @Size(max = 50)
     @Valid
     private List<SellerProductWriteRequest.VariantWriteRequest> variants;
@@ -67,6 +73,7 @@ public class AdminProductUpdateRequest {
                 || refundPolicy != null
                 || productWeight != null
                 || productWeightUnit != null
+                || averageRating != null
                 || (variants != null && !variants.isEmpty());
     }
 
@@ -102,6 +109,9 @@ public class AdminProductUpdateRequest {
 
     public String getProductWeightUnit() { return productWeightUnit; }
     public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
+
+    public Double getAverageRating() { return averageRating; }
+    public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
 
     public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; }
     public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> variants) { this.variants = variants; }

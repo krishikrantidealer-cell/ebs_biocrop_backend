@@ -126,21 +126,33 @@ public class RealtimeWebSocketHandler extends TextWebSocketHandler {
         }
 
         TextMessage textMessage = new TextMessage(jsonMessage);
+        boolean isPublicCatalogEvent = isPublicCatalogEvent(eventName);
         for (WebSocketSession session : activeSessions.values()) {
-            if (session.isOpen()) {
+            if (!session.isOpen()) continue;
+            if (Boolean.TRUE.equals(session.getAttributes().get("publicOnly")) && !isPublicCatalogEvent) {
+                continue;
+            }
+            try {
+                session.sendMessage(textMessage);
+            } catch (IOException e) {
+                log.warn("[WS] Error sending event {} to session {}: {}. Pruning dead session.",
+                        eventName, session.getId(), e.getMessage());
+                cleanupSession(session.getId(), CloseStatus.PROTOCOL_ERROR.getCode(), "Write failure");
                 try {
-                    session.sendMessage(textMessage);
-                } catch (IOException e) {
-                    log.warn("[WS] Error sending event {} to session {}: {}. Pruning dead session.",
-                            eventName, session.getId(), e.getMessage());
-                    cleanupSession(session.getId(), CloseStatus.PROTOCOL_ERROR.getCode(), "Write failure");
-                    try {
-                        session.close(CloseStatus.PROTOCOL_ERROR);
-                    } catch (Exception ignored) {
-                    }
+                    session.close(CloseStatus.PROTOCOL_ERROR);
+                } catch (Exception ignored) {
                 }
             }
         }
+    }
+
+    private boolean isPublicCatalogEvent(String eventName) {
+        return eventName != null && (
+                eventName.startsWith("collections:")
+                        || eventName.startsWith("categories:")
+                        || eventName.startsWith("products:")
+                        || eventName.startsWith("inventory:")
+        );
     }
 
     /**

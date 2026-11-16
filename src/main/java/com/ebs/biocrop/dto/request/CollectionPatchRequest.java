@@ -13,7 +13,7 @@ public class CollectionPatchRequest {
     @Pattern(regexp = ".*\\S.*", message = "Collection name cannot be blank") @Size(max = 120) private String name;
     @Size(max = 140) private String slug;
     @Size(max = 2000) private String description;
-    @Size(max = 2048) private String image;
+    @Size(max = 2097152) private String image;
     private Boolean isActive;
     @Min(0) private Integer priority;
     @Size(max = 100) private List<@Valid SubCollectionInput> subCollections;
