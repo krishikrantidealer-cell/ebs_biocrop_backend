@@ -27,6 +27,12 @@ public class TechnicalName {
     @Indexed
     private String category;
 
+    @Indexed
+    private String mainCategory;
+
+    @Indexed
+    private String subCategory;
+
     private Double commissionPercentage = 0.0;
 
     private Boolean isActive = true;
@@ -73,6 +79,22 @@ public class TechnicalName {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getMainCategory() {
+        return mainCategory;
+    }
+
+    public void setMainCategory(String mainCategory) {
+        this.mainCategory = mainCategory;
+    }
+
+    public String getSubCategory() {
+        return subCategory;
+    }
+
+    public void setSubCategory(String subCategory) {
+        this.subCategory = subCategory;
     }
 
     public Double getCommissionPercentage() {

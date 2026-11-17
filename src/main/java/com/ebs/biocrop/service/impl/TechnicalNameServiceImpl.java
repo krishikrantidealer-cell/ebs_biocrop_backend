@@ -181,23 +181,33 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
                 List<String> cols = parseCsvLine(line);
+                String firstCol = cols.isEmpty() ? "" : cols.get(0).trim().toLowerCase(Locale.ROOT);
                 if (!headerSkipped) {
                     headerSkipped = true;
-                    String firstCol = cols.isEmpty() ? "" : cols.get(0).trim().toLowerCase(Locale.ROOT);
-                    if (firstCol.equals("#") || firstCol.equals("technical name") || firstCol.equals("name")) {
+                    if (firstCol.equals("#") || firstCol.equals("technical name") || firstCol.equals("name") || firstCol.equals("main category")) {
                         continue;
                     }
                 }
 
-                // Supports either 5-col sheet (#, Letter, Technical Name, Category, Commission)
-                // or 3-col CSV (Technical Name, Category, Commission)
+                // Supports:
+                // - 5-col sheet (#, Letter, Technical Name, Category, Commission)
+                // - 4-col sheet (Main Category, Sub-Category, Technical Name, Commission)
+                // - 3-col CSV (Technical Name, Category, Commission)
                 String rawName;
                 String rawCategory;
+                String rawMainCategory = null;
+                String rawSubCategory = null;
                 String rawCommission;
-                if (cols.size() >= 5) {
+                if (cols.size() >= 5 && !cols.get(4).trim().equalsIgnoreCase("Not in commission sheet")) {
                     rawName = cols.get(2);
                     rawCategory = cols.get(3);
                     rawCommission = cols.get(4);
+                } else if (cols.size() >= 4) {
+                    rawMainCategory = cols.get(0);
+                    rawSubCategory = cols.get(1);
+                    rawName = cols.get(2);
+                    rawCategory = rawSubCategory;
+                    rawCommission = cols.get(3);
                 } else if (cols.size() >= 3) {
                     rawName = cols.get(0);
                     rawCategory = cols.get(1);
@@ -216,6 +226,8 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
                 String normalized = normalize(cleanName);
                 double commission = parseCommission(rawCommission);
                 String cat = cleanCategory(rawCategory);
+                String mainCat = rawMainCategory != null && !rawMainCategory.isBlank() ? rawMainCategory.trim() : null;
+                String subCat = rawSubCategory != null && !rawSubCategory.isBlank() ? rawSubCategory.trim() : cat;
                 Instant now = Instant.now();
 
                 TechnicalName existing = repository.findByNormalizedName(normalized).orElse(null);
@@ -223,7 +235,10 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
                     existing.setName(cleanName);
                     existing.setLetter(extractLetter(cleanName));
                     existing.setCategory(cat);
+                    if (mainCat != null) existing.setMainCategory(mainCat);
+                    existing.setSubCategory(subCat);
                     existing.setCommissionPercentage(commission);
+                    existing.setIsActive(true);
                     existing.setUpdatedAt(now);
                     repository.save(existing);
                     updated++;
@@ -233,6 +248,8 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
                     created.setNormalizedName(normalized);
                     created.setLetter(extractLetter(cleanName));
                     created.setCategory(cat);
+                    if (mainCat != null) created.setMainCategory(mainCat);
+                    created.setSubCategory(subCat);
                     created.setCommissionPercentage(commission);
                     created.setIsActive(true);
                     created.setCreatedAt(now);
@@ -274,16 +291,17 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
 
         List<Map<String, Object>> out = new ArrayList<>();
         for (TechnicalName item : source) {
+            String c = item.getCategory() == null ? "" : item.getCategory().toLowerCase(Locale.ROOT);
+            String mc = item.getMainCategory() == null ? "" : item.getMainCategory().toLowerCase(Locale.ROOT);
+            String sc = item.getSubCategory() == null ? "" : item.getSubCategory().toLowerCase(Locale.ROOT);
             if (!searchLower.isEmpty()) {
                 String n = item.getName() == null ? "" : item.getName().toLowerCase(Locale.ROOT);
-                String c = item.getCategory() == null ? "" : item.getCategory().toLowerCase(Locale.ROOT);
-                if (!n.contains(searchLower) && !c.contains(searchLower)) {
+                if (!n.contains(searchLower) && !c.contains(searchLower) && !mc.contains(searchLower) && !sc.contains(searchLower)) {
                     continue;
                 }
             }
             if (!catLower.isEmpty() && !catLower.equals("all")) {
-                String c = item.getCategory() == null ? "" : item.getCategory().toLowerCase(Locale.ROOT);
-                if (!c.equals(catLower)) {
+                if (!c.equals(catLower) && !mc.equals(catLower) && !sc.equals(catLower)) {
                     continue;
                 }
             }
@@ -304,6 +322,12 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
         m.put("name", item.getName());
         m.put("letter", item.getLetter());
         m.put("category", item.getCategory());
+        if (item.getMainCategory() != null && !item.getMainCategory().isBlank()) {
+            m.put("mainCategory", item.getMainCategory());
+        }
+        if (item.getSubCategory() != null && !item.getSubCategory().isBlank()) {
+            m.put("subCategory", item.getSubCategory());
+        }
         m.put("isActive", !Boolean.FALSE.equals(item.getIsActive()));
         if (includeCommission) {
             m.put("commissionPercentage", item.getCommissionPercentage() != null ? item.getCommissionPercentage() : 0.0);
@@ -380,7 +404,11 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
         if (raw == null || raw.isBlank()) return 0.0;
         String cleaned = raw.replace("%", "").trim();
         try {
-            return sanitizeCommission(Double.parseDouble(cleaned));
+            double val = Double.parseDouble(cleaned);
+            if (!raw.contains("%") && val > 0.0 && val <= 1.0) {
+                val = val * 100.0;
+            }
+            return sanitizeCommission(val);
         } catch (NumberFormatException ex) {
             return 0.0;
         }

@@ -75,7 +75,7 @@ public class CategoryServiceImpl implements CategoryService {
     public Category getPublic(String id) {
         return categories.findById(id)
                 .filter(item -> !Boolean.FALSE.equals(item.getIsActive()))
-                .filter(item -> item.getLevel() != null && item.getLevel() >= 0 && item.getLevel() <= 2)
+                .filter(item -> item.getLevel() != null && item.getLevel() >= 0 && item.getLevel() <= 1)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
     }
 
@@ -279,10 +279,10 @@ public class CategoryServiceImpl implements CategoryService {
                 throw new AppException("Parent category has an invalid level", HttpStatus.CONFLICT);
             }
             level = parent.getLevel() + 1;
-            if (level > 2) {
-                throw new AppException("Category hierarchy cannot exceed level 2", HttpStatus.BAD_REQUEST);
+            if (level > 1) {
+                throw new AppException("Only 2 levels are supported: Main Category (level 0) and Sub-Category (level 1)", HttpStatus.BAD_REQUEST);
             }
-            if (current != null && subtreeDepth(current.getId()) > 2 - level) {
+            if (current != null && subtreeDepth(current.getId()) > 1 - level) {
                 throw new AppException("Moving this category would exceed the maximum hierarchy depth of 2", HttpStatus.CONFLICT);
             }
         }
@@ -317,8 +317,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private void validateLevel(Integer level) {
-        if (level != null && (level < 0 || level > 2)) {
-            throw new AppException("Supported category levels are 0, 1, and 2", HttpStatus.BAD_REQUEST);
+        if (level != null && (level < 0 || level > 1)) {
+            throw new AppException("Supported category levels are 0 (Main Category) and 1 (Sub-Category)", HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -345,8 +345,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private void relevelChildren(String parentId, int childLevel) {
-        if (childLevel > 2) {
-            throw new AppException("Category hierarchy cannot exceed level 2", HttpStatus.CONFLICT);
+        if (childLevel > 1) {
+            throw new AppException("Only 2 levels are supported: Main Category (level 0) and Sub-Category (level 1)", HttpStatus.CONFLICT);
         }
         for (Category child : categories.findChildren(parentId, 100)) {
             child.setLevel(childLevel);

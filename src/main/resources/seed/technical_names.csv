@@ -1,1002 +1,692 @@
-#,Letter,Technical Name,Category,Commission
-1,A,Abamectin 1.9% EC,Insecticide,15%
-2,A,Acephate 50% + Imidacloprid 1.8%,Insecticide,15%
-3,A,Acephate 75% SP,Insecticide,15%
-4,A,Acephate 95% SG,Insecticide,15%
-5,A,Acequinocyl 15% SC,Acaricide (Miticide),15
-6,A,Acetamiprid 20% + Chlorantraniliprole 20% WG,Insecticide,15%
-7,A,Acetamiprid 20% SP,Insecticide,15%
-8,A,Acetamiprid 25% + Bifenthrin 25% WG,Insecticide,15%
-9,A,Acetobacter,Bio-Fertilizer,25%
-10,A,Afidopyropen 5% DC,Insecticide,15%
-11,A,Agniastra,Bio / Organic Pesticide,20
-12,A,Albizia Tree Seeds,Seeds,15%
-13,A,Alfalfa Grass Seed,Seeds,15%
-14,A,Alpha cypermethrin 5% Wp,Insecticide,15%
-15,A,Alpha Naphthyl Acetic Acid 4.5% SL,Plant Growth Regulator (PGR),20%
-16,A,Alphacypermethrin 10% SC,Insecticide,15%
-17,A,Alphamethrin 10% EC,Insecticide,15%
-18,A,Aluminium Phosphide 56%,Rodenticide / Fumigant / Molluscicide,15
-19,A,Amaranthus Seeds,Seeds,15%
-20,A,Ametoctradin 27% + Dimethomorph 20.27%,Fungicide,15%
-21,A,Ametryne 80% WDG,Herbicide,10%
-22,A,Amine Salt 58 SL,Herbicide,10%
-23,A,Amino Acid 20%,Biostimulant,20
-24,A,Amino Acid 55% Powder,Biostimulant,20
-25,A,Amino Acid 80%,Biostimulant,20
-26,A,Amino Acid Chelated Powder,Biostimulant,20
-27,A,Amino Acid Liquid,Biostimulant,20
-28,A,Amino Acids 80% Bulk,Biostimulant,20
-29,A,Amino Acids 89% + Aascophyllum Nodosum 11%,Biostimulant,20
-30,A,Amisulbrom 20% SC,Fungicide,15%
-31,A,Amla fruit seeds (Phyllanthus mmblica),Seeds,15%
-32,A,Ammonium Molybdate,Micronutrient Fertilizer,20%
-33,A,"Ammonium nitrogen 21%, Sulfur 24%",NPK / Primary Fertilizer,20
-34,A,Ammonium Sulphate 21%,NPK / Primary Fertilizer,20
-35,A,Ammonium Sulphate Fertilizer,NPK / Primary Fertilizer,20
-36,A,Ampelomyces Quisqualis,Bio / Organic Pesticide,20
-37,A,Animal Health Supplements,Animal Husbandry & Aquaculture,15%
-38,A,Anjan Tree Seeds,Seeds,15%
-39,A,Aquaculture Feed Additives,Animal Husbandry & Aquaculture,15%
-40,A,Aquarium Algae Cleaner,Animal Husbandry & Aquaculture,15%
-41,A,Aquarium Liquid Carbon Dioxide (CO2),Animal Husbandry & Aquaculture,15%
-42,A,Aquarium Nutrient,Animal Husbandry & Aquaculture,15%
-43,A,Areca Palm Tree Seeds,Seeds,15%
-44,A,Ash Gourd Seeds,Seeds,15%
-45,A,Ashwagandha seeds,Seeds,15%
-46,A,Atrazine 50% WP,Herbicide,10%
-47,A,Avenue Tree seeds (Flowering Seeds),Seeds,15%
-48,A,Azolla Bed,Animal Husbandry & Aquaculture,15%
-49,A,Azospirillum Spp.,Bio-Fertilizer,25%
-50,A,Azotobacter,Bio-Fertilizer,25%
-51,A,Azoxystrobin 10% + Fipronil 5% SC,Insecticide + Fungicide,18
-52,A,Azoxystrobin 11.5% + Mancozeb 30% WP,Fungicide,15%
-53,A,Azoxystrobin 11% + Tebuconazole 18.3% SC,Fungicide,15%
-54,A,Azoxystrobin 12.5% + Tebuconazole 12.5% SC,Fungicide,15%
-55,A,Azoxystrobin 14% + Epoxiconazole 9% Sc,Fungicide,15%
-56,A,Azoxystrobin 16.7 % + Tricyclazole 33.3 % SC,Fungicide,15%
-57,A,Azoxystrobin 18.2% + Difenoconazole 11.4% SC,Fungicide,15%
-58,A,Azoxystrobin 2.5% + Thiophanate Methyl 11.25% + Thiamethoxam 25% Fs,Insecticide + Fungicide,18
-59,A,Azoxystrobin 20% + Thifluzamide 15% w/v SC,Fungicide,15%
-60,A,Azoxystrobin 23% SC,Fungicide,15%
-61,A,Azoxystrobin 4.7% + Mancozeb 59.7% + Tebuconazole 5.6% WG,Fungicide,15%
-62,A,Azoxystrobin 4.8% + Chlorothalonil 40% SC,Fungicide,15%
-63,A,Azoxystrobin 7.1% + Propiconazole 11.9% SE,Fungicide,15%
-64,A,Azoxystrobin 7% + Mancozeb 40% OS,Fungicide,15%
-65,A,Azoxystrobin 8.3% + Mancozeb 66.7% WG,Fungicide,15%
-66,B,Babul Seeds,Seeds,15%
-67,B,Baby Corn Seeds,Seeds,15%
-68,B,Bacillus Spp.,Bio-Fertilizer,25%
-69,B,Bacillus Thuringiensis,Bio / Organic Pesticide,20
-70,B,Bactericide,Bactericide / Viricide,15
-71,B,"Bactrocera Correcta, Zonata and Dorsalisa",Traps & Lures,15
-72,B,Bactrocera Cucurbitae Melon Fly Trap & Lure,Traps & Lures,15
-73,B,Bactrocera dorsalis Fruit Fly Trap & Lure,Traps & Lures,15
-74,B,Balsam Seeds,Seeds,15%
-75,B,Bamboo Seeds,Seeds,15%
-76,B,Banana Special,Crop-Specific Nutrient Kit,15%
-77,B,Barseem Clover,Seeds,15%
-78,B,Battery / Electric Operated Grass Cutter,Farm Equipment & Tools,15%
-79,B,Battery Operated Sprayer,Farm Equipment & Tools,15%
-80,B,Beauveria Bassiana,Bio / Organic Pesticide,20
-81,B,beet root seeds,Seeds,15%
-82,B,Benalaxyl-M 4% + Mancozeb 65% WP,Fungicide,15%
-83,B,Bensulfuron Methyl 4.8% + Pretilachlor 48% OD,Herbicide,10%
-84,B,Bentazone 48% SL,Herbicide,10%
-85,B,Bentonite Sulphur 90%,Secondary Nutrient Fertilizer,20
-86,B,Benzene Hexachloride (BHC),Insecticide,15%
-87,B,Betacyfluthrin 8.49% + Imidacloprid 19.81% OD,Insecticide,15%
-88,B,Bifenthrin 10% EC,Insecticide,15%
-89,B,Bifenthrin 8% + Clothianidin 10% SC,Insecticide,15%
-90,B,Biofloc Tank Accessories,Animal Husbandry & Aquaculture,15%
-91,B,Bioflock tank,Animal Husbandry & Aquaculture,15%
-92,B,Bird Food,Animal Husbandry & Aquaculture,15%
-93,B,Bispyribac Sodium 10%,Herbicide,10%
-94,B,Bispyribac sodium 20% + Pyrazosulfuron ethyl 15% WDG,Herbicide,10%
-95,B,Bitter and Biodegradable Compounds,Bio / Organic Pesticide,20
-96,B,Bittergourd General Seeds,Seeds,15%
-97,B,Bittergourd Hybrid Seeds,Seeds,15%
-98,B,Bixlozone 50% + Metribuzin 10% WG,Herbicide,10%
-99,B,Blower Gun,Farm Equipment & Tools,15%
-100,B,Boron 10%,Micronutrient Fertilizer,20%
-101,B,Boron 11% Liquid,Micronutrient Fertilizer,20%
-102,B,Boron 14.5%,Micronutrient Fertilizer,20%
-103,B,Boron 20%,Micronutrient Fertilizer,20%
-104,B,Boron 20% Bulk,Micronutrient Fertilizer,20%
-105,B,Boron Ethanolamine,Micronutrient Fertilizer,20%
-106,B,"Boron, Amino Acid Chelated",Micronutrient Fertilizer,20%
-107,B,Bottle Gourd Seeds,Seeds,15%
-108,B,Bottlebrush Trees Seed,Seeds,15%
-109,B,Brinjal General Seeds,Seeds,15%
-110,B,Brinjal Hybrid Seeds,Seeds,15%
-111,B,Broccoli seeds,Seeds,15%
-112,B,Broflanilide 300 GL SC,Insecticide,15%
-113,B,Brush Cutter- Battery Operated,Farm Equipment & Tools,15%
-114,B,"Brush Cutter, Chain Saw Accessories",Farm Equipment & Tools,15%
-115,B,Bulk,Others,15%
-116,B,Buprofezin 15% + Acephate 35% WP,Insecticide,15%
-117,B,Buprofezin 25% SC,Insecticide,15%
-118,B,Butternut Seeds,Seeds,15%
-119,C,Cabbage General Seeds,Seeds,15%
-120,C,Cabbage Hybrid Seeds,Seeds,15%
-121,C,Calcium 11%,Secondary Nutrient Fertilizer,20
-122,C,Calcium 15% Liquid,Secondary Nutrient Fertilizer,20
-123,C,Calcium 18.8% Nitrate 14.0% Bulk,Secondary Nutrient Fertilizer,20
-124,C,Calcium chloride,Secondary Nutrient Fertilizer,20
-125,C,Calcium EDTA,Secondary Nutrient Fertilizer,20
-126,C,Calcium Nitrate,Secondary Nutrient Fertilizer,20
-127,C,Calcium Solubilizing Bacteria,Bio-Fertilizer,25%
-128,C,"Calcium, Amino Acid Chelated",Micronutrient Fertilizer,20%
-129,C,Calcium18.80% Nitrate 15.50%,Secondary Nutrient Fertilizer,20
-130,C,Calendula Flower Seeds,Seeds,15%
-131,C,Cane Juice Machine,Farm Equipment & Tools,15%
-132,C,Capsicum Seeds,Seeds,15%
-133,C,Captan 50% WP,Fungicide,15%
-134,C,Captan 70% + Hexaconazole 5% WP,Fungicide,15%
-135,C,Car washer Sprayer,Farm Equipment & Tools,15%
-136,C,Carbendazim 12% + Mancozeb 63% WP,Fungicide,15%
-137,C,Carbendazim 25% + Mancozeb 50% WS,Fungicide,15%
-138,C,Carbendazim 46.27% SC,Fungicide,15%
-139,C,Carbendazim 50% WP,Fungicide,15%
-140,C,Carbofuran 3% CG,Insecticide,15%
-141,C,Carbon,Organic Manure & Soil Amendment,15%
-142,C,Carbosulfan 25%,Insecticide,15%
-143,C,Carbosulfan 25% DS,Insecticide,15%
-144,C,Carboxin 17.5 % + Thiram 17.5 % FF,Fungicide,15%
-145,C,Carboxin 37.5% + Thiram 37.5% DS,Fungicide,15%
-146,C,Carfentrazone Ethyl 40% DF,Herbicide,10%
-147,C,Carrot Seeds,Seeds,15%
-148,C,Cartap Hydrochloride 4% GR,Insecticide,15%
-149,C,Cartap Hydrochloride 50% SP,Insecticide,15%
-150,C,Cartap Hydrochloride 7.5% + Emamectin Benzoate 0.25% GR,Insecticide,15%
-151,C,Cartap Hydrochloride 75% SG,Insecticide,15%
-152,C,Casuarina Tree seeds,Seeds,15%
-153,C,Cattle Care Mineral Mixture,Animal Husbandry & Aquaculture,15%
-154,C,Cauliflower Hybrid Seeds,Seeds,15%
-155,C,Celery Seeds,Seeds,15%
-156,C,Chaff Cutter,Farm Equipment & Tools,15%
-157,C,Chain Saw,Farm Equipment & Tools,15%
-158,C,Chain Saw - Battery Operated,Farm Equipment & Tools,15%
-159,C,Chelated Micronutrient Mixture,Micronutrient Fertilizer,20%
-160,C,Chilli (Hot Pepper),Seeds,15%
-161,C,Chilli Hybrid Seeds,Seeds,15%
-162,C,Chilli Seeds - Kashmiri,Seeds,15%
-163,C,Chilli Seeds -Dark Green,Seeds,15%
-164,C,Chilli Seeds -Dual Purpose (High Pungent),Seeds,15%
-165,C,Chilli Seeds -Dual Purpose (Medium Pungent),Seeds,15%
-166,C,Chilli Seeds (Achari Type),Seeds,15%
-167,C,Chilli Seeds (Pungent- Hari Mirch),Seeds,15%
-168,C,Chilli Seeds (Wrinkled Variety),Seeds,15%
-169,C,Chilli Virus Special,Crop-Specific Nutrient Kit,15%
-170,C,Chilo Infescatellus (Sugarcane Early Shoot Borer) Trap & Lure,Traps & Lures,15
-171,C,Chilo Sacchariphagus Indicus Trap & Lure,Traps & Lures,15
-172,C,Chlorantraniliprole 0.4% w/w GR,Insecticide,15%
-173,C,Chlorantraniliprole 18.5% SC,Insecticide,15%
-174,C,Chlorantraniliprole 35% w/w WDG,Insecticide,15%
-175,C,Chlorantraniliprole 4.5% + Novaluron 11.5% + Emamectin Benzoate 1.5% SE,Insecticide,15%
-176,C,Chlorantraniliprole 47.85% w/w SC,Insecticide,15%
-177,C,Chlorantraniliprole 8.8% + Thiamethoxam 17.5% SC,Insecticide,15%
-178,C,Chlorantraniliprole 9.3% + Lambda Cyhalothrin 4.6% ZC,Insecticide,15%
-179,C,Chlorfenapyr 10% SC,Insecticide,15%
-180,C,Chlorfenapyr 240 G/L Sc,Insecticide,15%
-181,C,Chlorfluazuron 5.4% EC,Insecticide,15%
-182,C,Chlorimuron Ethyl 25% WP,Herbicide,10%
-183,C,Chlormequat Chloride 50% SL,Plant Growth Regulator (PGR),20%
-184,C,Chlorothalonil 40% + Difenoconazole 4% WG,Fungicide,15%
-185,C,Chlorothalonil 75% WP,Fungicide,15%
-186,C,Chlorpyrifos 50% EC,Insecticide,15%
-187,C,Chlorpyrifos 75% WG,Insecticide,15%
-188,C,Chlorpyriphos 1.5% DP,Insecticide,15%
-189,C,Chlorpyriphos 10% GR,Insecticide,15%
-190,C,Chlorpyriphos 16% + Alpha cypermethrin 1% EC,Insecticide,15%
-191,C,Chlorpyriphos 20% CS,Insecticide,15%
-192,C,Chlorpyriphos 20% EC,Insecticide,15%
-193,C,Chlorpyriphos 50% + Cypermethrin 5% EC,Insecticide,15%
-194,C,Chrysanthemum Seeds,Seeds,15%
-195,C,Citrus Special,Crop-Specific Nutrient Kit,15%
-196,C,Clethodim 13% w/w EC,Herbicide,10%
-197,C,Clethodim 240 EC,Herbicide,10%
-198,C,Clodinafop Propargyl 15% WP,Herbicide,10%
-199,C,Clodinafop propargyl 15%+ Metsulfuron methyl 1% WP,Herbicide,10%
-200,C,Clodinafop Propargyl 9% + Metribuzin 20% WP,Herbicide,10%
-201,C,Clodinafop-Propargyl 12.25 % + Oxyfluorfen 14.7% EC,Herbicide,10%
-202,C,Clothianidin 50% WDG,Insecticide,15%
-203,C,Cluster Bean,Seeds,15%
-204,C,Cock Connector,Irrigation,15%
-205,C,Cockscomb (Celosia),Seeds,15%
-206,C,Coco Peat,Organic Manure & Soil Amendment,15%
-207,C,Coffee Special,Crop-Specific Nutrient Kit,15%
-208,C,Combo Products,Others,15%
-209,C,Combo Seeds,Seeds,15%
-210,C,Cone Transplanter,Farm Equipment & Tools,15%
-211,C,Copper Amino Chelated,Micronutrient Fertilizer,20%
-212,C,Copper Cu 12% EDTA Chelated,Micronutrient Fertilizer,20%
-213,C,Copper Hydroxide 46.1% WG,Fungicide,15%
-214,C,Copper Hydroxide 53.8 DF,Fungicide,15%
-215,C,Copper Oxychloride 50% WP,Fungicide,15%
-216,C,Copper Sulfate Pentahydrate 23.99%,Micronutrient Fertilizer,20%
-217,C,Copper Sulphate,Micronutrient Fertilizer,20%
-218,C,Copper Sulphate 3.0% + Calcium Hydroxide 0.6%,Fungicide,15%
-219,C,Copper Sulphate 47.15% + Mancozeb 30% WDG,Fungicide,15%
-220,C,Coriander Seeds,Seeds,15%
-221,C,Corn Thresher,Farm Equipment & Tools,15%
-222,C,Cosmos Flower Seeds,Seeds,15%
-223,C,Cotton seeds,Seeds,15%
-224,C,Cotton Special,Crop-Specific Nutrient Kit,15%
-225,C,Cow dung,Organic Manure & Soil Amendment,15%
-226,C,Cowpea Seeds,Seeds,15%
-227,C,Crop Cover,Farm Equipment & Tools,15%
-228,C,Cu EDTA 7.5%,Micronutrient Fertilizer,20%
-229,C,Cucumber Hybrid Seeds,Seeds,15%
-230,C,Custard Apple Seeds,Seeds,15%
-231,C,Cyantraniliprole 10.26% OD,Insecticide,15%
-232,C,Cyantraniliprole 16.9% + Lufenuron 16.9% SC,Insecticide,15%
-233,C,Cyantraniliprole 7.3% + Diafenthiuron 36.4% SC,Insecticide,15%
-234,C,Cyclanilide 2.10% + Mepiquat Chloride 8.40% SC,Plant Growth Regulator (PGR),20%
-235,C,Cyclaniliprole 10% DC,Insecticide,15%
-236,C,Cyenopyrafen 30%,Acaricide (Miticide),15
-237,C,Cyflufenamid 5% EW,Fungicide,15%
-238,C,Cyflumetofen 20% SC,Acaricide (Miticide),15
-239,C,Cymoxanil 50% WP,Fungicide,15%
-240,C,Cymoxanil 8% + Mancozeb 64% WP,Fungicide,15%
-241,C,Cypermethrin 0.25% DP,Insecticide,15%
-242,C,Cypermethrin 10% EC,Insecticide,15%
-243,C,Cypermethrin 25% EC,Insecticide,15%
-244,C,Cypermethrin 3% + Quinalphos 20% EC,Insecticide,15%
-245,C,Cytokinins and Enzymes,Plant Growth Regulator (PGR),20%
-246,D,Dahlia Flower Seeds,Seeds,15%
-247,D,Deltamethrin 1.25% ULV,Insecticide,15%
-248,D,Deltamethrin 100 EC,Insecticide,15%
-249,D,Deltamethrin 11% E.C.,Insecticide,15%
-250,D,Deltamethrin 2.5% SC,Insecticide,15%
-251,D,Deltamethrin 2.5% WP,Insecticide,15%
-252,D,Deltamethrin 2.8% EC,Insecticide,15%
-253,D,Deltamethrin 2% EW,Insecticide,15%
-254,D,Diafenthiuron 40.1% + Acetamiprid 3.9% WP,Insecticide,15%
-255,D,Diafenthiuron 40% w/w + Spinetoram 5% w/w SC,Insecticide,15%
-256,D,Diafenthiuron 47% + Bifenthrin 9.4% SC,Insecticide,15%
-257,D,Diafenthiuron 50% WP,Insecticide,15%
-258,D,Diamide (Anthraniliamide) Neonicotinoids,Insecticide,15%
-259,D,Diclosulam 84%,Herbicide,10%
-260,D,Difenoconazole 25% EC,Fungicide,15%
-261,D,Difenoconazole 6% + Validamycin 6% SC,Fungicide,15%
-262,D,Diflubenzuron 25% WP,Insecticide,15%
-263,D,Dimethoate 30% EC,Insecticide,15%
-264,D,Dimethomorph 12% + Pyraclostrobin 6.7% WG,Fungicide,15%
-265,D,Dimethomorph 50% WP,Fungicide,15%
-266,D,Dimpropyridaz 120g/L,Insecticide,15%
-267,D,Dinotefuran 15% + Pymetrozine 45% WG,Insecticide,15%
-268,D,Dinotefuran 20%SG,Insecticide,15%
-269,D,Dinotefuran 70% WG,Insecticide,15%
-270,D,Disinfectant,Animal Husbandry & Aquaculture,15%
-271,D,Diuron 80% WP,Herbicide,10%
-272,D,Dolichos Seeds,Seeds,15%
-273,D,Double Motor Sprayer,Farm Equipment & Tools,15%
-274,D,Drip Cleaner,Irrigation,15%
-275,D,Drip Fogger,Irrigation,15%
-276,D,Drip Inline Pipe,Irrigation,15%
-277,D,Drip Irrigation Accessories Set,Irrigation,15%
-278,D,Drip Kit,Irrigation,15%
-279,D,Drip Main Supply Pipe,Irrigation,15%
-280,D,Drip Pipe Accessories,Irrigation,15%
-281,D,"Dripper, Emitters",Irrigation,15%
-282,D,Drumstick seeds,Seeds,15%
-283,E,Earias Vittella (Spotted Bollworm) Trap & Lure,Traps & Lures,15
-284,E,Earth Auger,Farm Equipment & Tools,15%
-285,E,Earth Auger- Battery Operated,Farm Equipment & Tools,15%
-286,E,Elbow Connector,Irrigation,15%
-287,E,Electric Fencing Wire,Farm Equipment & Tools,15%
-288,E,Electric Wire,Farm Equipment & Tools,15%
-289,E,Emamectin Benzoate 1.5% + Fipronil 3.5% SC,Insecticide,15%
-290,E,Emamectin Benzoate 1.5% + Profenofos 35% WDG,Insecticide,15%
-291,E,Emamectin Benzoate 1.9% EC,Insecticide,15%
-292,E,Emamectin Benzoate 2.2% + Permethrin 15.3% EC,Insecticide,15%
-293,E,Emamectin Benzoate 3.0% +Thiamethoxam 12.0% WG,Insecticide,15%
-294,E,Emamectin Benzoate 5% SG,Insecticide,15%
-295,E,Ergon 44.3% SC,Fungicide,15%
-296,E,Ethephon 39% S.L.,Plant Growth Regulator (PGR),20%
-297,E,Ethion 40% + Cypermethrin 5% EC,Insecticide,15%
-298,E,Ethion 50% EC,Insecticide,15%
-299,E,Ethiprole 10.7% + Pymetrozine 40% WG,Insecticide,15%
-300,E,Ethiprole 40 + Imidacloprid 40 WG,Insecticide,15%
-301,E,Ethoxysulfuron 15% WDG,Herbicide,10%
-302,E,Ethyl 10% EC + Chlorimuron Ethyl 25% WP,Herbicide,10%
-303,E,Etofenprox 6% + Diafenthiuron 25% WG,Insecticide,15%
-304,E,Etoxazole 10%,Acaricide (Miticide),15
-305,E,Eucalyptus Seeds,Seeds,15%
-306,F,Falguni Beans,Seeds,15%
-307,F,Famoxadone 16.6% + Cymoxanil 22.1% SC,Fungicide,15%
-308,F,Fe 12%,Micronutrient Fertilizer,20%
-309,F,Fe EDDHA 6% Iron Chelate,Micronutrient Fertilizer,20%
-310,F,Feeder Line Pipe,Irrigation,15%
-311,F,Fenazaquin 10% + Bifenthrin 4% EC,Insecticide + Acaricide,20
-312,F,Fenazaquin 10% EC,Acaricide (Miticide),15
-313,F,Fencing Clutch Wire,Farm Equipment & Tools,15%
-314,F,Fenobucarb 50% EC,Insecticide,15%
-315,F,Fenoxaprop-p-ethyl 6.9,Herbicide,10%
-316,F,Fenoxaprop-P-Ethyl 9.3 EC,Herbicide,10%
-317,F,Fenpropathrin 10% EC,Insecticide,15%
-318,F,Fenpropathrin 10% EW,Insecticide,15%
-319,F,Fenpropathrin 30% EC,Insecticide,15%
-320,F,Fenpyroximate 5% SC,Acaricide (Miticide),15
-321,F,Fenugreek Seeds,Seeds,15%
-322,F,Fenvalerate 0.4% DP,Insecticide,15%
-323,F,Fenvalerate 20% EC,Insecticide,15%
-324,F,Fern Tree Seeds,Seeds,15%
-325,F,Ferrous Amino Chelated,Micronutrient Fertilizer,20%
-326,F,Ferrous Sulphate 19% + Sulphur 10.5%,Micronutrient Fertilizer,20%
-327,F,Fertilizer blends,NPK / Primary Fertilizer,20
-328,F,Fig Tree Seeds,Seeds,15%
-329,F,Filter (Irrigation & Water Tank),Irrigation,15%
-330,F,Fipronil 0.3% GR,Insecticide,15%
-331,F,Fipronil 0.6% + Sulphur 70% + Zinc 13% WG,Insecticide,15%
-332,F,Fipronil 0.6% GR,Insecticide,15%
-333,F,Fipronil 10% + Diafenthiuron 30% WG,Insecticide,15%
-334,F,Fipronil 15% + Chlorantraniliprole 5% w/v SC,Insecticide,15%
-335,F,Fipronil 15% + Deltamethrin 2.5% SC,Insecticide,15%
-336,F,Fipronil 15% + Flonicamid 15% WDG,Insecticide,15%
-337,F,Fipronil 15% + Imidacloprid 5% SC,Insecticide,15%
-338,F,Fipronil 18.87% SC,Insecticide,15%
-339,F,Fipronil 4% + Acetamiprid 4% SC,Insecticide,15%
-340,F,Fipronil 4% + Thiomethoxam 4% w/w SC,Insecticide,15%
-341,F,Fipronil 40% + Imidacloprid 40% WG,Insecticide,15%
-342,F,Fipronil 5% EC,Insecticide,15%
-343,F,Fipronil 5% SC,Insecticide,15%
-344,F,Fipronil 80 WG,Insecticide,15%
-345,F,Flonicamid 50% WG,Insecticide,15%
-346,F,Florpyrauxifen-benzyl 2.13% + Cyhalofop-butyl 10.64% EC,Herbicide,10%
-347,F,Flower & Fruit Stimulation (Powder Form),Biostimulant,20
-348,F,Flower Enhancer (Nano Technology Based),Biostimulant,20
-349,F,Flower Seeds,Seeds,15%
-350,F,Flower Special Fertilizer,Crop-Specific Nutrient Kit,15%
-351,F,Flower Special Kit,Crop-Specific Nutrient Kit,15%
-352,F,Flowering and Fruiting - Capsule,Crop-Specific Nutrient Kit,15%
-353,F,Flubendiamide 19.92% + Thiacloprid 19.92% w/w SC (480 SC),Insecticide,15%
-354,F,Flubendiamide 20% WG,Insecticide,15%
-355,F,Flubendiamide 480 SC (39.35% ww),Insecticide,15%
-356,F,Flubendiamide 8.33% + Deltamethrin 5.56% SC,Insecticide,15%
-357,F,Fluensulfone 2% GR,Nematicide,15%
-358,F,Flumioxazin 50% SC,Herbicide,10%
-359,F,Fluopicolide 4.44% + Fosetyl-Al 66.67% ww WG,Fungicide,15%
-360,F,Fluopicolide 5.56% + Propamocarb Hydrochloride 55.6%,Fungicide,15%
-361,F,Fluopyram 17.7% + Tebuconazole 17.7%,Fungicide,15%
-362,F,Fluopyram 21.37% + Trifloxystrobin 21.37% SC,Fungicide,15%
-363,F,Fluopyrum 34.48% SC,Fungicide,15%
-364,F,Fluoropyroxene-Benzyl 1.31% + Penoxsulam 2.1% OD,Herbicide,10%
-365,F,Flupyradifurone 17.09% SL,Insecticide,15%
-366,F,Flusilazole 12.5% + Carbendazim 25% SE,Fungicide,15%
-367,F,Fluthiacet-methyl 10% + S-metolachlor 50% EC,Herbicide,10%
-368,F,Fluxametamide 10% EC,Insecticide,15%
-369,F,Fluxametamide 3.8% + Puridaben 9.5% SC,Insecticide + Acaricide,20
-370,F,Fluxapyroxad 250 + Pyraclostrobin 250,Fungicide,15%
-371,F,Fluxapyroxad 33.3% w/v,Fungicide,15%
-372,F,Fodder Seeds,Seeds,15%
-373,F,Fogging Machine,Farm Equipment & Tools,15%
-374,F,Folic Acid,Biostimulant,20
-375,F,Fomesafen 11.1% + Fluazifop-p-butyl 11.1% SL,Herbicide,10%
-376,F,Forchlorfenuron 0.01%,Plant Growth Regulator (PGR),20%
-377,F,Fosetyl Al 80WP,Fungicide,15%
-378,F,French Bean Seeds,Seeds,15%
-379,F,Fruit Enhancer,Biostimulant,20
-380,F,Fruit Picker,Farm Equipment & Tools,15%
-381,F,Fulvic,Biostimulant,20
-382,F,Fulvic Acid Bulk,Biostimulant,20
-383,G,Garden Gloves,Farm Equipment & Tools,15%
-384,G,Garden Kit,Farm Equipment & Tools,15%
-385,G,Garden Sprayer,Farm Equipment & Tools,15%
-386,G,Garden Tool Kit,Farm Equipment & Tools,15%
-387,G,Garden Tools,Farm Equipment & Tools,15%
-388,G,Gibberellic Acid 0.001%,Plant Growth Regulator (PGR),20%
-389,G,Gibberellic acid 0.1% GR,Plant Growth Regulator (PGR),20%
-390,G,Gibberellic Acid 0.186% SP,Plant Growth Regulator (PGR),20%
-391,G,Gibberellic Acid 40% WSG,Plant Growth Regulator (PGR),20%
-392,G,Gibberellic Acid 90% w/w Tech,Plant Growth Regulator (PGR),20%
-393,G,Ginger and Turmeric Special,Crop-Specific Nutrient Kit,15%
-394,G,Gliricidia Seeds,Seeds,15%
-395,G,Glufosinate Ammonium 13.5 SL,Herbicide,10%
-396,G,Glufosinate Ammonium 50% WG,Herbicide,10%
-397,G,Glyphosate 41% SL,Herbicide,10%
-398,G,Glyphosate 54% SL,Herbicide,10%
-399,G,Glyphosate 60% + Pyrithiobac Sodium 4.5% SG,Herbicide,10%
-400,G,Glyphosate 71% SG,Herbicide,10%
-401,G,Goat And Sheep Care,Animal Husbandry & Aquaculture,15%
-402,G,Gomphrena Flower,Seeds,15%
-403,G,Grafting Clips,Farm Equipment & Tools,15%
-404,G,Grafting tape,Farm Equipment & Tools,15%
-405,G,Grapes Special,Crop-Specific Nutrient Kit,15%
-406,G,Grass Catcher- Lawn Mover,Farm Equipment & Tools,15%
-407,G,Green Peas,Seeds,15%
-408,G,Grommet,Irrigation,15%
-409,G,Grow Bag,Farm Equipment & Tools,15%
-410,G,Growth Booster For Special Crop,Crop-Specific Nutrient Kit,15%
-411,G,Guava Seeds,Seeds,15%
-412,G,Gulmohar Seeds,Seeds,15%
-413,H,Habanero Chilli Seed,Seeds,15%
-414,H,Halosulfuron Methyl 75% WG,Herbicide,10%
-415,H,Haloxyfop-P-Methyl 10.5% EC,Herbicide,10%
-416,H,Hedge Lucerne Seeds,Seeds,15%
-417,H,Hedge Trimmer (Branch Cutter),Farm Equipment & Tools,15%
-418,H,Helicoverpa Armigera Trap & Lure,Traps & Lures,15
-419,H,Heterocyclic Nitrogen 19% + Potassium Humate 7%,NPK / Primary Fertilizer,20
-420,H,Hexaconazole 0.5% GR,Fungicide,15%
-421,H,Hexaconazole 4% + Carbendazim 16% SC,Fungicide,15%
-422,H,Hexaconazole 4% + Zineb 68% WP,Fungicide,15%
-423,H,Hexaconazole 5% + Validamycin 2.5% SC,Fungicide,15%
-424,H,Hexaconazole 5% EC,Fungicide,15%
-425,H,Hexaconazole 5% SC,Fungicide,15%
-426,H,Hexaconazole 75% WG,Fungicide,15%
-427,H,Hexythiazox 3.5% + Diafenthiuron 42% WDG,Insecticide + Acaricide,20
-428,H,Hexythiazox 5.45,Acaricide (Miticide),15
-429,H,Holotrichia Serrata (White Grub) Trap & Lure,Traps & Lures,15
-430,H,Homobrassinolide 0.04%,Plant Growth Regulator (PGR),20%
-431,H,Hose Pipe,Irrigation,15%
-432,H,Household Insecticide,Insecticide,15%
-433,H,HTP Battery Operated Sprayer,Farm Equipment & Tools,15%
-434,H,Humic,Biostimulant,20
-435,H,Humic + Fulvik,Biostimulant,20
-436,H,Humic Acid 98%,Biostimulant,20
-437,H,Humic Acid Granule,Biostimulant,20
-438,H,Humic Acid Liquid,Biostimulant,20
-439,H,Hybrid Maize Seeds,Seeds,15%
-440,H,Hydrogen Peroxide,Others,15%
-441,I,Imazethapyr 10% SL,Herbicide,10%
-442,I,Imazethapyr 35% + Imazamox 35% WG,Herbicide,10%
-443,I,Imazethapyr 70% WG,Herbicide,10%
-444,I,Imidacloprid 0.3% GR,Insecticide,15%
-445,I,Imidacloprid 17.8% SL,Insecticide,15%
-446,I,Imidacloprid 30.5% SC,Insecticide,15%
-447,I,Imidacloprid 48% FS,Insecticide,15%
-448,I,Imidacloprid 6% + Lambda Cyhalothrin 4% SL,Insecticide,15%
-449,I,Imidacloprid 70% WG,Insecticide,15%
-450,I,Indian Squash Seeds,Seeds,15%
-451,I,Indoxacarb 10% + Thiamethoxam 10% WG,Insecticide,15%
-452,I,Indoxacarb 14.5% + Acetamiprid 7.7% SC,Insecticide,15%
-453,I,Indoxacarb 14.5% SC,Insecticide,15%
-454,I,Indoxacarb 5% + Fipronil 5% SC,Insecticide,15%
-455,I,Iprobenfos 48% EC,Fungicide,15%
-456,I,Iprovalicarb 5.5 + Propineb 61.25,Fungicide,15%
-457,I,Isocycloseram 18.1% SC,Insecticide,15%
-458,I,Isocycloseram 9.2% w/w DC + Isocycloseram 10% w/v DC,Insecticide,15%
-459,I,Isoprothiolane 40% EC,Fungicide,15%
-460,I,Isoproturon 75% wp,Herbicide,10%
-461,J,Jalapeno Chilli Seed,Seeds,15%
-462,J,Jeevamrutham,Organic Manure & Soil Amendment,15%
-463,J,Joiner Connector,Irrigation,15%
-464,K,Kale Seed,Seeds,15%
-465,K,Kasugamycin 3% SL,Fungicide,15%
-466,K,Kasugamycin 5% + Copper Oxychloride 45% WP,Fungicide,15%
-467,K,Khurpa,Farm Equipment & Tools,15%
-468,K,Kitchen Garden Fertilizer,NPK / Primary Fertilizer,20
-469,K,Kitchen Garden Pesticide,Bio / Organic Pesticide,20
-470,K,Kitchen Garden Seeds,Seeds,15%
-471,K,Knol-Khol Seeds,Seeds,15%
-472,K,Kresoxim Methyl 40% + Hexaconazole 8% WG,Fungicide,15%
-473,L,Lambda Cyhalothrin 10% WP,Insecticide,15%
-474,L,Lambda Cyhalothrin 4.9% CS,Insecticide,15%
-475,L,Lambda Cyhalothrin 5% EC,Insecticide,15%
-476,L,Lapeta Pipe,Irrigation,15%
-477,L,Larvicide - Biological,Bio / Organic Pesticide,20
-478,L,Larvicide - Organic,Bio / Organic Pesticide,20
-479,L,Lawn Mower,Farm Equipment & Tools,15%
-480,L,Leaf Blower,Farm Equipment & Tools,15%
-481,L,Leaf Rake,Farm Equipment & Tools,15%
-482,L,Lemon seeds,Seeds,15%
-483,L,Lettuce Seeds,Seeds,15%
-484,L,Leucinodes Orbonalis Trap & Lure,Traps & Lures,15
-485,L,Liquid Biological Fertilizer,Bio-Fertilizer,25%
-486,L,Liquid Mineral Sapropel Fertilizer,Organic Manure & Soil Amendment,15%
-487,L,Liquid Multi Micronutrient Fertilizer,Micronutrient Fertilizer,20%
-488,L,Liquid Sulphur,Secondary Nutrient Fertilizer,20
-489,L,Loppers,Farm Equipment & Tools,15%
-490,L,Lufenuron 5.4% EC,Insecticide,15%
-491,M,magnesium 34%,Micronutrient Fertilizer,20%
-492,M,Magnesium 6%,Micronutrient Fertilizer,20%
-493,M,Magnesium Nitrate,Secondary Nutrient Fertilizer,20
-494,M,Magnesium Sulphate 9.5%,Secondary Nutrient Fertilizer,20
-495,M,Magnesium Sulphate 9.5% Bulk,Secondary Nutrient Fertilizer,20
-496,M,Mahogany seeds (Swietenia mahagoni),Seeds,15%
-497,M,Malathion 50% EC,Insecticide,15%
-498,M,Mancozeb 35% SC,Fungicide,15%
-499,M,Mancozeb 75% WG,Fungicide,15%
-500,M,Mancozeb 75% WP,Fungicide,15%
-501,M,Mandipropamid 23.4% SC,Fungicide,15%
-502,M,Manganese 12%,Micronutrient Fertilizer,20%
-503,M,Manganese 30.5% + Sulphure 17%,Micronutrient Fertilizer,20%
-504,M,Manganese Amino Chelated,Micronutrient Fertilizer,20%
-505,M,Manganese EDTA 9%,Micronutrient Fertilizer,20%
-506,M,Manganese Mn 48%,Micronutrient Fertilizer,20%
-507,M,Mango Special,Crop-Specific Nutrient Kit,15%
-508,M,Manual Hand weeder,Farm Equipment & Tools,15%
-509,M,Manual Roller Weeder,Farm Equipment & Tools,15%
-510,M,Manual Seeder,Farm Equipment & Tools,15%
-511,M,Manual Sprayer,Farm Equipment & Tools,15%
-512,M,Marigold (French),Seeds,15%
-513,M,Marigold Seeds,Seeds,15%
-514,M,Melia Dubia Seeds,Seeds,15%
-515,M,Mepiquat Chloride 5% AS,Plant Growth Regulator (PGR),20%
-516,M,Meptyldinocap 35.7% EC,Fungicide,15%
-517,M,Mesosulfuron methyl 3% + Iodosulfuron-methyl sodium 0.6  WDG,Herbicide,10%
-518,M,Mesotrione 2.27% + Atrazine 22.7% SC,Herbicide,10%
-519,M,Metal Drill Bit,Farm Equipment & Tools,15%
-520,M,Metalaxyl 35% WS,Fungicide,15%
-521,M,Metalaxyl 8% + Mancozeb 64% WP,Fungicide,15%
-522,M,Metalaxyl-M 3.3% + Chlorothalonil 33.1% SC,Fungicide,15%
-523,M,Metalaxyl-M 4% + Mancozeb 64% WP,Fungicide,15%
-524,M,Metaldehyde 2.5%,Rodenticide / Fumigant / Molluscicide,15
-525,M,Metarhizium Anisopliae,Bio / Organic Pesticide,20
-526,M,Methoxyfenozide 20% + Chlorantraniliprole 5% SC,Insecticide,15%
-527,M,Methyl 15 % + Chlorothalonil 56 %,Fungicide,15%
-528,M,Metiram 44% + Dimethomorph 9%,Fungicide,15%
-529,M,Metiram 55% + Pyraclostrobin 5% WG,Fungicide,15%
-530,M,Metiram 70% WG,Fungicide,15%
-531,M,Metolachlor 50% EC,Herbicide,10%
-532,M,"Metribuzin 16.8% + 2,4-Sodium Salt 56% WP",Herbicide,10%
-533,M,Metribuzin 350 Pyrazosulfuron-Ethyl 10 WG,Herbicide,10%
-534,M,Metribuzin 70% WP,Herbicide,10%
-535,M,Metsulfuron Methyl 10%+Chlorimuron Ethyl 10% WP,Herbicide,10%
-536,M,Metsulfuron Methyl 20%,Herbicide,10%
-537,M,Milking Machine,Animal Husbandry & Aquaculture,15%
-538,M,Mimusops Elengi,Seeds,15%
-539,M,Mist Blower Duster,Farm Equipment & Tools,15%
-540,M,Monocrotophos 36% SL,Insecticide,15%
-541,M,Mosquito and Insect Traps,Traps & Lures,15
-542,M,Mouse Glue Trap,Traps & Lures,15
-543,M,Mulching Hole Machine,Farm Equipment & Tools,15%
-544,M,Mulching Sheet,Farm Equipment & Tools,15%
-545,M,Multi Cut Grass Seeds,Seeds,15%
-546,M,Multi Micronutrient,Micronutrient Fertilizer,20%
-547,M,Mushroom,Mushroom Cultivation,15%
-548,M,Mushroom Culture,Mushroom Cultivation,15%
-549,M,Mushroom Dowels,Mushroom Cultivation,15%
-550,M,Mushroom Fertilizer,Mushroom Cultivation,15%
-551,M,Mushroom Spawn,Mushroom Cultivation,15%
-552,M,Musk Melon Seeds,Seeds,15%
-553,M,Mustard Cake,Organic Manure & Soil Amendment,15%
-554,M,Mustard Seeds,Seeds,15%
-555,M,Myclobutanil 10% WP,Fungicide,15%
-556,M,Mycorrhiza,Bio-Fertilizer,25%
-557,N,"Nano Urea, Dap",NPK / Primary Fertilizer,20
-558,N,Napier Grass seeds,Seeds,15%
-559,N,Nasik Red onion seeds,Seeds,15%
-560,N,Natural Seeds,Seeds,15%
-561,N,Neem Cake,Organic Manure & Soil Amendment,15%
-562,N,Neem Oil,Bio / Organic Pesticide,20
-563,N,Neem Oil 10000 PPM,Bio / Organic Pesticide,20
-564,N,Neem Oil 1500 PPM,Bio / Organic Pesticide,20
-565,N,Neem Oil 300 PPM,Bio / Organic Pesticide,20
-566,N,Neem Oil 3000 PPM,Bio / Organic Pesticide,20
-567,N,Neem Oil 5000 PPM,Bio / Organic Pesticide,20
-568,N,Neem Oil 50000 PPM,Bio / Organic Pesticide,20
-569,N,Nematicide,Bio / Organic Pesticide,20
-570,N,Nitrobenzene 20% Ew,Plant Growth Regulator (PGR),20%
-571,N,Nitrobenzene 35%,Plant Growth Regulator (PGR),20%
-572,N,Nitrogen 7% + Phosphorus 21%,NPK / Primary Fertilizer,20
-573,N,Novaluron 10% EC,Insecticide,15%
-574,N,Novaluron 5.25% + Emamectin benzoate 0.9% SC,Insecticide,15%
-575,N,Novaluron 5.25% + Indoxacarb 4.5% SC,Insecticide,15%
-576,N,NPK 00:00:23,NPK / Primary Fertilizer,20
-577,N,NPK 00:00:50 (Bulk),NPK / Primary Fertilizer,20
-578,N,NPK 00:00:50 (Potassium Sulphate),NPK / Primary Fertilizer,20
-579,N,NPK 00:00:60,NPK / Primary Fertilizer,20
-580,N,NPK 00:09:46,NPK / Primary Fertilizer,20
-581,N,NPK 00:22:00:03,NPK / Primary Fertilizer,20
-582,N,NPK 00:49:32,NPK / Primary Fertilizer,20
-583,N,NPK 00:52:34 (Bulk),NPK / Primary Fertilizer,20
-584,N,NPK 00:52:34 (Mono Potassium Phosphate),NPK / Primary Fertilizer,20
-585,N,NPK 03:50:50,NPK / Primary Fertilizer,20
-586,N,NPK 05:00:30,NPK / Primary Fertilizer,20
-587,N,Npk 05:05:46:09,NPK / Primary Fertilizer,20
-588,N,NPK 05:10:15,NPK / Primary Fertilizer,20
-589,N,Npk 05:55:17,NPK / Primary Fertilizer,20
-590,N,NPK 08:00:47+7S,NPK / Primary Fertilizer,20
-591,N,NPK 08:08:08,NPK / Primary Fertilizer,20
-592,N,NPK 08:10:33,NPK / Primary Fertilizer,20
-593,N,NPK 08:16:39,NPK / Primary Fertilizer,20
-594,N,NPK 09:00:18,NPK / Primary Fertilizer,20
-595,N,NPK 09:00:43,NPK / Primary Fertilizer,20
-596,N,NPK 10:10:10,NPK / Primary Fertilizer,20
-597,N,NPK 10:15:25,NPK / Primary Fertilizer,20
-598,N,NPK 10:18:24,NPK / Primary Fertilizer,20
-599,N,NPK 10:26:26,NPK / Primary Fertilizer,20
-600,N,NPK 10:34:00 (Ammonium Polyphosphate),NPK / Primary Fertilizer,20
-601,N,NPK 11:11:08,NPK / Primary Fertilizer,20
-602,N,NPK 11:11:16,NPK / Primary Fertilizer,20
-603,N,NPK 11:36:24,NPK / Primary Fertilizer,20
-604,N,NPK 11:42:11,NPK / Primary Fertilizer,20
-605,N,NPK 11:52:00,NPK / Primary Fertilizer,20
-606,N,NPK 12:05:27,NPK / Primary Fertilizer,20
-607,N,NPK 12:11:18,NPK / Primary Fertilizer,20
-608,N,NPK 12:24:12,NPK / Primary Fertilizer,20
-609,N,NPK 12:32:16,NPK / Primary Fertilizer,20
-610,N,NPK 12:61:00 (Bulk),NPK / Primary Fertilizer,20
-611,N,NPK 12:61:00 (Mono Ammonium Phosphate),NPK / Primary Fertilizer,20
-612,N,NPK 13:00:45 (Bulk),NPK / Primary Fertilizer,20
-613,N,NPK 13:00:45 (Potassium Nitrate),NPK / Primary Fertilizer,20
-614,N,NPK 13:40:13,NPK / Primary Fertilizer,20
-615,N,NPK 13:40:13 (Bulk),NPK / Primary Fertilizer,20
-616,N,NPK 14:08:30,NPK / Primary Fertilizer,20
-617,N,NPK 14:48:00,NPK / Primary Fertilizer,20
-618,N,NPK 15:15:15,NPK / Primary Fertilizer,20
-619,N,NPK 17:17:17,NPK / Primary Fertilizer,20
-620,N,NPK 17:44:00,NPK / Primary Fertilizer,20
-621,N,NPK 18:18:18,NPK / Primary Fertilizer,20
-622,N,NPK 19:19:19,NPK / Primary Fertilizer,20
-623,N,NPK 19:19:19 (Bulk),NPK / Primary Fertilizer,20
-624,N,NPK 20:20:20,NPK / Primary Fertilizer,20
-625,N,NPK 20:20:20 (Bulk),NPK / Primary Fertilizer,20
-626,N,NPK 22:10:08,NPK / Primary Fertilizer,20
-627,N,Npk 25:16:12,NPK / Primary Fertilizer,20
-628,N,NPK 25:25:25,NPK / Primary Fertilizer,20
-629,N,NPK 28:28:00,NPK / Primary Fertilizer,20
-630,N,NPK 30:30:30,NPK / Primary Fertilizer,20
-631,N,NPK 4:18:38,NPK / Primary Fertilizer,20
-632,N,NPK 5:5:5,NPK / Primary Fertilizer,20
-633,N,NPK 7.16 : 24.9 : 6.39,NPK / Primary Fertilizer,20
-634,N,NPK Microbial Consortia- Capsule,Bio-Fertilizer,25%
-635,N,NPK Microbial Consortia- Liquid,Bio-Fertilizer,25%
-636,N,NPK Microbial Consortia- Powder,Bio-Fertilizer,25%
-637,N,NPKS 9:27:18:7.5,NPK / Primary Fertilizer,20
-638,O,Okra Seeds,Seeds,15%
-639,O,Onion Seeds,Seeds,15%
-640,O,Onion Special,Crop-Specific Nutrient Kit,15%
-641,O,Organic Acid 22%,Biostimulant,20
-642,O,Organic Certified Pgr / Pgp,Biostimulant,20
-643,O,Organic Fungal Control,Bio / Organic Pesticide,20
-644,O,Organic Pesticide,Bio / Organic Pesticide,20
-645,O,Organic Potash,Organic Manure & Soil Amendment,15%
-646,O,Ornamental Tree Seeds,Seeds,15%
-647,O,Orthosilicic Acid,Biostimulant,20
-648,O,Oxadiargyl 6% EC,Herbicide,10%
-649,O,Oxyfluorfen 23.5% EC,Herbicide,10%
-650,P,Paclobutrazol 23% SC,Plant Growth Regulator (PGR),20%
-651,P,Paclobutrazol 40% SC,Plant Growth Regulator (PGR),20%
-652,P,Paddy Seeds,Seeds,15%
-653,P,Paddy Special,Crop-Specific Nutrient Kit,15%
-654,P,Paecilomyces Fumosoroseus,Bio / Organic Pesticide,20
-655,P,Paecilomyces Lilacinus,Bio / Organic Pesticide,20
-656,P,Pak Choi Seeds,Seeds,15%
-657,P,Panchagavya,Organic Manure & Soil Amendment,15%
-658,P,Panja Garden Cultivator,Farm Equipment & Tools,15%
-659,P,Papaya Seeds,Seeds,15%
-660,P,Papaya Special,Crop-Specific Nutrient Kit,15%
-661,P,Para Nitro phenolate 0.3% SL,Plant Growth Regulator (PGR),20%
-662,P,Paraquat Dichloride 24% SL,Herbicide,10%
-663,P,parsely seeds,Seeds,15%
-664,P,Peacock Flower,Seeds,15%
-665,P,Pearl Millet Seeds,Seeds,15%
-666,P,Pectinophora gossypiella (Pink Bollworm) Trap & Lure,Traps & Lures,15
-667,P,Pencycuron 250 SC (22.9% w/w),Fungicide,15%
-668,P,Pendimethalin 30% + Imazethapyr 2% EC,Herbicide,10%
-669,P,Pendimethalin 30% EC,Herbicide,10%
-670,P,Pendimethalin 38.4% + Pyrazosulfuron ethyl 0.85% ZC,Herbicide,10%
-671,P,Pendimethalin 38.7% CS,Herbicide,10%
-672,P,Pendimethalin 40% + Metribuzin 8% Ec,Herbicide,10%
-673,P,Penflufen 13.28% + Trifloxystrobin 13.28% FS,Fungicide,15%
-674,P,Penflufen 240,Fungicide,15%
-675,P,Penoxsulam 0.97%+ Butachlor 38.8% SE,Herbicide,10%
-676,P,Peptide Mixture,Biostimulant,20
-677,P,Permethrin 25% EC,Insecticide,15%
-678,P,Petrol Engine,Farm Equipment & Tools,15%
-679,P,Petrol Power Sprayer,Farm Equipment & Tools,15%
-680,P,PGP/PGR ampule,Biostimulant,20
-681,P,PH Balancer,Organic Manure & Soil Amendment,15%
-682,P,Phenthoate 50% EC,Insecticide,15%
-683,P,Phosphate Rich,Organic Manure & Soil Amendment,15%
-684,P,Phosphate Solubilizing Bacteria,Bio-Fertilizer,25%
-685,P,Phosphate Solubilizing Bacteria Powder,Bio-Fertilizer,25%
-686,P,Phosphate Solubilizing Fungi,Bio-Fertilizer,25%
-687,P,Picoxystrobin 22.52%,Fungicide,15%
-688,P,Picoxystrobin 6.78% + Tricyclazole 20.33% SC,Fungicide,15%
-689,P,Picoxystrobin 7.05% + Propiconazole 11.71% SC,Fungicide,15%
-690,P,Pigeon Repellent Liquid,Repellent,15%
-691,P,Pink Cedar Tree Seeds,Seeds,15%
-692,P,Pinoxaden 5.1% EC,Herbicide,10%
-693,P,Plant Growth Promoter,Biostimulant,20
-694,P,Plant Growth Promoter- Powder,Biostimulant,20
-695,P,Plant growth Regulator,Plant Growth Regulator (PGR),20%
-696,P,Plant Root Growth Promoter,Biostimulant,20
-697,P,Plant support clips,Farm Equipment & Tools,15%
-698,P,Plastic Broom,Farm Equipment & Tools,15%
-699,P,Plastic Pots,Farm Equipment & Tools,15%
-700,P,Plutella xylostella Trap & Lure,Traps & Lures,15
-701,P,Pochonia chlamydposporia 1%,Bio / Organic Pesticide,20
-702,P,Pole Beans Seeds,Seeds,15%
-703,P,Pomegranate Special,Crop-Specific Nutrient Kit,15%
-704,P,Pond Liner,Animal Husbandry & Aquaculture,15%
-705,P,Pond Skimming Net,Animal Husbandry & Aquaculture,15%
-706,P,Pongamia Pinnata,Seeds,15%
-707,P,Portable Power Sprayer,Farm Equipment & Tools,15%
-708,P,Potash Chemical Fertilizer,NPK / Primary Fertilizer,20
-709,P,Potassium 46.5%,NPK / Primary Fertilizer,20
-710,P,Potassium Fulvate,Biostimulant,20
-711,P,Potassium Mobilizing Bacteria (Capsule),Bio-Fertilizer,25%
-712,P,Potassium Mobilizing Bacteria (Liquid),Bio-Fertilizer,25%
-713,P,Potassium Mobilizing Bacteria (Powder),Bio-Fertilizer,25%
-714,P,Potassium Schoenite,NPK / Primary Fertilizer,20
-715,P,Potato Special,Crop-Specific Nutrient Kit,15%
-716,P,Poultry Feed Supplements,Animal Husbandry & Aquaculture,15%
-717,P,Pretilachlor 50% EC,Herbicide,10%
-718,P,Pretilachlore 37% EW,Herbicide,10%
-719,P,Prochloraz 23.5% + Tricyclazole 20% w/w SE,Fungicide,15%
-720,P,Prochloraz 24.4% + Tebuconazole 12.1% w/w EW,Fungicide,15%
-721,P,Prochloraz 39.6% EC,Fungicide,15%
-722,P,Profenofos 40% + Cypermethrin 4% EC,Insecticide,15%
-723,P,Profenophos 40% + Fenpyroximate 2.5% EC,Insecticide + Acaricide,20
-724,P,Profenophos 50% EC,Insecticide,15%
-725,P,Propaquisafop 10% EC,Herbicide,10%
-726,P,Propaquizafop 2.5% + Imazethapyr 3.75%,Herbicide,10%
-727,P,Propaquizafop 5% + Oxyflurofen 12% EC,Herbicide,10%
-728,P,Propargite 42% + Hexythiazox 2% EC,Acaricide (Miticide),15
-729,P,Propargite 50% + Bifenthrin 5% SE,Insecticide + Acaricide,20
-730,P,Propargite 57% EC,Acaricide (Miticide),15
-731,P,Propiconazole 13.9% + Difenoconazole 13.9%,Fungicide,15%
-732,P,Propiconazole 25% EC,Fungicide,15%
-733,P,Propineb 70% WP,Fungicide,15%
-734,P,Propoxur 20% EC,Insecticide,15%
-735,P,Pruning Saw,Farm Equipment & Tools,15%
-736,P,Pseudomonas Fluorescens,Bio / Organic Pesticide,20
-737,P,pumpkin seeds,Seeds,15%
-738,P,Punjabi Grass,Seeds,15%
-739,P,Pymetrozine 50% WG,Insecticide,15%
-740,P,PYRACLOSTROBIN 10% + FIPRONIL 5%  SC,Insecticide + Fungicide,18
-741,P,Pyraclostrobin 10% + Thifluzamide 10% SC,Fungicide,15%
-742,P,Pyraclostrobin 10% CS,Fungicide,15%
-743,P,Pyraclostrobin 13.3% + Epoxyconazole 5% SE,Fungicide,15%
-744,P,Pyraclostrobin 20% WG,Fungicide,15%
-745,P,Pyraclostrobin 3.5% + Thiram 15% + Clothianidin 22.5% FS,Insecticide + Fungicide,18
-746,P,Pyraclostrobin 333 + Fluxapyroxad 167,Fungicide,15%
-747,P,PYRAZOSULFURON ETHYL 10%,Herbicide,10%
-748,P,Pyridaben 20% WP,Acaricide (Miticide),15
-749,P,Pyridalyl 10% EC,Insecticide,15%
-750,P,Pyrifluquinazon 20% WG,Insecticide,15%
-751,P,Pyriproxifen 8% + Diafenthiuron 30% SE,Insecticide,15%
-752,P,Pyriproxyfen 10% + Bifenthrin 10% EC,Insecticide,15%
-753,P,Pyriproxyfen 10% EC,Insecticide,15%
-754,P,Pyriproxyfen 5% + Diafenthiuron 25% SE,Insecticide,15%
-755,P,Pyriproxyfen 5% + Fenpropathrin 15% EC,Insecticide,15%
-756,P,Pyriproxyfen 8% + Diafenthiuron 18% + Dinotefuron 5% SC,Insecticide,15%
-757,P,Pyrithiobac Sodium 10% EC,Herbicide,10%
-758,P,Pyrithiobac sodium 6% + Quizalofop Ethyl 4%,Herbicide,10%
-759,P,Pyroxasulfone 85% WG,Herbicide,10%
-760,Q,Quinalphos 25% EC,Insecticide,15%
-761,Q,Quizalofop Ethyl 10% EC,Herbicide,10%
-762,Q,Quizalofop Ethyl 3 % + Fomesafen 12% SC,Herbicide,10%
-763,Q,Quizalofop ethyl 4% + Oxyfluorfen 6% EC,Herbicide,10%
-764,Q,Quizalofop ethyl 5%,Herbicide,10%
-765,Q,Quizalofop ethyl 7.5% + Imazethapyr 15%  EC,Herbicide,10%
-766,R,Radish Hybrid Seeds,Seeds,15%
-767,R,Radish Seeds - Red,Seeds,15%
-768,R,Rain pipe,Irrigation,15%
-769,R,Rain Pipe Accessories,Irrigation,15%
-770,R,Rb Rhinoceros Beetle Trap & Lure,Traps & Lures,15
-771,R,Ready To Fruit Mushroom,Mushroom Cultivation,15%
-772,R,Repellent,Repellent,15%
-773,R,Rhizobium,Bio-Fertilizer,25%
-774,R,Ridge Gourd Seeds,Seeds,15%
-775,R,River Sand,Organic Manure & Soil Amendment,15%
-776,R,Rocker sprayer,Farm Equipment & Tools,15%
-777,R,Rocket Leaves Wild,Seeds,15%
-778,R,Rotating Light,Farm Equipment & Tools,15%
-779,R,RPW Red Palm Weevil (Rhynchophorus Ferrugineus),Traps & Lures,15
-780,R,Rynaxypyr 0.4% GR,Insecticide,15%
-781,S,Safety Shoes,Farm Equipment & Tools,15%
-782,S,Samanea Saman Tree Seeds,Seeds,15%
-783,S,Sandalwood,Seeds,15%
-784,S,Scirpophaga excerptalis Sugarcane Top Borer Trap & Lure,Traps & Lures,15
-785,S,Scirpophaga Incertulas Yellow Stem Borer Trap & Lure,Traps & Lures,15
-786,S,Scuffle hoe,Farm Equipment & Tools,15%
-787,S,"Seaweed 8%, Tea Saponin 5%, Aqueous Media 87%",Biostimulant,20
-788,S,Seaweed Extract -Liquid,Biostimulant,20
-789,S,Seaweed Extract (Bulk),Biostimulant,20
-790,S,Seaweed Fertilizer (Soil Application),Biostimulant,20
-791,S,Seaweed Gel,Biostimulant,20
-792,S,Seaweed Powder,Biostimulant,20
-793,S,Secateurs,Farm Equipment & Tools,15%
-794,S,Sedaxane 12.61% + Azoxystrobin 3.15% + Thiamethoxam 22.06% FS,Insecticide + Fungicide,18
-795,S,Seed Treatment & Germination,Biostimulant,20
-796,S,Seedling Tray,Seeds,15%
-797,S,Seeds Ball,Seeds,15%
-798,S,Sesbania Grandifora,Seeds,15%
-799,S,shade net 50%,Farm Equipment & Tools,15%
-800,S,Shade Net 75%,Farm Equipment & Tools,15%
-801,S,Shade Net 90%,Farm Equipment & Tools,15%
-802,S,Shears,Farm Equipment & Tools,15%
-803,S,Sheesham Tree Seeds,Seeds,15%
-804,S,Shell Peeler,Farm Equipment & Tools,15%
-805,S,Silage Bag (Murghas Bag),Animal Husbandry & Aquaculture,15%
-806,S,Silica Granule,Biostimulant,20
-807,S,Silica Liquid,Biostimulant,20
-808,S,Silicon Fertilizer,Biostimulant,20
-809,S,Snake Gourd Seeds,Seeds,15%
-810,S,Snake Repellent,Repellent,15%
-811,S,Sodium Acifluorfen 16.5% + Clodinofop-Propargyl 8% EC,Herbicide,10%
-812,S,Soil Conditioner,Organic Manure & Soil Amendment,15%
-813,S,Soil Drenching Fertilizer,NPK / Primary Fertilizer,20
-814,S,Soil Rake,Farm Equipment & Tools,15%
-815,S,Solar Dryer,Farm Equipment & Tools,15%
-816,S,Solar Insect Trap,Traps & Lures,15
-817,S,Solar Sound Light,Farm Equipment & Tools,15%
-818,S,Solar Sprinkler,Irrigation,15%
-819,S,Sorghum seeds,Seeds,15%
-820,S,Spade (Favada),Farm Equipment & Tools,15%
-821,S,Spinach Seeds,Seeds,15%
-822,S,Spinetoram 11.7% SC,Insecticide,15%
-823,S,Spinetoram 5.66% + Methoxyfenozide 28.3% SC,Insecticide,15%
-824,S,Spinosad 2.5% SC,Insecticide,15%
-825,S,Spinosad 45% SC,Insecticide,15%
-826,S,Spiromesifen 240 SC 22.9% ww,Acaricide (Miticide),15
-827,S,Spirotetramat 11.01 + Imidacloprid 11.01% SC,Insecticide,15%
-828,S,Spirotetramat 150 OD,Insecticide,15%
-829,S,Spodoptera Frugiperda Trap & Lure,Traps & Lures,15
-830,S,Spodoptera Litura Trap & Lure,Traps & Lures,15
-831,S,sponge gourd seeds,Seeds,15%
-832,S,Sporothrix Fungorum,Bio / Organic Pesticide,20
-833,S,Spray Pump Accessories,Farm Equipment & Tools,15%
-834,S,Spray Pump Battery,Farm Equipment & Tools,15%
-835,S,Sprayer Light,Farm Equipment & Tools,15%
-836,S,Sprayer Nozzle,Farm Equipment & Tools,15%
-837,S,Spreader,Adjuvant (Sticker / Spreader),20
-838,S,Sprinkler,Irrigation,15%
-839,S,Starch-Based Super Absorbent,Organic Manure & Soil Amendment,15%
-840,S,Sticker,Adjuvant (Sticker / Spreader),20
-841,S,Sticky trap and Sticker,Traps & Lures,15
-842,S,Sticky trap and Sticker (A5 Size),Traps & Lures,15
-843,S,Streptomycin Sulphate 9%,Bactericide / Viricide,15
-844,S,Stress Alleviator PGR/PGP,Biostimulant,20
-845,S,Subabul Seeds,Seeds,15%
-846,S,Sucking Pest Controller - Biological,Bio / Organic Pesticide,20
-847,S,Sucking Pest Controller - Organic,Bio / Organic Pesticide,20
-848,S,Sugarcane Special,Crop-Specific Nutrient Kit,15%
-849,S,Sulfate 34.5% w/v SC,Others,15%
-850,S,Sulfentrazone 28% + Clomazone 30% WP,Herbicide,10%
-851,S,Sulfosulfuron 75% + Metsulfuron 5% WG,Herbicide,10%
-852,S,Sulfosulfuron 75% WG,Herbicide,10%
-853,S,Sulfoxaflor 11.4% SC,Insecticide,15%
-854,S,Sulfoxaflor 21.8% w/w SC,Insecticide,15%
-855,S,Sulphate 90% + Tetracycline Hydrochloride 10% SP,Bactericide / Viricide,15
-856,S,Sulphur + Iron Solublizing Bacteria,Bio-Fertilizer,25%
-857,S,Sulphur 55.16% SC,Fungicide,15%
-858,S,Sulphur 65% + Zinc 18%,Micronutrient Fertilizer,20%
-859,S,Sulphur 67% + Zinc 14%,Micronutrient Fertilizer,20%
-860,S,Sulphur 80% WDG,Fungicide,15%
-861,S,Sulphur 80%Wp,Fungicide,15%
-862,S,Sulphur 90% WG,Fungicide,15%
-863,S,Sunflower Seeds,Seeds,15%
-864,S,Super Napier Grass seeds,Seeds,15%
-865,S,Super Phosphoric Acid 70% Liquid,NPK / Primary Fertilizer,20
-866,S,Super Potassium Humate,Biostimulant,20
-867,S,Super Potassium Humate (Bulk),Biostimulant,20
-868,S,Sweet Corn Seeds,Seeds,15%
-869,S,Swine Supplement,Animal Husbandry & Aquaculture,15%
-870,S,Swiss Chard Seeds,Seeds,15%
-871,T,Take Off,Biostimulant,20
-872,T,Tamarind Seeds,Seeds,15%
-873,T,Tap And Go Brush Cutter,Farm Equipment & Tools,15%
-874,T,Teak Wood Seeds,Seeds,15%
-875,T,Tebuconazole 10% + Sulphur 65% WDG,Fungicide,15%
-876,T,Tebuconazole 2% DS,Fungicide,15%
-877,T,Tebuconazole 25.9% EC,Fungicide,15%
-878,T,Tebuconazole 25% WG,Fungicide,15%
-879,T,Tebuconazole 38.9%,Fungicide,15%
-880,T,Tebuconazole 50% + Trifloxystobin 25% WG,Fungicide,15%
-881,T,Tebuconazole 6.7% + Captan 26.9% SC,Fungicide,15%
-882,T,Tebuconazole 60 FS,Fungicide,15%
-883,T,Tebuconazole 8% + Captan 32% SC,Fungicide,15%
-884,T,Tee Connector,Irrigation,15%
-885,T,Teflubenzuron 75 G/L + Alphacypermethrin 75 G/L SC,Insecticide,15%
-886,T,Telescopic Handle,Farm Equipment & Tools,15%
-887,T,Tembotrione + Atrazine Combo Kit,Herbicide,10%
-888,T,Tembotrione 34.4 % SC,Herbicide,10%
-889,T,Temephos 50% EC,Insecticide,15%
-890,T,Terminalia Arjuna Seeds,Seeds,15%
-891,T,Terminalia Bellirica,Seeds,15%
-892,T,Terminalia Chebula Seeds,Seeds,15%
-893,T,Tetraconazole 3.8% EW,Fungicide,15%
-894,T,Tetraniliprole 18.18%,Insecticide,15%
-895,T,Thiacloprid 21.7% SC,Insecticide,15%
-896,T,Thiamethoxam 0.9 % SC + Fipronil 0.2% GR,Insecticide,15%
-897,T,Thiamethoxam 1% + Chlorantraniliprole 0.5% GR,Insecticide,15%
-898,T,Thiamethoxam 12.6% + Lambda Cyhalothrin 9.5% ZC,Insecticide,15%
-899,T,Thiamethoxam 25% WG,Insecticide,15%
-900,T,Thiamethoxam 30% FS,Insecticide,15%
-901,T,Thiamethoxam 70% WS,Insecticide,15%
-902,T,Thiamethoxam 75% SG,Insecticide,15%
-903,T,Thifluzamide 24% Sc,Fungicide,15%
-904,T,Thifluzamide 26% + Kasugamycin 6% SC,Fungicide,15%
-905,T,Thiobacillus Spp.,Bio-Fertilizer,25%
-906,T,Thiocyclam Hydrogen Oxalate 3.0% + Clothianidin 1.2% GR,Insecticide,15%
-907,T,Thiodicarb 75% Wp,Insecticide,15%
-908,T,Thiophanate methlyl 25% + Mancozeb 50% WG,Fungicide,15%
-909,T,Thiophanate Methyl 38% + Kasugamycin 2.21% SC,Fungicide,15%
-910,T,Thiophanate Methyl 45% + Pyraclostrobin 5%,Fungicide,15%
-911,T,Thiophanate Methyl 70% WP,Fungicide,15%
-912,T,Thrips and Mites Bio Pesticides,Bio / Organic Pesticide,20
-913,T,Thumb Cutter,Farm Equipment & Tools,15%
-914,T,Tiller Attachments,Farm Equipment & Tools,15%
-915,T,Timber Tree Seeds,Seeds,15%
-916,T,Tolfenpyrad 15% EC,Insecticide,15%
-917,T,Tolfenpyrad 15% EC + Bifenthrin 7.5% EC,Insecticide,15%
-918,T,Tomato And Cucurbit Special,Crop-Specific Nutrient Kit,15%
-919,T,Tomato Hybrid Seeds - Oblong Shape,Seeds,15%
-920,T,Tomato Hybrid Seeds - Oval shape,Seeds,15%
-921,T,Tomato Hybrid Seeds - Round,Seeds,15%
-922,T,Tomato Hybrid Seeds - Uniform flat round,Seeds,15%
-923,T,Topramezone 10 G/L + Atrazine 300 G/L SC,Herbicide,10%
-924,T,Topramezone 33.6% SC,Herbicide,10%
-925,T,Torch,Farm Equipment & Tools,15%
-926,T,Tractor Mounted Sprayer,Farm Equipment & Tools,15%
-927,T,Transplanting/ Repotting Mat,Farm Equipment & Tools,15%
-928,T,Traps & Lures,Traps & Lures,15
-929,T,Triacontanol 0.05% EC,Plant Growth Regulator (PGR),20%
-930,T,Triacontanol 0.1% EW,Plant Growth Regulator (PGR),20%
-931,T,Triacontanol GR 0.05%,Plant Growth Regulator (PGR),20%
-932,T,Triafamone 20% + Ethoxysulfuron 10% WG,Herbicide,10%
-933,T,Triazophos 20% WDG,Insecticide,15%
-934,T,Trichoderma Asperellum 2% WP,Bio / Organic Pesticide,20
-935,T,Trichoderma Harzianum,Bio / Organic Pesticide,20
-936,T,Trichoderma Viride 1.5% W.P.,Bio / Organic Pesticide,20
-937,T,Trichoderma Viride- Liquid,Bio / Organic Pesticide,20
-938,T,Tricyclazole 75% WP,Fungicide,15%
-939,T,Trifloxystrobin 10% + Difenoconazole 12.5% + Sulphur 3% SC,Fungicide,15%
-940,T,Trifloxystrobin 6% + Thiamethoxam 24% + Thiophanate Methyl 9.5% FS,Insecticide + Fungicide,18
-941,T,Triflumezopyrim 10% SC,Insecticide,15%
-942,T,Trowel,Farm Equipment & Tools,15%
-943,T,Tulsi Seeds,Seeds,15%
-944,T,Turnip Seeds,Seeds,15%
-945,T,Tuta Absoluta Trap & Lure,Traps & Lures,15
-946,V,Validamycin 3% L,Fungicide,15%
-947,V,VAM (Vesicular Arbuscular Mycorrhiza),Bio-Fertilizer,25%
-948,V,Vegetable Gardening Kit,Farm Equipment & Tools,15%
-949,V,Vermicompost and Organic Manure,Organic Manure & Soil Amendment,15%
-950,V,Vermicompost bed,Organic Manure & Soil Amendment,15%
-951,V,Verticelium lacanii 1.15% WP,Bio / Organic Pesticide,20
-952,V,Verticillium chlamydosporium 1% WP,Bio / Organic Pesticide,20
-953,V,Verticillium Lecanii,Bio / Organic Pesticide,20
-954,V,Verticillium Lecanii + Beauveria Bassiana + Metarhizium Anisopliae,Bio / Organic Pesticide,20
-955,V,Vinca Flower Seeds,Seeds,15%
-956,V,Viricide,Bactericide / Viricide,15
-957,V,Vitamins & Micro-nutrients Liquid,Animal Husbandry & Aquaculture,15%
-958,V,Vitamins & Micro-nutrients Non Liquid,Animal Husbandry & Aquaculture,15%
-959,W,Waste decomposer,Bio-Fertilizer,25%
-960,W,Water Level Controller,Irrigation,15%
-961,W,Water Pump,Irrigation,15%
-962,W,Watermelon Seeds,Seeds,15%
-963,W,Watermelon Seeds - Ice Box,Seeds,15%
-964,W,Watermelon Seeds - Jubilee,Seeds,15%
-965,W,Watermelon Seeds - Sugar Baby,Seeds,15%
-966,W,Weed Barrier Sheet,Farm Equipment & Tools,15%
-967,W,Weed Control Organic,Bio / Organic Pesticide,20
-968,W,Weed Extractor,Farm Equipment & Tools,15%
-969,W,Weeder- Battery Operated,Farm Equipment & Tools,15%
-970,W,Weeding Trowel,Farm Equipment & Tools,15%
-971,W,Wetting And Spreader Agent,Adjuvant (Sticker / Spreader),20
-972,W,Wheat grass tray,Farm Equipment & Tools,15%
-973,W,Wheat Seeds,Seeds,15%
-974,W,Wheel hoe,Farm Equipment & Tools,15%
-975,W,Wild Animal Repellent,Repellent,15%
-976,W,Wilt Special,Crop-Specific Nutrient Kit,15%
-977,W,Wire Pullar Plier,Farm Equipment & Tools,15%
-978,Y,Yard Long Seeds,Seeds,15%
-979,Y,Yellow Flower seeds,Seeds,15%
-980,Y,Yield Enhancer,Biostimulant,20
-981,Z,Zataka Machine Accessories,Farm Equipment & Tools,15%
-982,Z,Zatka Machine Insulator,Farm Equipment & Tools,15%
-983,Z,Zhatka Machine,Farm Equipment & Tools,15%
-984,Z,Zinc 12%,Micronutrient Fertilizer,20%
-985,Z,Zinc 12% Bulk,Micronutrient Fertilizer,20%
-986,Z,Zinc Fertilizer,Micronutrient Fertilizer,20%
-987,Z,Zinc Gluconate 12%,Micronutrient Fertilizer,20%
-988,Z,Zinc Oxide 39.5%,Micronutrient Fertilizer,20%
-989,Z,Zinc Phosphide 80%,Rodenticide / Fumigant / Molluscicide,15
-990,Z,Zinc Polyphosphate,Micronutrient Fertilizer,20%
-991,Z,Zinc Solubilizing Bacteria- Liquid,Bio-Fertilizer,25%
-992,Z,Zinc Solubilizing Bacteria- Powder,Bio-Fertilizer,25%
-993,Z,Zinc Sulphate Heptahydrate (Zinc 21%),Micronutrient Fertilizer,20%
-994,Z,Zinc Sulphate Monohydrate (Zinc 33%),Micronutrient Fertilizer,20%
-995,Z,"Zinc, Amino Acid Chelated",Micronutrient Fertilizer,20%
-996,Z,Zineb 75% WP,Fungicide,15%
-997,Z,Zinnia Flower Seeds,Seeds,15%
-998,Z,Ziram 27% SC,Fungicide,15%
-999,Z,Zn-17.5% Zinc and Phosphorus,Micronutrient Fertilizer,20%
-1000,Z,Zucchini,Seeds,15%
-1001,Z,Zyme Granules,Biostimulant,20
+Main Category,Sub-Category,Technical Name,Commission
+Crop Protection,Acaricide | Miticide,Acequinocyl 15% SC,15%
+Crop Protection,Acaricide | Miticide,Cyenopyrafen 30%,15%
+Crop Protection,Acaricide | Miticide,Cyflumetofen 20% SC,15%
+Crop Protection,Acaricide | Miticide,Etoxazole 10%,15%
+Crop Protection,Acaricide | Miticide,Fenazaquin 10% EC,15%
+Crop Protection,Acaricide | Miticide,Fenpyroximate 5% SC,15%
+Crop Protection,Acaricide | Miticide,Hexythiazox 5.45,15%
+Crop Protection,Acaricide | Miticide,Propargite 42% + Hexythiazox 2% EC,15%
+Crop Protection,Acaricide | Miticide,Propargite 57% EC,15%
+Crop Protection,Acaricide | Miticide,Pyridaben 20% WP,15%
+Crop Protection,Acaricide | Miticide,Spiromesifen 240 SC 22.9% ww,15%
+Crop Protection,Adjuvants And Surfactants,Spreader,20%
+Crop Protection,Adjuvants And Surfactants,Sticker,20%
+Crop Protection,Adjuvants And Surfactants,Wetting And Spreader Agent,20%
+Crop Protection,Animal Repellent,Pigeon Repellent Liquid,15%
+Crop Protection,Animal Repellent,Repellent,15%
+Crop Protection,Animal Repellent,Snake Repellent,15%
+Crop Protection,Animal Repellent,Wild Animal Repellent,15%
+Crop Protection,Bactericides,Bactericide,15%
+Crop Protection,Bactericides,Hydrogen Peroxide,15%
+Crop Protection,Bactericides,Streptomycin Sulphate 9%,15%
+Crop Protection,Bactericides,Sulphate 90% + Tetracycline Hydrochloride 10% SP,15%
+Crop Protection,Bio Pesticides,Ampelomyces Quisqualis,20%
+Crop Protection,Bio Pesticides,Pseudomonas Fluorescens,20%
+Crop Protection,Bio Pesticides,Sporothrix Fungorum,20%
+Crop Protection,Bio Pesticides,Trichoderma Asperellum 2% WP,20%
+Crop Protection,Bio Pesticides,Trichoderma Harzianum,20%
+Crop Protection,Bio Pesticides,Trichoderma Viride 1.5% W.P.,20%
+Crop Protection,Bio Pesticides,Trichoderma Viride- Liquid,20%
+Crop Protection,Bio Pesticides,Bacillus Thuringiensis,20%
+Crop Protection,Bio Pesticides,Beauveria Bassiana,20%
+Crop Protection,Bio Pesticides,Larvicide - Biological,20%
+Crop Protection,Bio Pesticides,Metarhizium Anisopliae,20%
+Crop Protection,Bio Pesticides,Paecilomyces Fumosoroseus,20%
+Crop Protection,Bio Pesticides,Sucking Pest Controller - Biological,20%
+Crop Protection,Bio Pesticides,Verticelium lacanii 1.15% WP,20%
+Crop Protection,Bio Pesticides,Verticillium Lecanii,20%
+Crop Protection,Bio Pesticides,Verticillium Lecanii + Beauveria Bassiana + Metarhizium Anisopliae,20%
+Crop Protection,Bio Pesticides,Thrips and Mites Bio Pesticides,20%
+Crop Protection,Combo Product,Azoxystrobin 10% + Fipronil 5% SC,18%
+Crop Protection,Combo Product,Azoxystrobin 2.5% + Thiophanate Methyl 11.25% + Thiamethoxam 25% Fs,18%
+Crop Protection,Combo Product,Combo Products,15%
+Crop Protection,Combo Product,Fenazaquin 10% + Bifenthrin 4% EC,20%
+Crop Protection,Combo Product,Fluxametamide 3.8% + Puridaben 9.5% SC,20%
+Crop Protection,Combo Product,Hexythiazox 3.5% + Diafenthiuron 42% WDG,20%
+Crop Protection,Combo Product,Profenophos 40% + Fenpyroximate 2.5% EC,20%
+Crop Protection,Combo Product,Propargite 50% + Bifenthrin 5% SE,20%
+Crop Protection,Combo Product,PYRACLOSTROBIN 10% + FIPRONIL 5%  SC,18%
+Crop Protection,Combo Product,Pyraclostrobin 3.5% + Thiram 15% + Clothianidin 22.5% FS,18%
+Crop Protection,Combo Product,Sedaxane 12.61% + Azoxystrobin 3.15% + Thiamethoxam 22.06% FS,18%
+Crop Protection,Combo Product,Trifloxystrobin 6% + Thiamethoxam 24% + Thiophanate Methyl 9.5% FS,18%
+Crop Protection,Fungicides,Ametoctradin 27% + Dimethomorph 20.27%,15%
+Crop Protection,Fungicides,Amisulbrom 20% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 11% + Tebuconazole 18.3% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 11.5% + Mancozeb 30% WP,15%
+Crop Protection,Fungicides,Azoxystrobin 12.5% + Tebuconazole 12.5% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 14% + Epoxiconazole 9% Sc,15%
+Crop Protection,Fungicides,Azoxystrobin 16.7 % + Tricyclazole 33.3 % SC,15%
+Crop Protection,Fungicides,Azoxystrobin 18.2% + Difenoconazole 11.4% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 20% + Thifluzamide 15% w/v SC,15%
+Crop Protection,Fungicides,Azoxystrobin 23% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 4.7% + Mancozeb 59.7% + Tebuconazole 5.6% WG,15%
+Crop Protection,Fungicides,Azoxystrobin 4.8% + Chlorothalonil 40% SC,15%
+Crop Protection,Fungicides,Azoxystrobin 7% + Mancozeb 40% OS,15%
+Crop Protection,Fungicides,Azoxystrobin 7.1% + Propiconazole 11.9% SE,15%
+Crop Protection,Fungicides,Azoxystrobin 8.3% + Mancozeb 66.7% WG,15%
+Crop Protection,Fungicides,Benalaxyl-M 4% + Mancozeb 65% WP,15%
+Crop Protection,Fungicides,Captan 50% WP,15%
+Crop Protection,Fungicides,Captan 70% + Hexaconazole 5% WP,15%
+Crop Protection,Fungicides,Carbendazim 12% + Mancozeb 63% WP,15%
+Crop Protection,Fungicides,Carbendazim 25% + Mancozeb 50% WS,15%
+Crop Protection,Fungicides,Carbendazim 46.27% SC,15%
+Crop Protection,Fungicides,Carbendazim 50% WP,15%
+Crop Protection,Fungicides,Carboxin 17.5 % + Thiram 17.5 % FF,15%
+Crop Protection,Fungicides,Carboxin 37.5% + Thiram 37.5% DS,15%
+Crop Protection,Fungicides,Chlorothalonil 40% + Difenoconazole 4% WG,15%
+Crop Protection,Fungicides,Chlorothalonil 75% WP,15%
+Crop Protection,Fungicides,Copper Hydroxide 46.1% WG,15%
+Crop Protection,Fungicides,Copper Hydroxide 53.8 DF,15%
+Crop Protection,Fungicides,Copper Oxychloride 50% WP,15%
+Crop Protection,Fungicides,Copper Sulphate 3.0% + Calcium Hydroxide 0.6%,15%
+Crop Protection,Fungicides,Copper Sulphate 47.15% + Mancozeb 30% WDG,15%
+Crop Protection,Fungicides,Cyflufenamid 5% EW,15%
+Crop Protection,Fungicides,Cymoxanil 50% WP,15%
+Crop Protection,Fungicides,Cymoxanil 8% + Mancozeb 64% WP,15%
+Crop Protection,Fungicides,Difenoconazole 25% EC,15%
+Crop Protection,Fungicides,Difenoconazole 6% + Validamycin 6% SC,15%
+Crop Protection,Fungicides,Dimethomorph 12% + Pyraclostrobin 6.7% WG,15%
+Crop Protection,Fungicides,Dimethomorph 50% WP,15%
+Crop Protection,Fungicides,Ergon 44.3% SC,15%
+Crop Protection,Fungicides,Famoxadone 16.6% + Cymoxanil 22.1% SC,15%
+Crop Protection,Fungicides,Fluopicolide 4.44% + Fosetyl-Al 66.67% ww WG,15%
+Crop Protection,Fungicides,Fluopicolide 5.56% + Propamocarb Hydrochloride 55.6%,15%
+Crop Protection,Fungicides,Fluopyram 17.7% + Tebuconazole 17.7%,15%
+Crop Protection,Fungicides,Fluopyram 21.37% + Trifloxystrobin 21.37% SC,15%
+Crop Protection,Fungicides,Fluopyrum 34.48% SC,15%
+Crop Protection,Fungicides,Flusilazole 12.5% + Carbendazim 25% SE,15%
+Crop Protection,Fungicides,Fluxapyroxad 250 + Pyraclostrobin 250,15%
+Crop Protection,Fungicides,Fluxapyroxad 33.3% w/v,15%
+Crop Protection,Fungicides,Fosetyl Al 80WP,15%
+Crop Protection,Fungicides,Hexaconazole 0.5% GR,15%
+Crop Protection,Fungicides,Hexaconazole 4% + Carbendazim 16% SC,15%
+Crop Protection,Fungicides,Hexaconazole 4% + Zineb 68% WP,15%
+Crop Protection,Fungicides,Hexaconazole 5% + Validamycin 2.5% SC,15%
+Crop Protection,Fungicides,Hexaconazole 5% EC,15%
+Crop Protection,Fungicides,Hexaconazole 5% SC,15%
+Crop Protection,Fungicides,Hexaconazole 75% WG,15%
+Crop Protection,Fungicides,Iprobenfos 48% EC,15%
+Crop Protection,Fungicides,Iprovalicarb 5.5 + Propineb 61.25,15%
+Crop Protection,Fungicides,Isoprothiolane 40% EC,15%
+Crop Protection,Fungicides,Kasugamycin 3% SL,15%
+Crop Protection,Fungicides,Kasugamycin 5% + Copper Oxychloride 45% WP,15%
+Crop Protection,Fungicides,Kresoxim Methyl 40% + Hexaconazole 8% WG,15%
+Crop Protection,Fungicides,Mancozeb 35% SC,15%
+Crop Protection,Fungicides,Mancozeb 75% WG,15%
+Crop Protection,Fungicides,Mancozeb 75% WP,15%
+Crop Protection,Fungicides,Mandipropamid 23.4% SC,15%
+Crop Protection,Fungicides,Meptyldinocap 35.7% EC,15%
+Crop Protection,Fungicides,Metalaxyl 35% WS,15%
+Crop Protection,Fungicides,Metalaxyl 8% + Mancozeb 64% WP,15%
+Crop Protection,Fungicides,Metalaxyl-M 3.3% + Chlorothalonil 33.1% SC,15%
+Crop Protection,Fungicides,Metalaxyl-M 4% + Mancozeb 64% WP,15%
+Crop Protection,Fungicides,Methyl 15 % + Chlorothalonil 56 %,15%
+Crop Protection,Fungicides,Metiram 44% + Dimethomorph 9%,15%
+Crop Protection,Fungicides,Metiram 55% + Pyraclostrobin 5% WG,15%
+Crop Protection,Fungicides,Metiram 70% WG,15%
+Crop Protection,Fungicides,Myclobutanil 10% WP,15%
+Crop Protection,Fungicides,Pencycuron 250 SC (22.9% w/w),15%
+Crop Protection,Fungicides,Penflufen 13.28% + Trifloxystrobin 13.28% FS,15%
+Crop Protection,Fungicides,Penflufen 240,15%
+Crop Protection,Fungicides,Picoxystrobin 22.52%,15%
+Crop Protection,Fungicides,Picoxystrobin 6.78% + Tricyclazole 20.33% SC,15%
+Crop Protection,Fungicides,Picoxystrobin 7.05% + Propiconazole 11.71% SC,15%
+Crop Protection,Fungicides,Prochloraz 23.5% + Tricyclazole 20% w/w SE,15%
+Crop Protection,Fungicides,Prochloraz 24.4% + Tebuconazole 12.1% w/w EW,15%
+Crop Protection,Fungicides,Prochloraz 39.6% EC,15%
+Crop Protection,Fungicides,Propiconazole 13.9% + Difenoconazole 13.9%,15%
+Crop Protection,Fungicides,Propiconazole 25% EC,15%
+Crop Protection,Fungicides,Propineb 70% WP,15%
+Crop Protection,Fungicides,Pyraclostrobin 10% + Thifluzamide 10% SC,15%
+Crop Protection,Fungicides,Pyraclostrobin 10% CS,15%
+Crop Protection,Fungicides,Pyraclostrobin 13.3% + Epoxyconazole 5% SE,15%
+Crop Protection,Fungicides,Pyraclostrobin 20% WG,15%
+Crop Protection,Fungicides,Pyraclostrobin 333 + Fluxapyroxad 167,15%
+Crop Protection,Fungicides,Sulfate 34.5% w/v SC,15%
+Crop Protection,Fungicides,Sulphur 55.16% SC,15%
+Crop Protection,Fungicides,Sulphur 80% WDG,15%
+Crop Protection,Fungicides,Sulphur 80%Wp,15%
+Crop Protection,Fungicides,Sulphur 90% WG,15%
+Crop Protection,Fungicides,Tebuconazole 10% + Sulphur 65% WDG,15%
+Crop Protection,Fungicides,Tebuconazole 2% DS,15%
+Crop Protection,Fungicides,Tebuconazole 25% WG,15%
+Crop Protection,Fungicides,Tebuconazole 25.9% EC,15%
+Crop Protection,Fungicides,Tebuconazole 38.9%,15%
+Crop Protection,Fungicides,Tebuconazole 50% + Trifloxystobin 25% WG,15%
+Crop Protection,Fungicides,Tebuconazole 6.7% + Captan 26.9% SC,15%
+Crop Protection,Fungicides,Tebuconazole 60 FS,15%
+Crop Protection,Fungicides,Tebuconazole 8% + Captan 32% SC,15%
+Crop Protection,Fungicides,Tetraconazole 3.8% EW,15%
+Crop Protection,Fungicides,Thifluzamide 24% Sc,15%
+Crop Protection,Fungicides,Thifluzamide 26% + Kasugamycin 6% SC,15%
+Crop Protection,Fungicides,Thiophanate methlyl 25% + Mancozeb 50% WG,15%
+Crop Protection,Fungicides,Thiophanate Methyl 38% + Kasugamycin 2.21% SC,15%
+Crop Protection,Fungicides,Thiophanate Methyl 45% + Pyraclostrobin 5%,15%
+Crop Protection,Fungicides,Thiophanate Methyl 70% WP,15%
+Crop Protection,Fungicides,Tricyclazole 75% WP,15%
+Crop Protection,Fungicides,Trifloxystrobin 10% + Difenoconazole 12.5% + Sulphur 3% SC,15%
+Crop Protection,Fungicides,Validamycin 3% L,15%
+Crop Protection,Fungicides,Zineb 75% WP,15%
+Crop Protection,Fungicides,Ziram 27% SC,15%
+Crop Protection,Herbicides,Ametryne 80% WDG,10%
+Crop Protection,Herbicides,Amine Salt 58 SL,10%
+Crop Protection,Herbicides,Atrazine 50% WP,10%
+Crop Protection,Herbicides,Bensulfuron Methyl 4.8% + Pretilachlor 48% OD,10%
+Crop Protection,Herbicides,Bentazone 48% SL,10%
+Crop Protection,Herbicides,Bispyribac Sodium 10%,10%
+Crop Protection,Herbicides,Bispyribac sodium 20% + Pyrazosulfuron ethyl 15% WDG,10%
+Crop Protection,Herbicides,Bixlozone 50% + Metribuzin 10% WG,10%
+Crop Protection,Herbicides,Carfentrazone Ethyl 40% DF,10%
+Crop Protection,Herbicides,Chlorimuron Ethyl 25% WP,10%
+Crop Protection,Herbicides,Clethodim 13% w/w EC,10%
+Crop Protection,Herbicides,Clethodim 240 EC,10%
+Crop Protection,Herbicides,Clodinafop Propargyl 15% WP,10%
+Crop Protection,Herbicides,Clodinafop propargyl 15%+ Metsulfuron methyl 1% WP,10%
+Crop Protection,Herbicides,Clodinafop Propargyl 9% + Metribuzin 20% WP,10%
+Crop Protection,Herbicides,Clodinafop-Propargyl 12.25 % + Oxyfluorfen 14.7% EC,10%
+Crop Protection,Herbicides,Diclosulam 84%,10%
+Crop Protection,Herbicides,Diuron 80% WP,10%
+Crop Protection,Herbicides,Ethoxysulfuron 15% WDG,10%
+Crop Protection,Herbicides,Ethyl 10% EC + Chlorimuron Ethyl 25% WP,10%
+Crop Protection,Herbicides,Fenoxaprop-p-ethyl 6.9,10%
+Crop Protection,Herbicides,Fenoxaprop-P-Ethyl 9.3 EC,10%
+Crop Protection,Herbicides,Florpyrauxifen-benzyl 2.13% + Cyhalofop-butyl 10.64% EC,10%
+Crop Protection,Herbicides,Flumioxazin 50% SC,10%
+Crop Protection,Herbicides,Fluoropyroxene-Benzyl 1.31% + Penoxsulam 2.1% OD,10%
+Crop Protection,Herbicides,Fluthiacet-methyl 10% + S-metolachlor 50% EC,10%
+Crop Protection,Herbicides,Fomesafen 11.1% + Fluazifop-p-butyl 11.1% SL,10%
+Crop Protection,Herbicides,Glufosinate Ammonium 13.5 SL,10%
+Crop Protection,Herbicides,Glufosinate Ammonium 50% WG,10%
+Crop Protection,Herbicides,Glyphosate 41% SL,10%
+Crop Protection,Herbicides,Glyphosate 54% SL,10%
+Crop Protection,Herbicides,Glyphosate 60% + Pyrithiobac Sodium 4.5% SG,10%
+Crop Protection,Herbicides,Glyphosate 71% SG,10%
+Crop Protection,Herbicides,Halosulfuron Methyl 75% WG,10%
+Crop Protection,Herbicides,Haloxyfop-P-Methyl 10.5% EC,10%
+Crop Protection,Herbicides,Imazethapyr 10% SL,10%
+Crop Protection,Herbicides,Imazethapyr 35% + Imazamox 35% WG,10%
+Crop Protection,Herbicides,Imazethapyr 70% WG,10%
+Crop Protection,Herbicides,Isoproturon 75% wp,10%
+Crop Protection,Herbicides,Mesosulfuron methyl 3% + Iodosulfuron-methyl sodium 0.6  WDG,10%
+Crop Protection,Herbicides,Mesotrione 2.27% + Atrazine 22.7% SC,10%
+Crop Protection,Herbicides,Metolachlor 50% EC,10%
+Crop Protection,Herbicides,"Metribuzin 16.8% + 2,4-Sodium Salt 56% WP",10%
+Crop Protection,Herbicides,Metribuzin 350 Pyrazosulfuron-Ethyl 10 WG,10%
+Crop Protection,Herbicides,Metribuzin 70% WP,10%
+Crop Protection,Herbicides,Metsulfuron Methyl 10%+Chlorimuron Ethyl 10% WP,10%
+Crop Protection,Herbicides,Metsulfuron Methyl 20%,10%
+Crop Protection,Herbicides,Oxadiargyl 6% EC,10%
+Crop Protection,Herbicides,Oxyfluorfen 23.5% EC,10%
+Crop Protection,Herbicides,Paraquat Dichloride 24% SL,10%
+Crop Protection,Herbicides,Pendimethalin 30% + Imazethapyr 2% EC,10%
+Crop Protection,Herbicides,Pendimethalin 30% EC,10%
+Crop Protection,Herbicides,Pendimethalin 38.4% + Pyrazosulfuron ethyl 0.85% ZC,10%
+Crop Protection,Herbicides,Pendimethalin 38.7% CS,10%
+Crop Protection,Herbicides,Pendimethalin 40% + Metribuzin 8% Ec,10%
+Crop Protection,Herbicides,Penoxsulam 0.97%+ Butachlor 38.8% SE,10%
+Crop Protection,Herbicides,Pinoxaden 5.1% EC,10%
+Crop Protection,Herbicides,Pretilachlor 50% EC,10%
+Crop Protection,Herbicides,Pretilachlore 37% EW,10%
+Crop Protection,Herbicides,Propaquisafop 10% EC,10%
+Crop Protection,Herbicides,Propaquizafop 2.5% + Imazethapyr 3.75%,10%
+Crop Protection,Herbicides,Propaquizafop 5% + Oxyflurofen 12% EC,10%
+Crop Protection,Herbicides,PYRAZOSULFURON ETHYL 10%,10%
+Crop Protection,Herbicides,Pyrithiobac Sodium 10% EC,10%
+Crop Protection,Herbicides,Pyrithiobac sodium 6% + Quizalofop Ethyl 4%,10%
+Crop Protection,Herbicides,Pyroxasulfone 85% WG,10%
+Crop Protection,Herbicides,Quizalofop Ethyl 10% EC,10%
+Crop Protection,Herbicides,Quizalofop Ethyl 3 % + Fomesafen 12% SC,10%
+Crop Protection,Herbicides,Quizalofop ethyl 4% + Oxyfluorfen 6% EC,10%
+Crop Protection,Herbicides,Quizalofop ethyl 5%,10%
+Crop Protection,Herbicides,Quizalofop ethyl 7.5% + Imazethapyr 15%  EC,10%
+Crop Protection,Herbicides,Sodium Acifluorfen 16.5% + Clodinofop-Propargyl 8% EC,10%
+Crop Protection,Herbicides,Sulfentrazone 28% + Clomazone 30% WP,10%
+Crop Protection,Herbicides,Sulfosulfuron 75% + Metsulfuron 5% WG,10%
+Crop Protection,Herbicides,Sulfosulfuron 75% WG,10%
+Crop Protection,Herbicides,Tembotrione + Atrazine Combo Kit,10%
+Crop Protection,Herbicides,Tembotrione 34.4 % SC,10%
+Crop Protection,Herbicides,Topramezone 10 G/L + Atrazine 300 G/L SC,10%
+Crop Protection,Herbicides,Topramezone 33.6% SC,10%
+Crop Protection,Herbicides,Triafamone 20% + Ethoxysulfuron 10% WG,10%
+Crop Protection,Insecticides,Abamectin 1.9% EC,15%
+Crop Protection,Insecticides,Acephate 50% + Imidacloprid 1.8%,15%
+Crop Protection,Insecticides,Acephate 75% SP,15%
+Crop Protection,Insecticides,Acephate 95% SG,15%
+Crop Protection,Insecticides,Acetamiprid 20% + Chlorantraniliprole 20% WG,15%
+Crop Protection,Insecticides,Acetamiprid 20% SP,15%
+Crop Protection,Insecticides,Acetamiprid 25% + Bifenthrin 25% WG,15%
+Crop Protection,Insecticides,Afidopyropen 5% DC,15%
+Crop Protection,Insecticides,Alpha cypermethrin 5% Wp,15%
+Crop Protection,Insecticides,Alphacypermethrin 10% SC,15%
+Crop Protection,Insecticides,Alphamethrin 10% EC,15%
+Crop Protection,Insecticides,Aluminium Phosphide 56%,15%
+Crop Protection,Insecticides,Benzene Hexachloride (BHC),15%
+Crop Protection,Insecticides,Betacyfluthrin 8.49% + Imidacloprid 19.81% OD,15%
+Crop Protection,Insecticides,Bifenthrin 10% EC,15%
+Crop Protection,Insecticides,Bifenthrin 8% + Clothianidin 10% SC,15%
+Crop Protection,Insecticides,Broflanilide 300 GL SC,15%
+Crop Protection,Insecticides,Buprofezin 15% + Acephate 35% WP,15%
+Crop Protection,Insecticides,Buprofezin 25% SC,15%
+Crop Protection,Insecticides,Carbofuran 3% CG,15%
+Crop Protection,Insecticides,Carbosulfan 25%,15%
+Crop Protection,Insecticides,Carbosulfan 25% DS,15%
+Crop Protection,Insecticides,Cartap Hydrochloride 4% GR,15%
+Crop Protection,Insecticides,Cartap Hydrochloride 50% SP,15%
+Crop Protection,Insecticides,Cartap Hydrochloride 7.5% + Emamectin Benzoate 0.25% GR,15%
+Crop Protection,Insecticides,Cartap Hydrochloride 75% SG,15%
+Crop Protection,Insecticides,Chlorantraniliprole 0.4% w/w GR,15%
+Crop Protection,Insecticides,Chlorantraniliprole 18.5% SC,15%
+Crop Protection,Insecticides,Chlorantraniliprole 35% w/w WDG,15%
+Crop Protection,Insecticides,Chlorantraniliprole 4.5% + Novaluron 11.5% + Emamectin Benzoate 1.5% SE,15%
+Crop Protection,Insecticides,Chlorantraniliprole 47.85% w/w SC,15%
+Crop Protection,Insecticides,Chlorantraniliprole 8.8% + Thiamethoxam 17.5% SC,15%
+Crop Protection,Insecticides,Chlorantraniliprole 9.3% + Lambda Cyhalothrin 4.6% ZC,15%
+Crop Protection,Insecticides,Chlorfenapyr 10% SC,15%
+Crop Protection,Insecticides,Chlorfenapyr 240 G/L Sc,15%
+Crop Protection,Insecticides,Chlorfluazuron 5.4% EC,15%
+Crop Protection,Insecticides,Chlorpyrifos 50% EC,15%
+Crop Protection,Insecticides,Chlorpyrifos 75% WG,15%
+Crop Protection,Insecticides,Chlorpyriphos 1.5% DP,15%
+Crop Protection,Insecticides,Chlorpyriphos 10% GR,15%
+Crop Protection,Insecticides,Chlorpyriphos 16% + Alpha cypermethrin 1% EC,15%
+Crop Protection,Insecticides,Chlorpyriphos 20% CS,15%
+Crop Protection,Insecticides,Chlorpyriphos 20% EC,15%
+Crop Protection,Insecticides,Chlorpyriphos 50% + Cypermethrin 5% EC,15%
+Crop Protection,Insecticides,Clothianidin 50% WDG,15%
+Crop Protection,Insecticides,Cyantraniliprole 10.26% OD,15%
+Crop Protection,Insecticides,Cyantraniliprole 16.9% + Lufenuron 16.9% SC,15%
+Crop Protection,Insecticides,Cyantraniliprole 7.3% + Diafenthiuron 36.4% SC,15%
+Crop Protection,Insecticides,Cyclaniliprole 10% DC,15%
+Crop Protection,Insecticides,Cypermethrin 0.25% DP,15%
+Crop Protection,Insecticides,Cypermethrin 10% EC,15%
+Crop Protection,Insecticides,Cypermethrin 25% EC,15%
+Crop Protection,Insecticides,Cypermethrin 3% + Quinalphos 20% EC,15%
+Crop Protection,Insecticides,Deltamethrin 1.25% ULV,15%
+Crop Protection,Insecticides,Deltamethrin 100 EC,15%
+Crop Protection,Insecticides,Deltamethrin 11% E.C.,15%
+Crop Protection,Insecticides,Deltamethrin 2% EW,15%
+Crop Protection,Insecticides,Deltamethrin 2.5% SC,15%
+Crop Protection,Insecticides,Deltamethrin 2.5% WP,15%
+Crop Protection,Insecticides,Deltamethrin 2.8% EC,15%
+Crop Protection,Insecticides,Diafenthiuron 40% w/w + Spinetoram 5% w/w SC,15%
+Crop Protection,Insecticides,Diafenthiuron 40.1% + Acetamiprid 3.9% WP,15%
+Crop Protection,Insecticides,Diafenthiuron 47% + Bifenthrin 9.4% SC,15%
+Crop Protection,Insecticides,Diafenthiuron 50% WP,15%
+Crop Protection,Insecticides,Diamide (Anthraniliamide) Neonicotinoids,15%
+Crop Protection,Insecticides,Diflubenzuron 25% WP,15%
+Crop Protection,Insecticides,Dimethoate 30% EC,15%
+Crop Protection,Insecticides,Dimpropyridaz 120g/L,15%
+Crop Protection,Insecticides,Dinotefuran 15% + Pymetrozine 45% WG,15%
+Crop Protection,Insecticides,Dinotefuran 20%SG,15%
+Crop Protection,Insecticides,Dinotefuran 70% WG,15%
+Crop Protection,Insecticides,Emamectin Benzoate 1.5% + Fipronil 3.5% SC,15%
+Crop Protection,Insecticides,Emamectin Benzoate 1.5% + Profenofos 35% WDG,15%
+Crop Protection,Insecticides,Emamectin Benzoate 1.9% EC,15%
+Crop Protection,Insecticides,Emamectin Benzoate 2.2% + Permethrin 15.3% EC,15%
+Crop Protection,Insecticides,Emamectin Benzoate 3.0% +Thiamethoxam 12.0% WG,15%
+Crop Protection,Insecticides,Emamectin Benzoate 5% SG,15%
+Crop Protection,Insecticides,Ethion 40% + Cypermethrin 5% EC,15%
+Crop Protection,Insecticides,Ethion 50% EC,15%
+Crop Protection,Insecticides,Ethiprole 10.7% + Pymetrozine 40% WG,15%
+Crop Protection,Insecticides,Ethiprole 40 + Imidacloprid 40 WG,15%
+Crop Protection,Insecticides,Etofenprox 6% + Diafenthiuron 25% WG,15%
+Crop Protection,Insecticides,Fenobucarb 50% EC,15%
+Crop Protection,Insecticides,Fenpropathrin 10% EC,15%
+Crop Protection,Insecticides,Fenpropathrin 10% EW,15%
+Crop Protection,Insecticides,Fenpropathrin 30% EC,15%
+Crop Protection,Insecticides,Fenvalerate 0.4% DP,15%
+Crop Protection,Insecticides,Fenvalerate 20% EC,15%
+Crop Protection,Insecticides,Fipronil 0.3% GR,15%
+Crop Protection,Insecticides,Fipronil 0.6% + Sulphur 70% + Zinc 13% WG,15%
+Crop Protection,Insecticides,Fipronil 0.6% GR,15%
+Crop Protection,Insecticides,Fipronil 10% + Diafenthiuron 30% WG,15%
+Crop Protection,Insecticides,Fipronil 15% + Chlorantraniliprole 5% w/v SC,15%
+Crop Protection,Insecticides,Fipronil 15% + Deltamethrin 2.5% SC,15%
+Crop Protection,Insecticides,Fipronil 15% + Flonicamid 15% WDG,15%
+Crop Protection,Insecticides,Fipronil 15% + Imidacloprid 5% SC,15%
+Crop Protection,Insecticides,Fipronil 18.87% SC,15%
+Crop Protection,Insecticides,Fipronil 4% + Acetamiprid 4% SC,15%
+Crop Protection,Insecticides,Fipronil 4% + Thiomethoxam 4% w/w SC,15%
+Crop Protection,Insecticides,Fipronil 40% + Imidacloprid 40% WG,15%
+Crop Protection,Insecticides,Fipronil 5% EC,15%
+Crop Protection,Insecticides,Fipronil 5% SC,15%
+Crop Protection,Insecticides,Fipronil 80 WG,15%
+Crop Protection,Insecticides,Flonicamid 50% WG,15%
+Crop Protection,Insecticides,Flubendiamide 19.92% + Thiacloprid 19.92% w/w SC (480 SC),15%
+Crop Protection,Insecticides,Flubendiamide 20% WG,15%
+Crop Protection,Insecticides,Flubendiamide 480 SC (39.35% ww),15%
+Crop Protection,Insecticides,Flubendiamide 8.33% + Deltamethrin 5.56% SC,15%
+Crop Protection,Insecticides,Flupyradifurone 17.09% SL,15%
+Crop Protection,Insecticides,Fluxametamide 10% EC,15%
+Crop Protection,Insecticides,Household Insecticide,15%
+Crop Protection,Insecticides,Imidacloprid 0.3% GR,15%
+Crop Protection,Insecticides,Imidacloprid 17.8% SL,15%
+Crop Protection,Insecticides,Imidacloprid 30.5% SC,15%
+Crop Protection,Insecticides,Imidacloprid 48% FS,15%
+Crop Protection,Insecticides,Imidacloprid 6% + Lambda Cyhalothrin 4% SL,15%
+Crop Protection,Insecticides,Imidacloprid 70% WG,15%
+Crop Protection,Insecticides,Indoxacarb 10% + Thiamethoxam 10% WG,15%
+Crop Protection,Insecticides,Indoxacarb 14.5% + Acetamiprid 7.7% SC,15%
+Crop Protection,Insecticides,Indoxacarb 14.5% SC,15%
+Crop Protection,Insecticides,Indoxacarb 5% + Fipronil 5% SC,15%
+Crop Protection,Insecticides,Isocycloseram 18.1% SC,15%
+Crop Protection,Insecticides,Isocycloseram 9.2% w/w DC + Isocycloseram 10% w/v DC,15%
+Crop Protection,Insecticides,Lambda Cyhalothrin 10% WP,15%
+Crop Protection,Insecticides,Lambda Cyhalothrin 4.9% CS,15%
+Crop Protection,Insecticides,Lambda Cyhalothrin 5% EC,15%
+Crop Protection,Insecticides,Lufenuron 5.4% EC,15%
+Crop Protection,Insecticides,Malathion 50% EC,15%
+Crop Protection,Insecticides,Metaldehyde 2.5%,15%
+Crop Protection,Insecticides,Methoxyfenozide 20% + Chlorantraniliprole 5% SC,15%
+Crop Protection,Insecticides,Monocrotophos 36% SL,15%
+Crop Protection,Insecticides,Novaluron 10% EC,15%
+Crop Protection,Insecticides,Novaluron 5.25% + Emamectin benzoate 0.9% SC,15%
+Crop Protection,Insecticides,Novaluron 5.25% + Indoxacarb 4.5% SC,15%
+Crop Protection,Insecticides,Permethrin 25% EC,15%
+Crop Protection,Insecticides,Phenthoate 50% EC,15%
+Crop Protection,Insecticides,Profenofos 40% + Cypermethrin 4% EC,15%
+Crop Protection,Insecticides,Profenophos 50% EC,15%
+Crop Protection,Insecticides,Propoxur 20% EC,15%
+Crop Protection,Insecticides,Pymetrozine 50% WG,15%
+Crop Protection,Insecticides,Pyridalyl 10% EC,15%
+Crop Protection,Insecticides,Pyrifluquinazon 20% WG,15%
+Crop Protection,Insecticides,Pyriproxifen 8% + Diafenthiuron 30% SE,15%
+Crop Protection,Insecticides,Pyriproxyfen 10% + Bifenthrin 10% EC,15%
+Crop Protection,Insecticides,Pyriproxyfen 10% EC,15%
+Crop Protection,Insecticides,Pyriproxyfen 5% + Diafenthiuron 25% SE,15%
+Crop Protection,Insecticides,Pyriproxyfen 5% + Fenpropathrin 15% EC,15%
+Crop Protection,Insecticides,Pyriproxyfen 8% + Diafenthiuron 18% + Dinotefuron 5% SC,15%
+Crop Protection,Insecticides,Quinalphos 25% EC,15%
+Crop Protection,Insecticides,Rynaxypyr 0.4% GR,15%
+Crop Protection,Insecticides,Spinetoram 11.7% SC,15%
+Crop Protection,Insecticides,Spinetoram 5.66% + Methoxyfenozide 28.3% SC,15%
+Crop Protection,Insecticides,Spinosad 2.5% SC,15%
+Crop Protection,Insecticides,Spinosad 45% SC,15%
+Crop Protection,Insecticides,Spirotetramat 11.01 + Imidacloprid 11.01% SC,15%
+Crop Protection,Insecticides,Spirotetramat 150 OD,15%
+Crop Protection,Insecticides,Sulfoxaflor 11.4% SC,15%
+Crop Protection,Insecticides,Sulfoxaflor 21.8% w/w SC,15%
+Crop Protection,Insecticides,Teflubenzuron 75 G/L + Alphacypermethrin 75 G/L SC,15%
+Crop Protection,Insecticides,Temephos 50% EC,15%
+Crop Protection,Insecticides,Tetraniliprole 18.18%,15%
+Crop Protection,Insecticides,Thiacloprid 21.7% SC,15%
+Crop Protection,Insecticides,Thiamethoxam 0.9 % SC + Fipronil 0.2% GR,15%
+Crop Protection,Insecticides,Thiamethoxam 1% + Chlorantraniliprole 0.5% GR,15%
+Crop Protection,Insecticides,Thiamethoxam 12.6% + Lambda Cyhalothrin 9.5% ZC,15%
+Crop Protection,Insecticides,Thiamethoxam 25% WG,15%
+Crop Protection,Insecticides,Thiamethoxam 30% FS,15%
+Crop Protection,Insecticides,Thiamethoxam 70% WS,15%
+Crop Protection,Insecticides,Thiamethoxam 75% SG,15%
+Crop Protection,Insecticides,Thiocyclam Hydrogen Oxalate 3.0% + Clothianidin 1.2% GR,15%
+Crop Protection,Insecticides,Thiodicarb 75% Wp,15%
+Crop Protection,Insecticides,Tolfenpyrad 15% EC,15%
+Crop Protection,Insecticides,Tolfenpyrad 15% EC + Bifenthrin 7.5% EC,15%
+Crop Protection,Insecticides,Triazophos 20% WDG,15%
+Crop Protection,Insecticides,Triflumezopyrim 10% SC,15%
+Crop Protection,Insecticides,Zinc Phosphide 80%,15%
+Crop Protection,Nematicide,Fluensulfone 2% GR,15%
+Crop Protection,Nematicide,Nematicide,20%
+Crop Protection,Nematicide,Paecilomyces Lilacinus,20%
+Crop Protection,Nematicide,Pochonia chlamydposporia 1%,20%
+Crop Protection,Nematicide,Verticillium chlamydosporium 1% WP,20%
+Crop Nutrition,Flowering Stimulants,Flower & Fruit Stimulation (Powder Form),20%
+Crop Nutrition,Flowering Stimulants,Flower Enhancer (Nano Technology Based),20%
+Crop Nutrition,Flowering Stimulants,Flower Special Fertilizer,20%
+Crop Nutrition,Flowering Stimulants,Flower Special Kit,20%
+Crop Nutrition,Flowering Stimulants,Flowering and Fruiting - Capsule,20%
+Crop Nutrition,Flowering Stimulants,Nitrobenzene 20% Ew,20%
+Crop Nutrition,Flowering Stimulants,Nitrobenzene 35%,20%
+Crop Nutrition,Fruit Quality Enhancer,Fruit Enhancer,20%
+Crop Nutrition,Humic & Fulvic Acid,Fulvic,20%
+Crop Nutrition,Humic & Fulvic Acid,Humic + Fulvik,20%
+Crop Nutrition,Humic & Fulvic Acid,Potassium Fulvate,20%
+Crop Nutrition,Humic Acid,Humic,20%
+Crop Nutrition,Humic Acid,Humic Acid 98%,20%
+Crop Nutrition,Humic Acid,Humic Acid Granule,20%
+Crop Nutrition,Humic Acid,Humic Acid Liquid,20%
+Crop Nutrition,Humic Acid,Super Potassium Humate,20%
+Crop Nutrition,Plant Growth Regulators,Alpha Naphthyl Acetic Acid 4.5% SL,20%
+Crop Nutrition,Plant Growth Regulators,Chlormequat Chloride 50% SL,20%
+Crop Nutrition,Plant Growth Regulators,Cyclanilide 2.10% + Mepiquat Chloride 8.40% SC,20%
+Crop Nutrition,Plant Growth Regulators,Cytokinins and Enzymes,20%
+Crop Nutrition,Plant Growth Regulators,Ethephon 39% S.L.,20%
+Crop Nutrition,Plant Growth Regulators,Forchlorfenuron 0.01%,20%
+Crop Nutrition,Plant Growth Regulators,Gibberellic Acid 0.001%,20%
+Crop Nutrition,Plant Growth Regulators,Gibberellic acid 0.1% GR,20%
+Crop Nutrition,Plant Growth Regulators,Gibberellic Acid 0.186% SP,20%
+Crop Nutrition,Plant Growth Regulators,Gibberellic Acid 40% WSG,20%
+Crop Nutrition,Plant Growth Regulators,Gibberellic Acid 90% w/w Tech,20%
+Crop Nutrition,Plant Growth Regulators,Homobrassinolide 0.04%,20%
+Crop Nutrition,Plant Growth Regulators,Mepiquat Chloride 5% AS,20%
+Crop Nutrition,Plant Growth Regulators,Organic Certified Pgr / Pgp,20%
+Crop Nutrition,Plant Growth Regulators,Paclobutrazol 23% SC,20%
+Crop Nutrition,Plant Growth Regulators,Paclobutrazol 40% SC,20%
+Crop Nutrition,Plant Growth Regulators,Para Nitro phenolate 0.3% SL,20%
+Crop Nutrition,Plant Growth Regulators,PGP/PGR ampule,20%
+Crop Nutrition,Plant Growth Regulators,Plant Growth Promoter,20%
+Crop Nutrition,Plant Growth Regulators,Plant Growth Promoter- Powder,20%
+Crop Nutrition,Plant Growth Regulators,Plant growth Regulator,20%
+Crop Nutrition,Plant Growth Regulators,Seed Treatment & Germination,20%
+Crop Nutrition,Plant Growth Regulators,Stress Alleviator PGR/PGP,20%
+Crop Nutrition,Plant Growth Regulators,Triacontanol 0.05% EC,20%
+Crop Nutrition,Plant Growth Regulators,Triacontanol 0.1% EW,20%
+Crop Nutrition,Plant Growth Regulators,Triacontanol GR 0.05%,20%
+Crop Nutrition,Yield Booster,Take Off,20%
+Crop Nutrition,Yield Booster,Yield Enhancer,20%
+Crop Nutrition,Yield Booster,Zyme Granules,20%
+Crop Nutrition,pH Balancer,PH Balancer,20%
+Fertilizers,Bio Fertilizers,Acetobacter,25%
+Fertilizers,Bio Fertilizers,Azospirillum Spp.,25%
+Fertilizers,Bio Fertilizers,Azotobacter,25%
+Fertilizers,Bio Fertilizers,Bacillus Spp.,25%
+Fertilizers,Bio Fertilizers,Calcium Solubilizing Bacteria,25%
+Fertilizers,Bio Fertilizers,Liquid Biological Fertilizer,25%
+Fertilizers,Bio Fertilizers,NPK Microbial Consortia- Capsule,25%
+Fertilizers,Bio Fertilizers,NPK Microbial Consortia- Liquid,25%
+Fertilizers,Bio Fertilizers,NPK Microbial Consortia- Powder,25%
+Fertilizers,Bio Fertilizers,Phosphate Solubilizing Bacteria,25%
+Fertilizers,Bio Fertilizers,Phosphate Solubilizing Bacteria Powder,25%
+Fertilizers,Bio Fertilizers,Phosphate Solubilizing Fungi,25%
+Fertilizers,Bio Fertilizers,Potassium Mobilizing Bacteria (Capsule),25%
+Fertilizers,Bio Fertilizers,Potassium Mobilizing Bacteria (Liquid),25%
+Fertilizers,Bio Fertilizers,Potassium Mobilizing Bacteria (Powder),25%
+Fertilizers,Bio Fertilizers,Rhizobium,25%
+Fertilizers,Bio Fertilizers,Sulphur + Iron Solublizing Bacteria,25%
+Fertilizers,Bio Fertilizers,Thiobacillus Spp.,25%
+Fertilizers,Bio Fertilizers,Zinc Solubilizing Bacteria- Liquid,25%
+Fertilizers,Bio Fertilizers,Zinc Solubilizing Bacteria- Powder,25%
+Fertilizers,Chelated Micronutrient Fertilizer,"Boron, Amino Acid Chelated",20%
+Fertilizers,Chelated Micronutrient Fertilizer,Calcium EDTA,20%
+Fertilizers,Chelated Micronutrient Fertilizer,"Calcium, Amino Acid Chelated",20%
+Fertilizers,Chelated Micronutrient Fertilizer,Chelated Micronutrient Mixture,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Copper Amino Chelated,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Copper Cu 12% EDTA Chelated,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Cu EDTA 7.5%,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Fe EDDHA 6% Iron Chelate,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Ferrous Amino Chelated,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Manganese Amino Chelated,20%
+Fertilizers,Chelated Micronutrient Fertilizer,Manganese EDTA 9%,20%
+Fertilizers,Chelated Micronutrient Fertilizer,"Zinc, Amino Acid Chelated",20%
+Fertilizers,Liquid Fertilizers,Amino Acid 20%,20%
+Fertilizers,Liquid Fertilizers,Amino Acid 55% Powder,20%
+Fertilizers,Liquid Fertilizers,Amino Acid 80%,20%
+Fertilizers,Liquid Fertilizers,Amino Acid Chelated Powder,20%
+Fertilizers,Liquid Fertilizers,Amino Acid Liquid,20%
+Fertilizers,Liquid Fertilizers,Amino Acids 89% + Aascophyllum Nodosum 11%,20%
+Fertilizers,Liquid Fertilizers,Calcium 15% Liquid,20%
+Fertilizers,Liquid Fertilizers,Folic Acid,20%
+Fertilizers,Liquid Fertilizers,Liquid Mineral Sapropel Fertilizer,20%
+Fertilizers,Liquid Fertilizers,Liquid Sulphur,20%
+Fertilizers,Liquid Fertilizers,"Nano Urea, Dap",20%
+Fertilizers,Liquid Fertilizers,Organic Acid 22%,20%
+Fertilizers,Liquid Fertilizers,Orthosilicic Acid,20%
+Fertilizers,Liquid Fertilizers,Peptide Mixture,20%
+Fertilizers,Liquid Fertilizers,"Seaweed 8%, Tea Saponin 5%, Aqueous Media 87%",20%
+Fertilizers,Liquid Fertilizers,Seaweed Extract -Liquid,20%
+Fertilizers,Liquid Fertilizers,Seaweed Fertilizer (Soil Application),20%
+Fertilizers,Liquid Fertilizers,Seaweed Gel,20%
+Fertilizers,Liquid Fertilizers,Seaweed Powder,20%
+Fertilizers,Liquid Fertilizers,Silica Granule,20%
+Fertilizers,Liquid Fertilizers,Silica Liquid,20%
+Fertilizers,Liquid Fertilizers,Silicon Fertilizer,20%
+Fertilizers,Liquid Fertilizers,Soil Drenching Fertilizer,20%
+Fertilizers,Liquid Fertilizers,Super Phosphoric Acid 70% Liquid,20%
+Fertilizers,Micronutrients Fertilizers,Ammonium Molybdate,20%
+Fertilizers,Micronutrients Fertilizers,Bentonite Sulphur 90%,20%
+Fertilizers,Micronutrients Fertilizers,Boron 10%,20%
+Fertilizers,Micronutrients Fertilizers,Boron 11% Liquid,20%
+Fertilizers,Micronutrients Fertilizers,Boron 14.5%,20%
+Fertilizers,Micronutrients Fertilizers,Boron 20%,20%
+Fertilizers,Micronutrients Fertilizers,Boron Ethanolamine,20%
+Fertilizers,Micronutrients Fertilizers,Calcium 11%,20%
+Fertilizers,Micronutrients Fertilizers,Calcium chloride,20%
+Fertilizers,Micronutrients Fertilizers,Calcium Nitrate,20%
+Fertilizers,Micronutrients Fertilizers,Calcium18.80% Nitrate 15.50%,20%
+Fertilizers,Micronutrients Fertilizers,Copper Sulfate Pentahydrate 23.99%,20%
+Fertilizers,Micronutrients Fertilizers,Copper Sulphate,20%
+Fertilizers,Micronutrients Fertilizers,Fe 12%,20%
+Fertilizers,Micronutrients Fertilizers,Ferrous Sulphate 19% + Sulphur 10.5%,20%
+Fertilizers,Micronutrients Fertilizers,Liquid Multi Micronutrient Fertilizer,20%
+Fertilizers,Micronutrients Fertilizers,magnesium 34%,20%
+Fertilizers,Micronutrients Fertilizers,Magnesium 6%,20%
+Fertilizers,Micronutrients Fertilizers,Magnesium Nitrate,20%
+Fertilizers,Micronutrients Fertilizers,Magnesium Sulphate 9.5%,20%
+Fertilizers,Micronutrients Fertilizers,Manganese 12%,20%
+Fertilizers,Micronutrients Fertilizers,Manganese 30.5% + Sulphure 17%,20%
+Fertilizers,Micronutrients Fertilizers,Manganese Mn 48%,20%
+Fertilizers,Micronutrients Fertilizers,Multi Micronutrient,20%
+Fertilizers,Micronutrients Fertilizers,Sulphur 65% + Zinc 18%,20%
+Fertilizers,Micronutrients Fertilizers,Sulphur 67% + Zinc 14%,20%
+Fertilizers,Micronutrients Fertilizers,Zinc 12%,20%
+Fertilizers,Micronutrients Fertilizers,Zinc Fertilizer,20%
+Fertilizers,Micronutrients Fertilizers,Zinc Gluconate 12%,20%
+Fertilizers,Micronutrients Fertilizers,Zinc Oxide 39.5%,20%
+Fertilizers,Micronutrients Fertilizers,Zinc Polyphosphate,20%
+Fertilizers,Micronutrients Fertilizers,Zinc Sulphate Heptahydrate (Zinc 21%),20%
+Fertilizers,Micronutrients Fertilizers,Zinc Sulphate Monohydrate (Zinc 33%),20%
+Fertilizers,Micronutrients Fertilizers,Zn-17.5% Zinc and Phosphorus,20%
+Fertilizers,Root Fertility Booster,Carbon,20%
+Fertilizers,Root Fertility Booster,Mycorrhiza,25%
+Fertilizers,Root Fertility Booster,Plant Root Growth Promoter,20%
+Fertilizers,Root Fertility Booster,Soil Conditioner,20%
+Fertilizers,Root Fertility Booster,Starch-Based Super Absorbent,20%
+Fertilizers,Root Fertility Booster,VAM (Vesicular Arbuscular Mycorrhiza),25%
+Fertilizers,Water Soluble Fertilizers,"Ammonium nitrogen 21%, Sulfur 24%",20%
+Fertilizers,Water Soluble Fertilizers,Ammonium Sulphate 21%,20%
+Fertilizers,Water Soluble Fertilizers,Ammonium Sulphate Fertilizer,20%
+Fertilizers,Water Soluble Fertilizers,Heterocyclic Nitrogen 19% + Potassium Humate 7%,20%
+Fertilizers,Water Soluble Fertilizers,Nitrogen 7% + Phosphorus 21%,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:00:23,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:00:50 (Potassium Sulphate),20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:00:60,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:09:46,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:22:00:03,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:49:32,20%
+Fertilizers,Water Soluble Fertilizers,NPK 00:52:34 (Mono Potassium Phosphate),20%
+Fertilizers,Water Soluble Fertilizers,NPK 03:50:50,20%
+Fertilizers,Water Soluble Fertilizers,NPK 05:00:30,20%
+Fertilizers,Water Soluble Fertilizers,Npk 05:05:46:09,20%
+Fertilizers,Water Soluble Fertilizers,NPK 05:10:15,20%
+Fertilizers,Water Soluble Fertilizers,Npk 05:55:17,20%
+Fertilizers,Water Soluble Fertilizers,NPK 08:00:47+7S,20%
+Fertilizers,Water Soluble Fertilizers,NPK 08:08:08,20%
+Fertilizers,Water Soluble Fertilizers,NPK 08:10:33,20%
+Fertilizers,Water Soluble Fertilizers,NPK 08:16:39,20%
+Fertilizers,Water Soluble Fertilizers,NPK 09:00:18,20%
+Fertilizers,Water Soluble Fertilizers,NPK 09:00:43,20%
+Fertilizers,Water Soluble Fertilizers,NPK 10:10:10,20%
+Fertilizers,Water Soluble Fertilizers,NPK 10:15:25,20%
+Fertilizers,Water Soluble Fertilizers,NPK 10:18:24,20%
+Fertilizers,Water Soluble Fertilizers,NPK 10:26:26,20%
+Fertilizers,Water Soluble Fertilizers,NPK 10:34:00 (Ammonium Polyphosphate),20%
+Fertilizers,Water Soluble Fertilizers,NPK 11:11:08,20%
+Fertilizers,Water Soluble Fertilizers,NPK 11:11:16,20%
+Fertilizers,Water Soluble Fertilizers,NPK 11:36:24,20%
+Fertilizers,Water Soluble Fertilizers,NPK 11:42:11,20%
+Fertilizers,Water Soluble Fertilizers,NPK 11:52:00,20%
+Fertilizers,Water Soluble Fertilizers,NPK 12:05:27,20%
+Fertilizers,Water Soluble Fertilizers,NPK 12:11:18,20%
+Fertilizers,Water Soluble Fertilizers,NPK 12:24:12,20%
+Fertilizers,Water Soluble Fertilizers,NPK 12:32:16,20%
+Fertilizers,Water Soluble Fertilizers,NPK 12:61:00 (Mono Ammonium Phosphate),20%
+Fertilizers,Water Soluble Fertilizers,NPK 13:00:45 (Potassium Nitrate),20%
+Fertilizers,Water Soluble Fertilizers,NPK 13:40:13,20%
+Fertilizers,Water Soluble Fertilizers,NPK 14:08:30,20%
+Fertilizers,Water Soluble Fertilizers,NPK 14:48:00,20%
+Fertilizers,Water Soluble Fertilizers,NPK 15:15:15,20%
+Fertilizers,Water Soluble Fertilizers,NPK 17:17:17,20%
+Fertilizers,Water Soluble Fertilizers,NPK 17:44:00,20%
+Fertilizers,Water Soluble Fertilizers,NPK 18:18:18,20%
+Fertilizers,Water Soluble Fertilizers,NPK 19:19:19,20%
+Fertilizers,Water Soluble Fertilizers,NPK 20:20:20,20%
+Fertilizers,Water Soluble Fertilizers,NPK 22:10:08,20%
+Fertilizers,Water Soluble Fertilizers,Npk 25:16:12,20%
+Fertilizers,Water Soluble Fertilizers,NPK 25:25:25,20%
+Fertilizers,Water Soluble Fertilizers,NPK 28:28:00,20%
+Fertilizers,Water Soluble Fertilizers,NPK 30:30:30,20%
+Fertilizers,Water Soluble Fertilizers,NPK 4:18:38,20%
+Fertilizers,Water Soluble Fertilizers,NPK 5:5:5,20%
+Fertilizers,Water Soluble Fertilizers,NPK 7.16 : 24.9 : 6.39,20%
+Fertilizers,Water Soluble Fertilizers,NPKS 9:27:18:7.5,20%
+Fertilizers,Water Soluble Fertilizers,Potash Chemical Fertilizer,20%
+Fertilizers,Water Soluble Fertilizers,Potassium 46.5%,20%
+Fertilizers,Water Soluble Fertilizers,Potassium Schoenite,20%
+Organic Farming,Neem Oil,Neem Oil,20%
+Organic Farming,Neem Oil,Neem Oil 10000 PPM,20%
+Organic Farming,Neem Oil,Neem Oil 1500 PPM,20%
+Organic Farming,Neem Oil,Neem Oil 300 PPM,20%
+Organic Farming,Neem Oil,Neem Oil 3000 PPM,20%
+Organic Farming,Neem Oil,Neem Oil 5000 PPM,20%
+Organic Farming,Neem Oil,Neem Oil 50000 PPM,20%
+Organic Farming,Organic Remedial Inputs,Organic Fungal Control,20%
+Organic Farming,Organic Remedial Inputs,Agniastra,20%
+Organic Farming,Organic Remedial Inputs,Bitter and Biodegradable Compounds,20%
+Organic Farming,Organic Remedial Inputs,Larvicide - Organic,20%
+Organic Farming,Organic Remedial Inputs,Organic Pesticide,20%
+Organic Farming,Organic Remedial Inputs,Sucking Pest Controller - Organic,20%
+Organic Farming,Organic Remedial Inputs,Weed Control Organic,20%
+Organic Farming,Viricides,Viricide,15%
+Organic Farming,Waste Decomposer,Waste decomposer,25%
+Gardening,Fertilizer,Kitchen Garden Fertilizer,20%
+Gardening,Fertilizer Blend,Fertilizer blends,20%
+Gardening,Pesticides,Kitchen Garden Pesticide,20%
+Equipments,Traps,Mosquito and Insect Traps,15%
+Equipments,Traps,Solar Insect Trap,15%
+Equipments,Traps,Sticky trap and Sticker,15%
+Equipments,Traps,Sticky trap and Sticker (A5 Size),15%
+Equipments,Traps,"Bactrocera Correcta, Zonata and Dorsalisa",15%
+Equipments,Traps,Bactrocera Cucurbitae Melon Fly Trap & Lure,15%
+Equipments,Traps,Bactrocera dorsalis Fruit Fly Trap & Lure,15%
+Equipments,Traps,Chilo Infescatellus (Sugarcane Early Shoot Borer) Trap & Lure,15%
+Equipments,Traps,Chilo Sacchariphagus Indicus Trap & Lure,15%
+Equipments,Traps,Earias Vittella (Spotted Bollworm) Trap & Lure,15%
+Equipments,Traps,Helicoverpa Armigera Trap & Lure,15%
+Equipments,Traps,Holotrichia Serrata (White Grub) Trap & Lure,15%
+Equipments,Traps,Leucinodes Orbonalis Trap & Lure,15%
+Equipments,Traps,Mouse Glue Trap,15%
+Equipments,Traps,Pectinophora gossypiella (Pink Bollworm) Trap & Lure,15%
+Equipments,Traps,Plutella xylostella Trap & Lure,15%
+Equipments,Traps,Rb Rhinoceros Beetle Trap & Lure,15%
+Equipments,Traps,RPW Red Palm Weevil (Rhynchophorus Ferrugineus),15%
+Equipments,Traps,Scirpophaga excerptalis Sugarcane Top Borer Trap & Lure,15%
+Equipments,Traps,Scirpophaga Incertulas Yellow Stem Borer Trap & Lure,15%
+Equipments,Traps,Spodoptera Frugiperda Trap & Lure,15%
+Equipments,Traps,Spodoptera Litura Trap & Lure,15%
+Equipments,Traps,Traps & Lures,15%
+Equipments,Traps,Tuta Absoluta Trap & Lure,15%
+Bulk,Fertilizers,Amino Acids 80% Bulk,20%
+Bulk,Fertilizers,Boron 20% Bulk,20%
+Bulk,Fertilizers,Calcium 18.8% Nitrate 14.0% Bulk,20%
+Bulk,Fertilizers,Fulvic Acid Bulk,20%
+Bulk,Fertilizers,Magnesium Sulphate 9.5% Bulk,20%
+Bulk,Fertilizers,NPK 00:00:50 (Bulk),20%
+Bulk,Fertilizers,NPK 00:52:34 (Bulk),20%
+Bulk,Fertilizers,NPK 12:61:00 (Bulk),20%
+Bulk,Fertilizers,NPK 13:00:45 (Bulk),20%
+Bulk,Fertilizers,NPK 13:40:13 (Bulk),20%
+Bulk,Fertilizers,NPK 19:19:19 (Bulk),20%
+Bulk,Fertilizers,NPK 20:20:20 (Bulk),20%
+Bulk,Fertilizers,Seaweed Extract (Bulk),20%
+Bulk,Fertilizers,Super Potassium Humate (Bulk),20%
+Bulk,Fertilizers,Zinc 12% Bulk,20%
