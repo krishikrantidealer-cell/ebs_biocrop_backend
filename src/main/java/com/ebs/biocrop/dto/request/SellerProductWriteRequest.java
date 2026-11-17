@@ -71,17 +71,17 @@ public class SellerProductWriteRequest {
     public static class VariantWriteRequest {
         @Size(max = 24) private String id;
         @Size(max = 160) private String label;
-        @NotBlank @Size(max = 20) private String unit;
+        @NotBlank @Size(max = 20) @com.fasterxml.jackson.annotation.JsonAlias("packSizeUnit") private String unit;
         @NotNull @Positive private Integer packSize;
-        @NotBlank @Size(max = 20) private String packSizeUnit;
         @NotNull @Positive private Integer packQuantity;
         @Size(max = 120) private String shippedBy;
         @Size(max = 80) private String shippingThrough;
         @PositiveOrZero private Double swg;
+        @PositiveOrZero private Double productWeight;
+        @Size(max = 10) private String productWeightUnit;
         @Size(max = 10) @Valid private List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
         @NotNull @PositiveOrZero private Double displayRate;
         @PositiveOrZero private Double printedMrp;
-        @PositiveOrZero private Double amountYouWillReceive;
         @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
         @PositiveOrZero private Double courierCharges;
         @PositiveOrZero @DecimalMax("100") private Double gstPercentage;
@@ -102,10 +102,11 @@ public class SellerProductWriteRequest {
             ProductVariant variant = new ProductVariant();
             variant.setId(id);
             variant.setLabel(label); variant.setUnit(unit); variant.setPackSize(packSize);
-            variant.setPackSizeUnit(packSizeUnit); variant.setPackQuantity(packQuantity);
-            variant.setShippedBy(shippedBy); variant.setShippingThrough(shippingThrough); variant.setSwg(swg); variant.setDimensions(dimensions);
+            variant.setPackQuantity(packQuantity);
+            variant.setShippedBy(shippedBy); variant.setShippingThrough(shippingThrough); variant.setSwg(swg);
+            variant.setProductWeight(productWeight); variant.setProductWeightUnit(productWeightUnit);
+            variant.setDimensions(dimensions);
             variant.setDisplayRate(displayRate); variant.setPrintedMrp(printedMrp);
-            variant.setAmountYouWillReceive(amountYouWillReceive);
             variant.setCommissionPercentage(commissionPercentage); variant.setCourierCharges(courierCharges);
             variant.setGstPercentage(gstPercentage); variant.setDiscountOnMrpRs(discountOnMrpRs);
             variant.setDiscountPercentage(discountPercentage); variant.setStock(stock); variant.setPaymentMethod(paymentMethod);
@@ -125,8 +126,6 @@ public class SellerProductWriteRequest {
         public void setUnit(String unit) { this.unit = unit; }
         public Integer getPackSize() { return packSize; }
         public void setPackSize(Integer packSize) { this.packSize = packSize; }
-        public String getPackSizeUnit() { return packSizeUnit; }
-        public void setPackSizeUnit(String packSizeUnit) { this.packSizeUnit = packSizeUnit; }
         public Integer getPackQuantity() { return packQuantity; }
         public void setPackQuantity(Integer packQuantity) { this.packQuantity = packQuantity; }
         public String getShippedBy() { return shippedBy; }
@@ -135,10 +134,12 @@ public class SellerProductWriteRequest {
         public void setShippingThrough(String shippingThrough) { this.shippingThrough = shippingThrough; }
         public Double getSwg() { return swg; }
         public void setSwg(Double swg) { this.swg = swg; }
+        public Double getProductWeight() { return productWeight; }
+        public void setProductWeight(Double productWeight) { this.productWeight = productWeight; }
+        public String getProductWeightUnit() { return productWeightUnit; }
+        public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
         public List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; }
         public void setDimensions(List<com.ebs.biocrop.entity.ProductDimensions> dimensions) { this.dimensions = dimensions; }
-        public Double getAmountYouWillReceive() { return amountYouWillReceive; }
-        public void setAmountYouWillReceive(Double amountYouWillReceive) { this.amountYouWillReceive = amountYouWillReceive; }
         public Double getDisplayRate() { return displayRate; }
         public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
         public Double getDiscountOnMrpRs() { return discountOnMrpRs; }

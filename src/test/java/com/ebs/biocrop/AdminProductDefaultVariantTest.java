@@ -69,7 +69,7 @@ class AdminProductDefaultVariantTest {
         v1.setId(new ObjectId().toHexString());
         v1.setLabel("1 Ltr");
         v1.setPackSize(1);
-        v1.setPackSizeUnit("ltr");
+        v1.setUnit("ltr");
         v1.setPackQuantity(1);
         v1.setDisplayRate(500.0);
         v1.setStock(50);
@@ -81,7 +81,7 @@ class AdminProductDefaultVariantTest {
         v2.setId(new ObjectId().toHexString());
         v2.setLabel("2 Ltr");
         v2.setPackSize(2);
-        v2.setPackSizeUnit("ltr");
+        v2.setUnit("ltr");
         v2.setPackQuantity(1);
         v2.setDisplayRate(950.0);
         v2.setStock(40);
@@ -93,7 +93,7 @@ class AdminProductDefaultVariantTest {
         v3.setId(new ObjectId().toHexString());
         v3.setLabel("5 Ltr");
         v3.setPackSize(5);
-        v3.setPackSizeUnit("ltr");
+        v3.setUnit("ltr");
         v3.setPackQuantity(1);
         v3.setDisplayRate(2200.0);
         v3.setStock(30);
@@ -221,7 +221,7 @@ class AdminProductDefaultVariantTest {
         AdminProductVariantWriteRequest write = new AdminProductVariantWriteRequest();
         write.setLabel("10 Ltr");
         write.setPackSize(10);
-        write.setPackSizeUnit("ltr");
+        write.setUnit("ltr");
         write.setPackQuantity(1);
         write.setUnit("ltr");
         write.setDisplayRate(3900.0);

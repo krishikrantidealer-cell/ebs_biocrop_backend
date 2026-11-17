@@ -84,7 +84,7 @@ class AdminProductUpdateControllerTest {
         v.setLabel("1 Liter");
         v.setUnit("l");
         v.setPackSize(1);
-        v.setPackSizeUnit("l");
+        v.setUnit("l");
         v.setPackQuantity(1);
         v.setDisplayRate(500.0);
         v.setStock(50);
@@ -114,7 +114,7 @@ class AdminProductUpdateControllerTest {
         variant.setLabel("1 Liter");
         variant.setUnit("l");
         variant.setPackSize(1);
-        variant.setPackSizeUnit("l");
+        variant.setUnit("l");
         variant.setPackQuantity(1);
         variant.setDisplayRate(750.0);
         variant.setPrintedMrp(850.0);

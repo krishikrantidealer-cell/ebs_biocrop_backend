@@ -1,6 +1,7 @@
 package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.controller.FastrrCatalogController;
+import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
 import com.ebs.biocrop.entity.ProductImage;
@@ -68,6 +69,14 @@ public class FastrrCatalogSyncService {
         fastrrCheckoutService.pushCollectionWebhookAsync(payload);
     }
 
+    public void syncCategoryAsync(Category category) {
+        if (category == null || fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
+            return;
+        }
+        Map<String, Object> payload = toFastrrCategoryCollectionPayload(category, imageStorage);
+        fastrrCheckoutService.pushCollectionWebhookAsync(payload);
+    }
+
     public static Map<String, Object> toFastrrProductPayload(
             Product product,
             String currentSellerName,
@@ -127,7 +136,7 @@ public class FastrrCatalogSyncService {
                 Map<String, Object> vm = new LinkedHashMap<>();
                 vm.put("id", FastrrCatalogController.toFastrrVariantId(product, v, vIndex));
                 vm.put("title", v.getLabel() != null ? v.getLabel()
-                        : (v.getPackSize() != null ? v.getPackSize() + " " + v.getPackSizeUnit() : "Standard"));
+                        : (v.getPackSize() != null ? v.getPackSize() + " " + v.getUnit() : "Standard"));
                 double price = v.getDisplayRate() != null ? v.getDisplayRate() : 0.0;
                 vm.put("price", String.format(Locale.ROOT, "%.2f", price));
                 vm.put("sku", v.getSku() != null ? v.getSku() : product.getSku());
@@ -193,6 +202,46 @@ public class FastrrCatalogSyncService {
                         collection.getId() != null ? collection.getId() : "fastrr", collection.getImage());
             } catch (RuntimeException ex) {
                 log.warn("[FASTRR] Failed to resolve collection image URL for {}: {}", collection.getId(), ex.getMessage());
+            }
+        }
+        imgObj.put("src", imageUrl != null ? imageUrl : FALLBACK_IMAGE_URL);
+        m.put("image", imgObj);
+        return m;
+    }
+
+    public static Map<String, Object> toFastrrCategoryCollectionPayload(
+            Category category,
+            GcsImageStorageService imageStorage) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", FastrrCatalogController.toNumericId(category.getId()));
+        m.put("title", category.getName() != null ? category.getName() : "Category");
+        m.put("handle", category.getSlug() != null ? category.getSlug()
+                : String.valueOf(FastrrCatalogController.toNumericId(category.getId())));
+        m.put("body_html", category.getBannerTitle() != null && !category.getBannerTitle().isBlank()
+                ? "<p>" + category.getBannerTitle() + "</p>"
+                : "");
+
+        String createdAtStr = category.getCreatedAt() != null
+                ? ISO_FORMATTER.format(category.getCreatedAt().atOffset(ZoneOffset.UTC))
+                : ISO_FORMATTER.format(Instant.now().atOffset(ZoneOffset.UTC));
+        String updatedAtStr = category.getUpdatedAt() != null
+                ? ISO_FORMATTER.format(category.getUpdatedAt().atOffset(ZoneOffset.UTC))
+                : createdAtStr;
+
+        m.put("created_at", createdAtStr);
+        m.put("updated_at", updatedAtStr);
+
+        Map<String, Object> imgObj = new LinkedHashMap<>();
+        String imageUrl = null;
+        String rawImage = (category.getCategoryImageUri() != null && !category.getCategoryImageUri().isBlank())
+                ? category.getCategoryImageUri()
+                : category.getBannerImage();
+        if (imageStorage != null && rawImage != null && !rawImage.isBlank()) {
+            try {
+                imageUrl = imageStorage.createCategoryImageReadUrl(
+                        category.getId() != null ? category.getId() : "fastrr", rawImage);
+            } catch (RuntimeException ex) {
+                log.warn("[FASTRR] Failed to resolve category image URL for {}: {}", category.getId(), ex.getMessage());
             }
         }
         imgObj.put("src", imageUrl != null ? imageUrl : FALLBACK_IMAGE_URL);

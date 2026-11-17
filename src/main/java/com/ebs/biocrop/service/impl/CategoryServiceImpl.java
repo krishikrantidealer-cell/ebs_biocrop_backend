@@ -51,6 +51,9 @@ public class CategoryServiceImpl implements CategoryService {
     private final MongoTemplate mongoTemplate;
     private final WebSocketService webSocketService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.FastrrCatalogSyncService fastrrCatalogSyncService;
+
     public CategoryServiceImpl(CategoryRepository categories, RedisJsonCache redisCache,
                                GcsImageStorageService imageStorage, ProductImageVariantService imageValidator,
                                MongoTemplate mongoTemplate, WebSocketService webSocketService) {
@@ -375,6 +378,9 @@ public class CategoryServiceImpl implements CategoryService {
                 "level", category.getLevel() != null ? category.getLevel() : 0
         );
         webSocketService.broadcast("categories:update", payload);
+        if (fastrrCatalogSyncService != null && Boolean.TRUE.equals(category.getIsActive())) {
+            fastrrCatalogSyncService.syncCategoryAsync(category);
+        }
     }
 
     private void broadcastCategoryDelete(String categoryId) {

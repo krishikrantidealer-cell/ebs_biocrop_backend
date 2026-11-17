@@ -64,10 +64,10 @@ public record ProductManagementResponse(
     }
 
     public record ManagementVariant(String id, String sku, String label, String unit, Integer packSize,
-                                    String packSizeUnit, Integer packQuantity,
-                                    String shippedBy, String shippingThrough, Double swg, List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
+                                    Integer packQuantity,
+                                    String shippedBy, String shippingThrough, Double swg, Double productWeight, String productWeightUnit, List<com.ebs.biocrop.entity.ProductDimensions> dimensions,
                                     Double displayRate, Double printedMrp,
-                                    Double amountYouWillReceive, Double commissionPercentage, Double courierCharges,
+                                    Double commissionPercentage, Double courierCharges,
                                     Double discountOnMrpRs, Double gstPercentage, Double discountPercentage,
                                     com.ebs.biocrop.entity.enums.PaymentMethod paymentMethod,
                                     Boolean isPrepaidAllowed, Boolean isPartialPaymentAllowed,
@@ -76,10 +76,10 @@ public record ProductManagementResponse(
                                     Boolean isDefault) {
         static ManagementVariant from(ProductVariant variant) {
             return new ManagementVariant(variant.getId(), variant.getSku(), variant.getLabel(), variant.getUnit(),
-                    variant.getPackSize(), variant.getPackSizeUnit(), variant.getPackQuantity(),
-                    variant.getShippedBy(), variant.getShippingThrough(), variant.getSwg(), variant.getDimensions(),
+                    variant.getPackSize(), variant.getPackQuantity(),
+                    variant.getShippedBy(), variant.getShippingThrough(), variant.getSwg(), variant.getProductWeight(), variant.getProductWeightUnit(), variant.getDimensions(),
                     variant.getDisplayRate(), variant.getPrintedMrp(),
-                    variant.getAmountYouWillReceive(), variant.getCommissionPercentage(), variant.getCourierCharges(),
+                    variant.getCommissionPercentage(), variant.getCourierCharges(),
                     variant.getDiscountOnMrpRs(), variant.getGstPercentage(), variant.getDiscountPercentage(),
                     variant.getPaymentMethod(), variant.getIsPrepaidAllowed(), variant.getIsPartialPaymentAllowed(),
                     variant.getMinimumPartialPaymentPercentage(), variant.getCodCharge(),

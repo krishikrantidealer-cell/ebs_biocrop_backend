@@ -1,6 +1,7 @@
 package com.ebs.biocrop.controller;
 
 import com.ebs.biocrop.dto.response.ApiResponse;
+import com.ebs.biocrop.entity.Category;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.ProductCollection;
@@ -8,6 +9,7 @@ import com.ebs.biocrop.entity.ProductImage;
 import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.entity.User;
 import com.ebs.biocrop.entity.enums.UserRole;
+import com.ebs.biocrop.repository.CategoryRepository;
 import com.ebs.biocrop.repository.ProductCollectionRepository;
 import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.service.FastrrCheckoutService;
@@ -81,6 +83,9 @@ public class FastrrCatalogController {
 
     @Autowired(required = false)
     private ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private CategoryRepository categoryRepository;
 
     public FastrrCatalogController(ProductRepository productRepository,
                                    ProductCollectionRepository collectionRepository,
@@ -196,17 +201,25 @@ public class FastrrCatalogController {
             @RequestParam(defaultValue = "12") int limit) {
 
         List<ProductCollection> allCollections = collectionRepository.findByIsActiveTrueOrderByPriorityAscNameAsc();
-        int total = allCollections.size();
+        List<Category> allCategories = categoryRepository != null
+                ? categoryRepository.findByIsActiveTrueOrderBySortOrderAscNameAsc()
+                : List.of();
+
+        List<Map<String, Object>> combinedCollections = new ArrayList<>(allCollections.size() + allCategories.size());
+        for (ProductCollection c : allCollections) {
+            combinedCollections.add(mapToFastrrCollection(c));
+        }
+        for (Category cat : allCategories) {
+            combinedCollections.add(mapToFastrrCategoryCollection(cat));
+        }
+
+        int total = combinedCollections.size();
 
         int pageSize = Math.min(Math.max(1, limit), 100);
         long requestedOffset = Math.max(0L, (long) Math.max(1, page) - 1L) * pageSize;
         int fromIndex = requestedOffset >= total ? total : (int) requestedOffset;
         int toIndex = Math.min(fromIndex + pageSize, total);
-        List<ProductCollection> paged = allCollections.subList(fromIndex, toIndex);
-
-        List<Map<String, Object>> mappedCollections = paged.stream()
-                .map(this::mapToFastrrCollection)
-                .toList();
+        List<Map<String, Object>> mappedCollections = combinedCollections.subList(fromIndex, toIndex);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("total", total);
@@ -287,7 +300,27 @@ public class FastrrCatalogController {
                     .map(token -> Criteria.where("assignedCollections").regex("^" + Pattern.quote(token) + "$", "i"))
                     .toArray(Criteria[]::new);
 
-            criteria = new Criteria().andOperator(criteria, new Criteria().orOperator(matches));
+            List<Criteria> collectionOrCategoryMatches = new ArrayList<>(Arrays.asList(matches));
+
+            // Also match active categories (and their descendants) when Fastrr queries a category collection
+            if (colOpt.isEmpty() && categoryRepository != null) {
+                List<Category> allCategories = categoryRepository.findByIsActiveTrueOrderBySortOrderAscNameAsc();
+                Optional<Category> matchedCat = allCategories.stream()
+                        .filter(cat -> (cat.getId() != null && cat.getId().equalsIgnoreCase(lookupId))
+                                || String.valueOf(toNumericId(cat.getId())).equals(lookupId)
+                                || (cat.getSlug() != null && cat.getSlug().equalsIgnoreCase(lookupId))
+                                || (cat.getName() != null && cat.getName().equalsIgnoreCase(lookupId)))
+                        .findFirst();
+                if (matchedCat.isPresent()) {
+                    Set<String> catIds = collectCategoryAndDescendantIds(matchedCat.get().getId(), allCategories);
+                    if (!catIds.isEmpty()) {
+                        collectionOrCategoryMatches.add(Criteria.where("categoryId").in(catIds));
+                    }
+                }
+            }
+
+            criteria = new Criteria().andOperator(criteria,
+                    new Criteria().orOperator(collectionOrCategoryMatches.toArray(Criteria[]::new)));
         }
 
         Query query = Query.query(criteria).with(pageable);
@@ -649,6 +682,30 @@ public class FastrrCatalogController {
     private Map<String, Object> mapToFastrrCollection(ProductCollection collection) {
         return com.ebs.biocrop.service.FastrrCatalogSyncService.toFastrrCollectionPayload(
                 collection, imageStorage);
+    }
+
+    private Map<String, Object> mapToFastrrCategoryCollection(Category category) {
+        return com.ebs.biocrop.service.FastrrCatalogSyncService.toFastrrCategoryCollectionPayload(
+                category, imageStorage);
+    }
+
+    private static Set<String> collectCategoryAndDescendantIds(String rootId, List<Category> allCategories) {
+        Set<String> ids = new LinkedHashSet<>();
+        if (rootId == null || rootId.isBlank()) {
+            return ids;
+        }
+        ids.add(rootId);
+        boolean added = true;
+        while (added) {
+            added = false;
+            for (Category cat : allCategories) {
+                if (cat.getId() != null && cat.getParentId() != null
+                        && ids.contains(cat.getParentId()) && ids.add(cat.getId())) {
+                    added = true;
+                }
+            }
+        }
+        return ids;
     }
 
     private String formatTimestamp(LocalDateTime dateTime) {

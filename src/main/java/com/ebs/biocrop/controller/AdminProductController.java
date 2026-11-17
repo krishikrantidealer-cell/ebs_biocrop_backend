@@ -104,7 +104,9 @@ public class AdminProductController {
                 .map(Product::getSellerId).filter(java.util.Objects::nonNull).distinct().toList());
         return ResponseEntity.ok(ApiResponse.ok("Admin product listings retrieved",
                 PagedResponse.from(result, product -> ProductManagementResponse.from(
-                        product, currentNames.get(product.getSellerId()), imageStorage))));
+                        product,
+                        product.getSellerId() != null ? currentNames.get(product.getSellerId()) : null,
+                        imageStorage))));
     }
 
     // Create a new product listing for an existing seller (JSON payload, no images)

@@ -256,7 +256,7 @@ class OrderPlacementServiceImplTest {
         firstVariant.setLabel("1 Litre Bottle");
         firstVariant.setUnit("l");
         firstVariant.setPackSize(1);
-        firstVariant.setPackSizeUnit("l");
+        firstVariant.setUnit("l");
         firstVariant.setPackQuantity(1);
         firstVariant.setPrintedMrp(100.0);
         firstVariant.setDisplayRate(80.0);
@@ -268,7 +268,7 @@ class OrderPlacementServiceImplTest {
         secondVariant.setLabel("500 Gram Pack");
         secondVariant.setUnit("g");
         secondVariant.setPackSize(500);
-        secondVariant.setPackSizeUnit("g");
+        secondVariant.setUnit("g");
         secondVariant.setPackQuantity(1);
         secondVariant.setStock(4);
         secondVariant.setPrintedMrp(50.0);

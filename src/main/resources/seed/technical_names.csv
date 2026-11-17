@@ -10,11 +10,14 @@
 9,A,Acetobacter,Bio-Fertilizer,25%
 10,A,Afidopyropen 5% DC,Insecticide,15%
 11,A,Agniastra,Bio / Organic Pesticide,20
+12,A,Albizia Tree Seeds,Seeds,15%
+13,A,Alfalfa Grass Seed,Seeds,15%
 14,A,Alpha cypermethrin 5% Wp,Insecticide,15%
 15,A,Alpha Naphthyl Acetic Acid 4.5% SL,Plant Growth Regulator (PGR),20%
 16,A,Alphacypermethrin 10% SC,Insecticide,15%
 17,A,Alphamethrin 10% EC,Insecticide,15%
 18,A,Aluminium Phosphide 56%,Rodenticide / Fumigant / Molluscicide,15
+19,A,Amaranthus Seeds,Seeds,15%
 20,A,Ametoctradin 27% + Dimethomorph 20.27%,Fungicide,15%
 21,A,Ametryne 80% WDG,Herbicide,10%
 22,A,Amine Salt 58 SL,Herbicide,10%
@@ -26,12 +29,24 @@
 28,A,Amino Acids 80% Bulk,Biostimulant,20
 29,A,Amino Acids 89% + Aascophyllum Nodosum 11%,Biostimulant,20
 30,A,Amisulbrom 20% SC,Fungicide,15%
+31,A,Amla fruit seeds (Phyllanthus mmblica),Seeds,15%
 32,A,Ammonium Molybdate,Micronutrient Fertilizer,20%
 33,A,"Ammonium nitrogen 21%, Sulfur 24%",NPK / Primary Fertilizer,20
 34,A,Ammonium Sulphate 21%,NPK / Primary Fertilizer,20
 35,A,Ammonium Sulphate Fertilizer,NPK / Primary Fertilizer,20
 36,A,Ampelomyces Quisqualis,Bio / Organic Pesticide,20
+37,A,Animal Health Supplements,Animal Husbandry & Aquaculture,15%
+38,A,Anjan Tree Seeds,Seeds,15%
+39,A,Aquaculture Feed Additives,Animal Husbandry & Aquaculture,15%
+40,A,Aquarium Algae Cleaner,Animal Husbandry & Aquaculture,15%
+41,A,Aquarium Liquid Carbon Dioxide (CO2),Animal Husbandry & Aquaculture,15%
+42,A,Aquarium Nutrient,Animal Husbandry & Aquaculture,15%
+43,A,Areca Palm Tree Seeds,Seeds,15%
+44,A,Ash Gourd Seeds,Seeds,15%
+45,A,Ashwagandha seeds,Seeds,15%
 46,A,Atrazine 50% WP,Herbicide,10%
+47,A,Avenue Tree seeds (Flowering Seeds),Seeds,15%
+48,A,Azolla Bed,Animal Husbandry & Aquaculture,15%
 49,A,Azospirillum Spp.,Bio-Fertilizer,25%
 50,A,Azotobacter,Bio-Fertilizer,25%
 51,A,Azoxystrobin 10% + Fipronil 5% SC,Insecticide + Fungicide,18
@@ -49,13 +64,22 @@
 63,A,Azoxystrobin 7.1% + Propiconazole 11.9% SE,Fungicide,15%
 64,A,Azoxystrobin 7% + Mancozeb 40% OS,Fungicide,15%
 65,A,Azoxystrobin 8.3% + Mancozeb 66.7% WG,Fungicide,15%
+66,B,Babul Seeds,Seeds,15%
+67,B,Baby Corn Seeds,Seeds,15%
 68,B,Bacillus Spp.,Bio-Fertilizer,25%
 69,B,Bacillus Thuringiensis,Bio / Organic Pesticide,20
 70,B,Bactericide,Bactericide / Viricide,15
 71,B,"Bactrocera Correcta, Zonata and Dorsalisa",Traps & Lures,15
 72,B,Bactrocera Cucurbitae Melon Fly Trap & Lure,Traps & Lures,15
 73,B,Bactrocera dorsalis Fruit Fly Trap & Lure,Traps & Lures,15
+74,B,Balsam Seeds,Seeds,15%
+75,B,Bamboo Seeds,Seeds,15%
+76,B,Banana Special,Crop-Specific Nutrient Kit,15%
+77,B,Barseem Clover,Seeds,15%
+78,B,Battery / Electric Operated Grass Cutter,Farm Equipment & Tools,15%
+79,B,Battery Operated Sprayer,Farm Equipment & Tools,15%
 80,B,Beauveria Bassiana,Bio / Organic Pesticide,20
+81,B,beet root seeds,Seeds,15%
 82,B,Benalaxyl-M 4% + Mancozeb 65% WP,Fungicide,15%
 83,B,Bensulfuron Methyl 4.8% + Pretilachlor 48% OD,Herbicide,10%
 84,B,Bentazone 48% SL,Herbicide,10%
@@ -64,10 +88,16 @@
 87,B,Betacyfluthrin 8.49% + Imidacloprid 19.81% OD,Insecticide,15%
 88,B,Bifenthrin 10% EC,Insecticide,15%
 89,B,Bifenthrin 8% + Clothianidin 10% SC,Insecticide,15%
+90,B,Biofloc Tank Accessories,Animal Husbandry & Aquaculture,15%
+91,B,Bioflock tank,Animal Husbandry & Aquaculture,15%
+92,B,Bird Food,Animal Husbandry & Aquaculture,15%
 93,B,Bispyribac Sodium 10%,Herbicide,10%
 94,B,Bispyribac sodium 20% + Pyrazosulfuron ethyl 15% WDG,Herbicide,10%
 95,B,Bitter and Biodegradable Compounds,Bio / Organic Pesticide,20
+96,B,Bittergourd General Seeds,Seeds,15%
+97,B,Bittergourd Hybrid Seeds,Seeds,15%
 98,B,Bixlozone 50% + Metribuzin 10% WG,Herbicide,10%
+99,B,Blower Gun,Farm Equipment & Tools,15%
 100,B,Boron 10%,Micronutrient Fertilizer,20%
 101,B,Boron 11% Liquid,Micronutrient Fertilizer,20%
 102,B,Boron 14.5%,Micronutrient Fertilizer,20%
@@ -75,9 +105,20 @@
 104,B,Boron 20% Bulk,Micronutrient Fertilizer,20%
 105,B,Boron Ethanolamine,Micronutrient Fertilizer,20%
 106,B,"Boron, Amino Acid Chelated",Micronutrient Fertilizer,20%
+107,B,Bottle Gourd Seeds,Seeds,15%
+108,B,Bottlebrush Trees Seed,Seeds,15%
+109,B,Brinjal General Seeds,Seeds,15%
+110,B,Brinjal Hybrid Seeds,Seeds,15%
+111,B,Broccoli seeds,Seeds,15%
 112,B,Broflanilide 300 GL SC,Insecticide,15%
+113,B,Brush Cutter- Battery Operated,Farm Equipment & Tools,15%
+114,B,"Brush Cutter, Chain Saw Accessories",Farm Equipment & Tools,15%
+115,B,Bulk,Others,15%
 116,B,Buprofezin 15% + Acephate 35% WP,Insecticide,15%
 117,B,Buprofezin 25% SC,Insecticide,15%
+118,B,Butternut Seeds,Seeds,15%
+119,C,Cabbage General Seeds,Seeds,15%
+120,C,Cabbage Hybrid Seeds,Seeds,15%
 121,C,Calcium 11%,Secondary Nutrient Fertilizer,20
 122,C,Calcium 15% Liquid,Secondary Nutrient Fertilizer,20
 123,C,Calcium 18.8% Nitrate 14.0% Bulk,Secondary Nutrient Fertilizer,20
@@ -87,23 +128,46 @@
 127,C,Calcium Solubilizing Bacteria,Bio-Fertilizer,25%
 128,C,"Calcium, Amino Acid Chelated",Micronutrient Fertilizer,20%
 129,C,Calcium18.80% Nitrate 15.50%,Secondary Nutrient Fertilizer,20
+130,C,Calendula Flower Seeds,Seeds,15%
+131,C,Cane Juice Machine,Farm Equipment & Tools,15%
+132,C,Capsicum Seeds,Seeds,15%
 133,C,Captan 50% WP,Fungicide,15%
 134,C,Captan 70% + Hexaconazole 5% WP,Fungicide,15%
+135,C,Car washer Sprayer,Farm Equipment & Tools,15%
 136,C,Carbendazim 12% + Mancozeb 63% WP,Fungicide,15%
 137,C,Carbendazim 25% + Mancozeb 50% WS,Fungicide,15%
 138,C,Carbendazim 46.27% SC,Fungicide,15%
 139,C,Carbendazim 50% WP,Fungicide,15%
 140,C,Carbofuran 3% CG,Insecticide,15%
+141,C,Carbon,Organic Manure & Soil Amendment,15%
 142,C,Carbosulfan 25%,Insecticide,15%
 143,C,Carbosulfan 25% DS,Insecticide,15%
 144,C,Carboxin 17.5 % + Thiram 17.5 % FF,Fungicide,15%
 145,C,Carboxin 37.5% + Thiram 37.5% DS,Fungicide,15%
 146,C,Carfentrazone Ethyl 40% DF,Herbicide,10%
+147,C,Carrot Seeds,Seeds,15%
 148,C,Cartap Hydrochloride 4% GR,Insecticide,15%
 149,C,Cartap Hydrochloride 50% SP,Insecticide,15%
 150,C,Cartap Hydrochloride 7.5% + Emamectin Benzoate 0.25% GR,Insecticide,15%
 151,C,Cartap Hydrochloride 75% SG,Insecticide,15%
+152,C,Casuarina Tree seeds,Seeds,15%
+153,C,Cattle Care Mineral Mixture,Animal Husbandry & Aquaculture,15%
+154,C,Cauliflower Hybrid Seeds,Seeds,15%
+155,C,Celery Seeds,Seeds,15%
+156,C,Chaff Cutter,Farm Equipment & Tools,15%
+157,C,Chain Saw,Farm Equipment & Tools,15%
+158,C,Chain Saw - Battery Operated,Farm Equipment & Tools,15%
 159,C,Chelated Micronutrient Mixture,Micronutrient Fertilizer,20%
+160,C,Chilli (Hot Pepper),Seeds,15%
+161,C,Chilli Hybrid Seeds,Seeds,15%
+162,C,Chilli Seeds - Kashmiri,Seeds,15%
+163,C,Chilli Seeds -Dark Green,Seeds,15%
+164,C,Chilli Seeds -Dual Purpose (High Pungent),Seeds,15%
+165,C,Chilli Seeds -Dual Purpose (Medium Pungent),Seeds,15%
+166,C,Chilli Seeds (Achari Type),Seeds,15%
+167,C,Chilli Seeds (Pungent- Hari Mirch),Seeds,15%
+168,C,Chilli Seeds (Wrinkled Variety),Seeds,15%
+169,C,Chilli Virus Special,Crop-Specific Nutrient Kit,15%
 170,C,Chilo Infescatellus (Sugarcane Early Shoot Borer) Trap & Lure,Traps & Lures,15
 171,C,Chilo Sacchariphagus Indicus Trap & Lure,Traps & Lures,15
 172,C,Chlorantraniliprole 0.4% w/w GR,Insecticide,15%
@@ -128,6 +192,8 @@
 191,C,Chlorpyriphos 20% CS,Insecticide,15%
 192,C,Chlorpyriphos 20% EC,Insecticide,15%
 193,C,Chlorpyriphos 50% + Cypermethrin 5% EC,Insecticide,15%
+194,C,Chrysanthemum Seeds,Seeds,15%
+195,C,Citrus Special,Crop-Specific Nutrient Kit,15%
 196,C,Clethodim 13% w/w EC,Herbicide,10%
 197,C,Clethodim 240 EC,Herbicide,10%
 198,C,Clodinafop Propargyl 15% WP,Herbicide,10%
@@ -135,6 +201,14 @@
 200,C,Clodinafop Propargyl 9% + Metribuzin 20% WP,Herbicide,10%
 201,C,Clodinafop-Propargyl 12.25 % + Oxyfluorfen 14.7% EC,Herbicide,10%
 202,C,Clothianidin 50% WDG,Insecticide,15%
+203,C,Cluster Bean,Seeds,15%
+204,C,Cock Connector,Irrigation,15%
+205,C,Cockscomb (Celosia),Seeds,15%
+206,C,Coco Peat,Organic Manure & Soil Amendment,15%
+207,C,Coffee Special,Crop-Specific Nutrient Kit,15%
+208,C,Combo Products,Others,15%
+209,C,Combo Seeds,Seeds,15%
+210,C,Cone Transplanter,Farm Equipment & Tools,15%
 211,C,Copper Amino Chelated,Micronutrient Fertilizer,20%
 212,C,Copper Cu 12% EDTA Chelated,Micronutrient Fertilizer,20%
 213,C,Copper Hydroxide 46.1% WG,Fungicide,15%
@@ -144,7 +218,17 @@
 217,C,Copper Sulphate,Micronutrient Fertilizer,20%
 218,C,Copper Sulphate 3.0% + Calcium Hydroxide 0.6%,Fungicide,15%
 219,C,Copper Sulphate 47.15% + Mancozeb 30% WDG,Fungicide,15%
+220,C,Coriander Seeds,Seeds,15%
+221,C,Corn Thresher,Farm Equipment & Tools,15%
+222,C,Cosmos Flower Seeds,Seeds,15%
+223,C,Cotton seeds,Seeds,15%
+224,C,Cotton Special,Crop-Specific Nutrient Kit,15%
+225,C,Cow dung,Organic Manure & Soil Amendment,15%
+226,C,Cowpea Seeds,Seeds,15%
+227,C,Crop Cover,Farm Equipment & Tools,15%
 228,C,Cu EDTA 7.5%,Micronutrient Fertilizer,20%
+229,C,Cucumber Hybrid Seeds,Seeds,15%
+230,C,Custard Apple Seeds,Seeds,15%
 231,C,Cyantraniliprole 10.26% OD,Insecticide,15%
 232,C,Cyantraniliprole 16.9% + Lufenuron 16.9% SC,Insecticide,15%
 233,C,Cyantraniliprole 7.3% + Diafenthiuron 36.4% SC,Insecticide,15%
@@ -160,6 +244,7 @@
 243,C,Cypermethrin 25% EC,Insecticide,15%
 244,C,Cypermethrin 3% + Quinalphos 20% EC,Insecticide,15%
 245,C,Cytokinins and Enzymes,Plant Growth Regulator (PGR),20%
+246,D,Dahlia Flower Seeds,Seeds,15%
 247,D,Deltamethrin 1.25% ULV,Insecticide,15%
 248,D,Deltamethrin 100 EC,Insecticide,15%
 249,D,Deltamethrin 11% E.C.,Insecticide,15%
@@ -183,8 +268,25 @@
 267,D,Dinotefuran 15% + Pymetrozine 45% WG,Insecticide,15%
 268,D,Dinotefuran 20%SG,Insecticide,15%
 269,D,Dinotefuran 70% WG,Insecticide,15%
+270,D,Disinfectant,Animal Husbandry & Aquaculture,15%
 271,D,Diuron 80% WP,Herbicide,10%
+272,D,Dolichos Seeds,Seeds,15%
+273,D,Double Motor Sprayer,Farm Equipment & Tools,15%
+274,D,Drip Cleaner,Irrigation,15%
+275,D,Drip Fogger,Irrigation,15%
+276,D,Drip Inline Pipe,Irrigation,15%
+277,D,Drip Irrigation Accessories Set,Irrigation,15%
+278,D,Drip Kit,Irrigation,15%
+279,D,Drip Main Supply Pipe,Irrigation,15%
+280,D,Drip Pipe Accessories,Irrigation,15%
+281,D,"Dripper, Emitters",Irrigation,15%
+282,D,Drumstick seeds,Seeds,15%
 283,E,Earias Vittella (Spotted Bollworm) Trap & Lure,Traps & Lures,15
+284,E,Earth Auger,Farm Equipment & Tools,15%
+285,E,Earth Auger- Battery Operated,Farm Equipment & Tools,15%
+286,E,Elbow Connector,Irrigation,15%
+287,E,Electric Fencing Wire,Farm Equipment & Tools,15%
+288,E,Electric Wire,Farm Equipment & Tools,15%
 289,E,Emamectin Benzoate 1.5% + Fipronil 3.5% SC,Insecticide,15%
 290,E,Emamectin Benzoate 1.5% + Profenofos 35% WDG,Insecticide,15%
 291,E,Emamectin Benzoate 1.9% EC,Insecticide,15%
@@ -201,11 +303,15 @@
 302,E,Ethyl 10% EC + Chlorimuron Ethyl 25% WP,Herbicide,10%
 303,E,Etofenprox 6% + Diafenthiuron 25% WG,Insecticide,15%
 304,E,Etoxazole 10%,Acaricide (Miticide),15
+305,E,Eucalyptus Seeds,Seeds,15%
+306,F,Falguni Beans,Seeds,15%
 307,F,Famoxadone 16.6% + Cymoxanil 22.1% SC,Fungicide,15%
 308,F,Fe 12%,Micronutrient Fertilizer,20%
 309,F,Fe EDDHA 6% Iron Chelate,Micronutrient Fertilizer,20%
+310,F,Feeder Line Pipe,Irrigation,15%
 311,F,Fenazaquin 10% + Bifenthrin 4% EC,Insecticide + Acaricide,20
 312,F,Fenazaquin 10% EC,Acaricide (Miticide),15
+313,F,Fencing Clutch Wire,Farm Equipment & Tools,15%
 314,F,Fenobucarb 50% EC,Insecticide,15%
 315,F,Fenoxaprop-p-ethyl 6.9,Herbicide,10%
 316,F,Fenoxaprop-P-Ethyl 9.3 EC,Herbicide,10%
@@ -213,11 +319,15 @@
 318,F,Fenpropathrin 10% EW,Insecticide,15%
 319,F,Fenpropathrin 30% EC,Insecticide,15%
 320,F,Fenpyroximate 5% SC,Acaricide (Miticide),15
+321,F,Fenugreek Seeds,Seeds,15%
 322,F,Fenvalerate 0.4% DP,Insecticide,15%
 323,F,Fenvalerate 20% EC,Insecticide,15%
+324,F,Fern Tree Seeds,Seeds,15%
 325,F,Ferrous Amino Chelated,Micronutrient Fertilizer,20%
 326,F,Ferrous Sulphate 19% + Sulphur 10.5%,Micronutrient Fertilizer,20%
 327,F,Fertilizer blends,NPK / Primary Fertilizer,20
+328,F,Fig Tree Seeds,Seeds,15%
+329,F,Filter (Irrigation & Water Tank),Irrigation,15%
 330,F,Fipronil 0.3% GR,Insecticide,15%
 331,F,Fipronil 0.6% + Sulphur 70% + Zinc 13% WG,Insecticide,15%
 332,F,Fipronil 0.6% GR,Insecticide,15%
@@ -237,10 +347,15 @@
 346,F,Florpyrauxifen-benzyl 2.13% + Cyhalofop-butyl 10.64% EC,Herbicide,10%
 347,F,Flower & Fruit Stimulation (Powder Form),Biostimulant,20
 348,F,Flower Enhancer (Nano Technology Based),Biostimulant,20
+349,F,Flower Seeds,Seeds,15%
+350,F,Flower Special Fertilizer,Crop-Specific Nutrient Kit,15%
+351,F,Flower Special Kit,Crop-Specific Nutrient Kit,15%
+352,F,Flowering and Fruiting - Capsule,Crop-Specific Nutrient Kit,15%
 353,F,Flubendiamide 19.92% + Thiacloprid 19.92% w/w SC (480 SC),Insecticide,15%
 354,F,Flubendiamide 20% WG,Insecticide,15%
 355,F,Flubendiamide 480 SC (39.35% ww),Insecticide,15%
 356,F,Flubendiamide 8.33% + Deltamethrin 5.56% SC,Insecticide,15%
+357,F,Fluensulfone 2% GR,Nematicide,15%
 358,F,Flumioxazin 50% SC,Herbicide,10%
 359,F,Fluopicolide 4.44% + Fosetyl-Al 66.67% ww WG,Fungicide,15%
 360,F,Fluopicolide 5.56% + Propamocarb Hydrochloride 55.6%,Fungicide,15%
@@ -255,26 +370,52 @@
 369,F,Fluxametamide 3.8% + Puridaben 9.5% SC,Insecticide + Acaricide,20
 370,F,Fluxapyroxad 250 + Pyraclostrobin 250,Fungicide,15%
 371,F,Fluxapyroxad 33.3% w/v,Fungicide,15%
+372,F,Fodder Seeds,Seeds,15%
+373,F,Fogging Machine,Farm Equipment & Tools,15%
 374,F,Folic Acid,Biostimulant,20
 375,F,Fomesafen 11.1% + Fluazifop-p-butyl 11.1% SL,Herbicide,10%
 376,F,Forchlorfenuron 0.01%,Plant Growth Regulator (PGR),20%
 377,F,Fosetyl Al 80WP,Fungicide,15%
+378,F,French Bean Seeds,Seeds,15%
 379,F,Fruit Enhancer,Biostimulant,20
+380,F,Fruit Picker,Farm Equipment & Tools,15%
 381,F,Fulvic,Biostimulant,20
 382,F,Fulvic Acid Bulk,Biostimulant,20
+383,G,Garden Gloves,Farm Equipment & Tools,15%
+384,G,Garden Kit,Farm Equipment & Tools,15%
+385,G,Garden Sprayer,Farm Equipment & Tools,15%
+386,G,Garden Tool Kit,Farm Equipment & Tools,15%
+387,G,Garden Tools,Farm Equipment & Tools,15%
 388,G,Gibberellic Acid 0.001%,Plant Growth Regulator (PGR),20%
 389,G,Gibberellic acid 0.1% GR,Plant Growth Regulator (PGR),20%
 390,G,Gibberellic Acid 0.186% SP,Plant Growth Regulator (PGR),20%
 391,G,Gibberellic Acid 40% WSG,Plant Growth Regulator (PGR),20%
 392,G,Gibberellic Acid 90% w/w Tech,Plant Growth Regulator (PGR),20%
+393,G,Ginger and Turmeric Special,Crop-Specific Nutrient Kit,15%
+394,G,Gliricidia Seeds,Seeds,15%
 395,G,Glufosinate Ammonium 13.5 SL,Herbicide,10%
 396,G,Glufosinate Ammonium 50% WG,Herbicide,10%
 397,G,Glyphosate 41% SL,Herbicide,10%
 398,G,Glyphosate 54% SL,Herbicide,10%
 399,G,Glyphosate 60% + Pyrithiobac Sodium 4.5% SG,Herbicide,10%
 400,G,Glyphosate 71% SG,Herbicide,10%
+401,G,Goat And Sheep Care,Animal Husbandry & Aquaculture,15%
+402,G,Gomphrena Flower,Seeds,15%
+403,G,Grafting Clips,Farm Equipment & Tools,15%
+404,G,Grafting tape,Farm Equipment & Tools,15%
+405,G,Grapes Special,Crop-Specific Nutrient Kit,15%
+406,G,Grass Catcher- Lawn Mover,Farm Equipment & Tools,15%
+407,G,Green Peas,Seeds,15%
+408,G,Grommet,Irrigation,15%
+409,G,Grow Bag,Farm Equipment & Tools,15%
+410,G,Growth Booster For Special Crop,Crop-Specific Nutrient Kit,15%
+411,G,Guava Seeds,Seeds,15%
+412,G,Gulmohar Seeds,Seeds,15%
+413,H,Habanero Chilli Seed,Seeds,15%
 414,H,Halosulfuron Methyl 75% WG,Herbicide,10%
 415,H,Haloxyfop-P-Methyl 10.5% EC,Herbicide,10%
+416,H,Hedge Lucerne Seeds,Seeds,15%
+417,H,Hedge Trimmer (Branch Cutter),Farm Equipment & Tools,15%
 418,H,Helicoverpa Armigera Trap & Lure,Traps & Lures,15
 419,H,Heterocyclic Nitrogen 19% + Potassium Humate 7%,NPK / Primary Fertilizer,20
 420,H,Hexaconazole 0.5% GR,Fungicide,15%
@@ -288,12 +429,16 @@
 428,H,Hexythiazox 5.45,Acaricide (Miticide),15
 429,H,Holotrichia Serrata (White Grub) Trap & Lure,Traps & Lures,15
 430,H,Homobrassinolide 0.04%,Plant Growth Regulator (PGR),20%
+431,H,Hose Pipe,Irrigation,15%
 432,H,Household Insecticide,Insecticide,15%
+433,H,HTP Battery Operated Sprayer,Farm Equipment & Tools,15%
 434,H,Humic,Biostimulant,20
 435,H,Humic + Fulvik,Biostimulant,20
 436,H,Humic Acid 98%,Biostimulant,20
 437,H,Humic Acid Granule,Biostimulant,20
 438,H,Humic Acid Liquid,Biostimulant,20
+439,H,Hybrid Maize Seeds,Seeds,15%
+440,H,Hydrogen Peroxide,Others,15%
 441,I,Imazethapyr 10% SL,Herbicide,10%
 442,I,Imazethapyr 35% + Imazamox 35% WG,Herbicide,10%
 443,I,Imazethapyr 70% WG,Herbicide,10%
@@ -303,6 +448,7 @@
 447,I,Imidacloprid 48% FS,Insecticide,15%
 448,I,Imidacloprid 6% + Lambda Cyhalothrin 4% SL,Insecticide,15%
 449,I,Imidacloprid 70% WG,Insecticide,15%
+450,I,Indian Squash Seeds,Seeds,15%
 451,I,Indoxacarb 10% + Thiamethoxam 10% WG,Insecticide,15%
 452,I,Indoxacarb 14.5% + Acetamiprid 7.7% SC,Insecticide,15%
 453,I,Indoxacarb 14.5% SC,Insecticide,15%
@@ -313,26 +459,42 @@
 458,I,Isocycloseram 9.2% w/w DC + Isocycloseram 10% w/v DC,Insecticide,15%
 459,I,Isoprothiolane 40% EC,Fungicide,15%
 460,I,Isoproturon 75% wp,Herbicide,10%
+461,J,Jalapeno Chilli Seed,Seeds,15%
+462,J,Jeevamrutham,Organic Manure & Soil Amendment,15%
+463,J,Joiner Connector,Irrigation,15%
+464,K,Kale Seed,Seeds,15%
 465,K,Kasugamycin 3% SL,Fungicide,15%
 466,K,Kasugamycin 5% + Copper Oxychloride 45% WP,Fungicide,15%
+467,K,Khurpa,Farm Equipment & Tools,15%
 468,K,Kitchen Garden Fertilizer,NPK / Primary Fertilizer,20
 469,K,Kitchen Garden Pesticide,Bio / Organic Pesticide,20
+470,K,Kitchen Garden Seeds,Seeds,15%
+471,K,Knol-Khol Seeds,Seeds,15%
 472,K,Kresoxim Methyl 40% + Hexaconazole 8% WG,Fungicide,15%
 473,L,Lambda Cyhalothrin 10% WP,Insecticide,15%
 474,L,Lambda Cyhalothrin 4.9% CS,Insecticide,15%
 475,L,Lambda Cyhalothrin 5% EC,Insecticide,15%
+476,L,Lapeta Pipe,Irrigation,15%
 477,L,Larvicide - Biological,Bio / Organic Pesticide,20
 478,L,Larvicide - Organic,Bio / Organic Pesticide,20
+479,L,Lawn Mower,Farm Equipment & Tools,15%
+480,L,Leaf Blower,Farm Equipment & Tools,15%
+481,L,Leaf Rake,Farm Equipment & Tools,15%
+482,L,Lemon seeds,Seeds,15%
+483,L,Lettuce Seeds,Seeds,15%
 484,L,Leucinodes Orbonalis Trap & Lure,Traps & Lures,15
 485,L,Liquid Biological Fertilizer,Bio-Fertilizer,25%
+486,L,Liquid Mineral Sapropel Fertilizer,Organic Manure & Soil Amendment,15%
 487,L,Liquid Multi Micronutrient Fertilizer,Micronutrient Fertilizer,20%
 488,L,Liquid Sulphur,Secondary Nutrient Fertilizer,20
+489,L,Loppers,Farm Equipment & Tools,15%
 490,L,Lufenuron 5.4% EC,Insecticide,15%
 491,M,magnesium 34%,Micronutrient Fertilizer,20%
 492,M,Magnesium 6%,Micronutrient Fertilizer,20%
 493,M,Magnesium Nitrate,Secondary Nutrient Fertilizer,20
 494,M,Magnesium Sulphate 9.5%,Secondary Nutrient Fertilizer,20
 495,M,Magnesium Sulphate 9.5% Bulk,Secondary Nutrient Fertilizer,20
+496,M,Mahogany seeds (Swietenia mahagoni),Seeds,15%
 497,M,Malathion 50% EC,Insecticide,15%
 498,M,Mancozeb 35% SC,Fungicide,15%
 499,M,Mancozeb 75% WG,Fungicide,15%
@@ -343,10 +505,19 @@
 504,M,Manganese Amino Chelated,Micronutrient Fertilizer,20%
 505,M,Manganese EDTA 9%,Micronutrient Fertilizer,20%
 506,M,Manganese Mn 48%,Micronutrient Fertilizer,20%
+507,M,Mango Special,Crop-Specific Nutrient Kit,15%
+508,M,Manual Hand weeder,Farm Equipment & Tools,15%
+509,M,Manual Roller Weeder,Farm Equipment & Tools,15%
+510,M,Manual Seeder,Farm Equipment & Tools,15%
+511,M,Manual Sprayer,Farm Equipment & Tools,15%
+512,M,Marigold (French),Seeds,15%
+513,M,Marigold Seeds,Seeds,15%
+514,M,Melia Dubia Seeds,Seeds,15%
 515,M,Mepiquat Chloride 5% AS,Plant Growth Regulator (PGR),20%
 516,M,Meptyldinocap 35.7% EC,Fungicide,15%
 517,M,Mesosulfuron methyl 3% + Iodosulfuron-methyl sodium 0.6  WDG,Herbicide,10%
 518,M,Mesotrione 2.27% + Atrazine 22.7% SC,Herbicide,10%
+519,M,Metal Drill Bit,Farm Equipment & Tools,15%
 520,M,Metalaxyl 35% WS,Fungicide,15%
 521,M,Metalaxyl 8% + Mancozeb 64% WP,Fungicide,15%
 522,M,Metalaxyl-M 3.3% + Chlorothalonil 33.1% SC,Fungicide,15%
@@ -364,13 +535,31 @@
 534,M,Metribuzin 70% WP,Herbicide,10%
 535,M,Metsulfuron Methyl 10%+Chlorimuron Ethyl 10% WP,Herbicide,10%
 536,M,Metsulfuron Methyl 20%,Herbicide,10%
+537,M,Milking Machine,Animal Husbandry & Aquaculture,15%
+538,M,Mimusops Elengi,Seeds,15%
+539,M,Mist Blower Duster,Farm Equipment & Tools,15%
 540,M,Monocrotophos 36% SL,Insecticide,15%
 541,M,Mosquito and Insect Traps,Traps & Lures,15
 542,M,Mouse Glue Trap,Traps & Lures,15
+543,M,Mulching Hole Machine,Farm Equipment & Tools,15%
+544,M,Mulching Sheet,Farm Equipment & Tools,15%
+545,M,Multi Cut Grass Seeds,Seeds,15%
 546,M,Multi Micronutrient,Micronutrient Fertilizer,20%
+547,M,Mushroom,Mushroom Cultivation,15%
+548,M,Mushroom Culture,Mushroom Cultivation,15%
+549,M,Mushroom Dowels,Mushroom Cultivation,15%
+550,M,Mushroom Fertilizer,Mushroom Cultivation,15%
+551,M,Mushroom Spawn,Mushroom Cultivation,15%
+552,M,Musk Melon Seeds,Seeds,15%
+553,M,Mustard Cake,Organic Manure & Soil Amendment,15%
+554,M,Mustard Seeds,Seeds,15%
 555,M,Myclobutanil 10% WP,Fungicide,15%
 556,M,Mycorrhiza,Bio-Fertilizer,25%
 557,N,"Nano Urea, Dap",NPK / Primary Fertilizer,20
+558,N,Napier Grass seeds,Seeds,15%
+559,N,Nasik Red onion seeds,Seeds,15%
+560,N,Natural Seeds,Seeds,15%
+561,N,Neem Cake,Organic Manure & Soil Amendment,15%
 562,N,Neem Oil,Bio / Organic Pesticide,20
 563,N,Neem Oil 10000 PPM,Bio / Organic Pesticide,20
 564,N,Neem Oil 1500 PPM,Bio / Organic Pesticide,20
@@ -447,19 +636,34 @@
 635,N,NPK Microbial Consortia- Liquid,Bio-Fertilizer,25%
 636,N,NPK Microbial Consortia- Powder,Bio-Fertilizer,25%
 637,N,NPKS 9:27:18:7.5,NPK / Primary Fertilizer,20
+638,O,Okra Seeds,Seeds,15%
+639,O,Onion Seeds,Seeds,15%
+640,O,Onion Special,Crop-Specific Nutrient Kit,15%
 641,O,Organic Acid 22%,Biostimulant,20
 642,O,Organic Certified Pgr / Pgp,Biostimulant,20
 643,O,Organic Fungal Control,Bio / Organic Pesticide,20
 644,O,Organic Pesticide,Bio / Organic Pesticide,20
+645,O,Organic Potash,Organic Manure & Soil Amendment,15%
+646,O,Ornamental Tree Seeds,Seeds,15%
 647,O,Orthosilicic Acid,Biostimulant,20
 648,O,Oxadiargyl 6% EC,Herbicide,10%
 649,O,Oxyfluorfen 23.5% EC,Herbicide,10%
 650,P,Paclobutrazol 23% SC,Plant Growth Regulator (PGR),20%
 651,P,Paclobutrazol 40% SC,Plant Growth Regulator (PGR),20%
+652,P,Paddy Seeds,Seeds,15%
+653,P,Paddy Special,Crop-Specific Nutrient Kit,15%
 654,P,Paecilomyces Fumosoroseus,Bio / Organic Pesticide,20
 655,P,Paecilomyces Lilacinus,Bio / Organic Pesticide,20
+656,P,Pak Choi Seeds,Seeds,15%
+657,P,Panchagavya,Organic Manure & Soil Amendment,15%
+658,P,Panja Garden Cultivator,Farm Equipment & Tools,15%
+659,P,Papaya Seeds,Seeds,15%
+660,P,Papaya Special,Crop-Specific Nutrient Kit,15%
 661,P,Para Nitro phenolate 0.3% SL,Plant Growth Regulator (PGR),20%
 662,P,Paraquat Dichloride 24% SL,Herbicide,10%
+663,P,parsely seeds,Seeds,15%
+664,P,Peacock Flower,Seeds,15%
+665,P,Pearl Millet Seeds,Seeds,15%
 666,P,Pectinophora gossypiella (Pink Bollworm) Trap & Lure,Traps & Lures,15
 667,P,Pencycuron 250 SC (22.9% w/w),Fungicide,15%
 668,P,Pendimethalin 30% + Imazethapyr 2% EC,Herbicide,10%
@@ -472,21 +676,36 @@
 675,P,Penoxsulam 0.97%+ Butachlor 38.8% SE,Herbicide,10%
 676,P,Peptide Mixture,Biostimulant,20
 677,P,Permethrin 25% EC,Insecticide,15%
+678,P,Petrol Engine,Farm Equipment & Tools,15%
+679,P,Petrol Power Sprayer,Farm Equipment & Tools,15%
 680,P,PGP/PGR ampule,Biostimulant,20
+681,P,PH Balancer,Organic Manure & Soil Amendment,15%
 682,P,Phenthoate 50% EC,Insecticide,15%
+683,P,Phosphate Rich,Organic Manure & Soil Amendment,15%
 684,P,Phosphate Solubilizing Bacteria,Bio-Fertilizer,25%
 685,P,Phosphate Solubilizing Bacteria Powder,Bio-Fertilizer,25%
 686,P,Phosphate Solubilizing Fungi,Bio-Fertilizer,25%
 687,P,Picoxystrobin 22.52%,Fungicide,15%
 688,P,Picoxystrobin 6.78% + Tricyclazole 20.33% SC,Fungicide,15%
 689,P,Picoxystrobin 7.05% + Propiconazole 11.71% SC,Fungicide,15%
+690,P,Pigeon Repellent Liquid,Repellent,15%
+691,P,Pink Cedar Tree Seeds,Seeds,15%
 692,P,Pinoxaden 5.1% EC,Herbicide,10%
 693,P,Plant Growth Promoter,Biostimulant,20
 694,P,Plant Growth Promoter- Powder,Biostimulant,20
 695,P,Plant growth Regulator,Plant Growth Regulator (PGR),20%
 696,P,Plant Root Growth Promoter,Biostimulant,20
+697,P,Plant support clips,Farm Equipment & Tools,15%
+698,P,Plastic Broom,Farm Equipment & Tools,15%
+699,P,Plastic Pots,Farm Equipment & Tools,15%
 700,P,Plutella xylostella Trap & Lure,Traps & Lures,15
 701,P,Pochonia chlamydposporia 1%,Bio / Organic Pesticide,20
+702,P,Pole Beans Seeds,Seeds,15%
+703,P,Pomegranate Special,Crop-Specific Nutrient Kit,15%
+704,P,Pond Liner,Animal Husbandry & Aquaculture,15%
+705,P,Pond Skimming Net,Animal Husbandry & Aquaculture,15%
+706,P,Pongamia Pinnata,Seeds,15%
+707,P,Portable Power Sprayer,Farm Equipment & Tools,15%
 708,P,Potash Chemical Fertilizer,NPK / Primary Fertilizer,20
 709,P,Potassium 46.5%,NPK / Primary Fertilizer,20
 710,P,Potassium Fulvate,Biostimulant,20
@@ -494,6 +713,8 @@
 712,P,Potassium Mobilizing Bacteria (Liquid),Bio-Fertilizer,25%
 713,P,Potassium Mobilizing Bacteria (Powder),Bio-Fertilizer,25%
 714,P,Potassium Schoenite,NPK / Primary Fertilizer,20
+715,P,Potato Special,Crop-Specific Nutrient Kit,15%
+716,P,Poultry Feed Supplements,Animal Husbandry & Aquaculture,15%
 717,P,Pretilachlor 50% EC,Herbicide,10%
 718,P,Pretilachlore 37% EW,Herbicide,10%
 719,P,Prochloraz 23.5% + Tricyclazole 20% w/w SE,Fungicide,15%
@@ -512,7 +733,10 @@
 732,P,Propiconazole 25% EC,Fungicide,15%
 733,P,Propineb 70% WP,Fungicide,15%
 734,P,Propoxur 20% EC,Insecticide,15%
+735,P,Pruning Saw,Farm Equipment & Tools,15%
 736,P,Pseudomonas Fluorescens,Bio / Organic Pesticide,20
+737,P,pumpkin seeds,Seeds,15%
+738,P,Punjabi Grass,Seeds,15%
 739,P,Pymetrozine 50% WG,Insecticide,15%
 740,P,PYRACLOSTROBIN 10% + FIPRONIL 5%  SC,Insecticide + Fungicide,18
 741,P,Pyraclostrobin 10% + Thifluzamide 10% SC,Fungicide,15%
@@ -540,26 +764,62 @@
 763,Q,Quizalofop ethyl 4% + Oxyfluorfen 6% EC,Herbicide,10%
 764,Q,Quizalofop ethyl 5%,Herbicide,10%
 765,Q,Quizalofop ethyl 7.5% + Imazethapyr 15%  EC,Herbicide,10%
+766,R,Radish Hybrid Seeds,Seeds,15%
+767,R,Radish Seeds - Red,Seeds,15%
+768,R,Rain pipe,Irrigation,15%
+769,R,Rain Pipe Accessories,Irrigation,15%
 770,R,Rb Rhinoceros Beetle Trap & Lure,Traps & Lures,15
+771,R,Ready To Fruit Mushroom,Mushroom Cultivation,15%
+772,R,Repellent,Repellent,15%
 773,R,Rhizobium,Bio-Fertilizer,25%
+774,R,Ridge Gourd Seeds,Seeds,15%
+775,R,River Sand,Organic Manure & Soil Amendment,15%
+776,R,Rocker sprayer,Farm Equipment & Tools,15%
+777,R,Rocket Leaves Wild,Seeds,15%
+778,R,Rotating Light,Farm Equipment & Tools,15%
 779,R,RPW Red Palm Weevil (Rhynchophorus Ferrugineus),Traps & Lures,15
 780,R,Rynaxypyr 0.4% GR,Insecticide,15%
+781,S,Safety Shoes,Farm Equipment & Tools,15%
+782,S,Samanea Saman Tree Seeds,Seeds,15%
+783,S,Sandalwood,Seeds,15%
 784,S,Scirpophaga excerptalis Sugarcane Top Borer Trap & Lure,Traps & Lures,15
 785,S,Scirpophaga Incertulas Yellow Stem Borer Trap & Lure,Traps & Lures,15
+786,S,Scuffle hoe,Farm Equipment & Tools,15%
 787,S,"Seaweed 8%, Tea Saponin 5%, Aqueous Media 87%",Biostimulant,20
 788,S,Seaweed Extract -Liquid,Biostimulant,20
 789,S,Seaweed Extract (Bulk),Biostimulant,20
 790,S,Seaweed Fertilizer (Soil Application),Biostimulant,20
 791,S,Seaweed Gel,Biostimulant,20
 792,S,Seaweed Powder,Biostimulant,20
+793,S,Secateurs,Farm Equipment & Tools,15%
 794,S,Sedaxane 12.61% + Azoxystrobin 3.15% + Thiamethoxam 22.06% FS,Insecticide + Fungicide,18
 795,S,Seed Treatment & Germination,Biostimulant,20
+796,S,Seedling Tray,Seeds,15%
+797,S,Seeds Ball,Seeds,15%
+798,S,Sesbania Grandifora,Seeds,15%
+799,S,shade net 50%,Farm Equipment & Tools,15%
+800,S,Shade Net 75%,Farm Equipment & Tools,15%
+801,S,Shade Net 90%,Farm Equipment & Tools,15%
+802,S,Shears,Farm Equipment & Tools,15%
+803,S,Sheesham Tree Seeds,Seeds,15%
+804,S,Shell Peeler,Farm Equipment & Tools,15%
+805,S,Silage Bag (Murghas Bag),Animal Husbandry & Aquaculture,15%
 806,S,Silica Granule,Biostimulant,20
 807,S,Silica Liquid,Biostimulant,20
 808,S,Silicon Fertilizer,Biostimulant,20
+809,S,Snake Gourd Seeds,Seeds,15%
+810,S,Snake Repellent,Repellent,15%
 811,S,Sodium Acifluorfen 16.5% + Clodinofop-Propargyl 8% EC,Herbicide,10%
+812,S,Soil Conditioner,Organic Manure & Soil Amendment,15%
 813,S,Soil Drenching Fertilizer,NPK / Primary Fertilizer,20
+814,S,Soil Rake,Farm Equipment & Tools,15%
+815,S,Solar Dryer,Farm Equipment & Tools,15%
 816,S,Solar Insect Trap,Traps & Lures,15
+817,S,Solar Sound Light,Farm Equipment & Tools,15%
+818,S,Solar Sprinkler,Irrigation,15%
+819,S,Sorghum seeds,Seeds,15%
+820,S,Spade (Favada),Farm Equipment & Tools,15%
+821,S,Spinach Seeds,Seeds,15%
 822,S,Spinetoram 11.7% SC,Insecticide,15%
 823,S,Spinetoram 5.66% + Methoxyfenozide 28.3% SC,Insecticide,15%
 824,S,Spinosad 2.5% SC,Insecticide,15%
@@ -569,15 +829,25 @@
 828,S,Spirotetramat 150 OD,Insecticide,15%
 829,S,Spodoptera Frugiperda Trap & Lure,Traps & Lures,15
 830,S,Spodoptera Litura Trap & Lure,Traps & Lures,15
+831,S,sponge gourd seeds,Seeds,15%
 832,S,Sporothrix Fungorum,Bio / Organic Pesticide,20
+833,S,Spray Pump Accessories,Farm Equipment & Tools,15%
+834,S,Spray Pump Battery,Farm Equipment & Tools,15%
+835,S,Sprayer Light,Farm Equipment & Tools,15%
+836,S,Sprayer Nozzle,Farm Equipment & Tools,15%
 837,S,Spreader,Adjuvant (Sticker / Spreader),20
+838,S,Sprinkler,Irrigation,15%
+839,S,Starch-Based Super Absorbent,Organic Manure & Soil Amendment,15%
 840,S,Sticker,Adjuvant (Sticker / Spreader),20
 841,S,Sticky trap and Sticker,Traps & Lures,15
 842,S,Sticky trap and Sticker (A5 Size),Traps & Lures,15
 843,S,Streptomycin Sulphate 9%,Bactericide / Viricide,15
 844,S,Stress Alleviator PGR/PGP,Biostimulant,20
+845,S,Subabul Seeds,Seeds,15%
 846,S,Sucking Pest Controller - Biological,Bio / Organic Pesticide,20
 847,S,Sucking Pest Controller - Organic,Bio / Organic Pesticide,20
+848,S,Sugarcane Special,Crop-Specific Nutrient Kit,15%
+849,S,Sulfate 34.5% w/v SC,Others,15%
 850,S,Sulfentrazone 28% + Clomazone 30% WP,Herbicide,10%
 851,S,Sulfosulfuron 75% + Metsulfuron 5% WG,Herbicide,10%
 852,S,Sulfosulfuron 75% WG,Herbicide,10%
@@ -591,10 +861,18 @@
 860,S,Sulphur 80% WDG,Fungicide,15%
 861,S,Sulphur 80%Wp,Fungicide,15%
 862,S,Sulphur 90% WG,Fungicide,15%
+863,S,Sunflower Seeds,Seeds,15%
+864,S,Super Napier Grass seeds,Seeds,15%
 865,S,Super Phosphoric Acid 70% Liquid,NPK / Primary Fertilizer,20
 866,S,Super Potassium Humate,Biostimulant,20
 867,S,Super Potassium Humate (Bulk),Biostimulant,20
+868,S,Sweet Corn Seeds,Seeds,15%
+869,S,Swine Supplement,Animal Husbandry & Aquaculture,15%
+870,S,Swiss Chard Seeds,Seeds,15%
 871,T,Take Off,Biostimulant,20
+872,T,Tamarind Seeds,Seeds,15%
+873,T,Tap And Go Brush Cutter,Farm Equipment & Tools,15%
+874,T,Teak Wood Seeds,Seeds,15%
 875,T,Tebuconazole 10% + Sulphur 65% WDG,Fungicide,15%
 876,T,Tebuconazole 2% DS,Fungicide,15%
 877,T,Tebuconazole 25.9% EC,Fungicide,15%
@@ -604,10 +882,15 @@
 881,T,Tebuconazole 6.7% + Captan 26.9% SC,Fungicide,15%
 882,T,Tebuconazole 60 FS,Fungicide,15%
 883,T,Tebuconazole 8% + Captan 32% SC,Fungicide,15%
+884,T,Tee Connector,Irrigation,15%
 885,T,Teflubenzuron 75 G/L + Alphacypermethrin 75 G/L SC,Insecticide,15%
+886,T,Telescopic Handle,Farm Equipment & Tools,15%
 887,T,Tembotrione + Atrazine Combo Kit,Herbicide,10%
 888,T,Tembotrione 34.4 % SC,Herbicide,10%
 889,T,Temephos 50% EC,Insecticide,15%
+890,T,Terminalia Arjuna Seeds,Seeds,15%
+891,T,Terminalia Bellirica,Seeds,15%
+892,T,Terminalia Chebula Seeds,Seeds,15%
 893,T,Tetraconazole 3.8% EW,Fungicide,15%
 894,T,Tetraniliprole 18.18%,Insecticide,15%
 895,T,Thiacloprid 21.7% SC,Insecticide,15%
@@ -628,10 +911,21 @@
 910,T,Thiophanate Methyl 45% + Pyraclostrobin 5%,Fungicide,15%
 911,T,Thiophanate Methyl 70% WP,Fungicide,15%
 912,T,Thrips and Mites Bio Pesticides,Bio / Organic Pesticide,20
+913,T,Thumb Cutter,Farm Equipment & Tools,15%
+914,T,Tiller Attachments,Farm Equipment & Tools,15%
+915,T,Timber Tree Seeds,Seeds,15%
 916,T,Tolfenpyrad 15% EC,Insecticide,15%
 917,T,Tolfenpyrad 15% EC + Bifenthrin 7.5% EC,Insecticide,15%
+918,T,Tomato And Cucurbit Special,Crop-Specific Nutrient Kit,15%
+919,T,Tomato Hybrid Seeds - Oblong Shape,Seeds,15%
+920,T,Tomato Hybrid Seeds - Oval shape,Seeds,15%
+921,T,Tomato Hybrid Seeds - Round,Seeds,15%
+922,T,Tomato Hybrid Seeds - Uniform flat round,Seeds,15%
 923,T,Topramezone 10 G/L + Atrazine 300 G/L SC,Herbicide,10%
 924,T,Topramezone 33.6% SC,Herbicide,10%
+925,T,Torch,Farm Equipment & Tools,15%
+926,T,Tractor Mounted Sprayer,Farm Equipment & Tools,15%
+927,T,Transplanting/ Repotting Mat,Farm Equipment & Tools,15%
 928,T,Traps & Lures,Traps & Lures,15
 929,T,Triacontanol 0.05% EC,Plant Growth Regulator (PGR),20%
 930,T,Triacontanol 0.1% EW,Plant Growth Regulator (PGR),20%
@@ -646,18 +940,48 @@
 939,T,Trifloxystrobin 10% + Difenoconazole 12.5% + Sulphur 3% SC,Fungicide,15%
 940,T,Trifloxystrobin 6% + Thiamethoxam 24% + Thiophanate Methyl 9.5% FS,Insecticide + Fungicide,18
 941,T,Triflumezopyrim 10% SC,Insecticide,15%
+942,T,Trowel,Farm Equipment & Tools,15%
+943,T,Tulsi Seeds,Seeds,15%
+944,T,Turnip Seeds,Seeds,15%
 945,T,Tuta Absoluta Trap & Lure,Traps & Lures,15
 946,V,Validamycin 3% L,Fungicide,15%
 947,V,VAM (Vesicular Arbuscular Mycorrhiza),Bio-Fertilizer,25%
+948,V,Vegetable Gardening Kit,Farm Equipment & Tools,15%
+949,V,Vermicompost and Organic Manure,Organic Manure & Soil Amendment,15%
+950,V,Vermicompost bed,Organic Manure & Soil Amendment,15%
 951,V,Verticelium lacanii 1.15% WP,Bio / Organic Pesticide,20
 952,V,Verticillium chlamydosporium 1% WP,Bio / Organic Pesticide,20
 953,V,Verticillium Lecanii,Bio / Organic Pesticide,20
 954,V,Verticillium Lecanii + Beauveria Bassiana + Metarhizium Anisopliae,Bio / Organic Pesticide,20
+955,V,Vinca Flower Seeds,Seeds,15%
 956,V,Viricide,Bactericide / Viricide,15
+957,V,Vitamins & Micro-nutrients Liquid,Animal Husbandry & Aquaculture,15%
+958,V,Vitamins & Micro-nutrients Non Liquid,Animal Husbandry & Aquaculture,15%
 959,W,Waste decomposer,Bio-Fertilizer,25%
+960,W,Water Level Controller,Irrigation,15%
+961,W,Water Pump,Irrigation,15%
+962,W,Watermelon Seeds,Seeds,15%
+963,W,Watermelon Seeds - Ice Box,Seeds,15%
+964,W,Watermelon Seeds - Jubilee,Seeds,15%
+965,W,Watermelon Seeds - Sugar Baby,Seeds,15%
+966,W,Weed Barrier Sheet,Farm Equipment & Tools,15%
 967,W,Weed Control Organic,Bio / Organic Pesticide,20
+968,W,Weed Extractor,Farm Equipment & Tools,15%
+969,W,Weeder- Battery Operated,Farm Equipment & Tools,15%
+970,W,Weeding Trowel,Farm Equipment & Tools,15%
 971,W,Wetting And Spreader Agent,Adjuvant (Sticker / Spreader),20
+972,W,Wheat grass tray,Farm Equipment & Tools,15%
+973,W,Wheat Seeds,Seeds,15%
+974,W,Wheel hoe,Farm Equipment & Tools,15%
+975,W,Wild Animal Repellent,Repellent,15%
+976,W,Wilt Special,Crop-Specific Nutrient Kit,15%
+977,W,Wire Pullar Plier,Farm Equipment & Tools,15%
+978,Y,Yard Long Seeds,Seeds,15%
+979,Y,Yellow Flower seeds,Seeds,15%
 980,Y,Yield Enhancer,Biostimulant,20
+981,Z,Zataka Machine Accessories,Farm Equipment & Tools,15%
+982,Z,Zatka Machine Insulator,Farm Equipment & Tools,15%
+983,Z,Zhatka Machine,Farm Equipment & Tools,15%
 984,Z,Zinc 12%,Micronutrient Fertilizer,20%
 985,Z,Zinc 12% Bulk,Micronutrient Fertilizer,20%
 986,Z,Zinc Fertilizer,Micronutrient Fertilizer,20%
@@ -671,6 +995,8 @@
 994,Z,Zinc Sulphate Monohydrate (Zinc 33%),Micronutrient Fertilizer,20%
 995,Z,"Zinc, Amino Acid Chelated",Micronutrient Fertilizer,20%
 996,Z,Zineb 75% WP,Fungicide,15%
+997,Z,Zinnia Flower Seeds,Seeds,15%
 998,Z,Ziram 27% SC,Fungicide,15%
 999,Z,Zn-17.5% Zinc and Phosphorus,Micronutrient Fertilizer,20%
+1000,Z,Zucchini,Seeds,15%
 1001,Z,Zyme Granules,Biostimulant,20

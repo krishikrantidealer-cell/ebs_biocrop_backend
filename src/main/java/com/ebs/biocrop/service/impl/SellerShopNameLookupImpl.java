@@ -22,7 +22,7 @@ public class SellerShopNameLookupImpl implements SellerShopNameLookup {
 
     @Override
     public Map<String, String> findCurrentShopNames(Collection<String> sellerIds) {
-        if (sellerIds == null || sellerIds.isEmpty()) return Map.of();
+        if (sellerIds == null || sellerIds.isEmpty()) return java.util.Collections.emptyMap();
         Iterable<User> foundSellers = users.findAllById(
                 sellerIds.stream().filter(Objects::nonNull).distinct().toList());
         return StreamSupport.stream(foundSellers.spliterator(), false)

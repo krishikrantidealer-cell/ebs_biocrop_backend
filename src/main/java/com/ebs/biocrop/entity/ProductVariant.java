@@ -32,8 +32,6 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Integer packSize;
     @Field(write = Field.Write.ALWAYS)
-    private String packSizeUnit;
-    @Field(write = Field.Write.ALWAYS)
     private Integer packQuantity;
     @Field(write = Field.Write.ALWAYS)
     private String shippedBy;
@@ -43,6 +41,10 @@ public class ProductVariant {
     @Field(write = Field.Write.ALWAYS)
     private Double swg;
     @Field(write = Field.Write.ALWAYS)
+    private Double productWeight;
+    @Field(write = Field.Write.ALWAYS)
+    private String productWeightUnit = "g";
+    @Field(write = Field.Write.ALWAYS)
     private java.util.List<ProductDimensions> dimensions = new java.util.ArrayList<>();
 
     // Approved schema commercial fields, in currency units and percentage points.
@@ -50,8 +52,6 @@ public class ProductVariant {
     private Double displayRate;
     @Field(write = Field.Write.ALWAYS)
     private Double printedMrp;
-    @Field(write = Field.Write.ALWAYS)
-    private Double amountYouWillReceive;
     @Field(write = Field.Write.ALWAYS)
     private Double commissionPercentage;
     @Field(write = Field.Write.ALWAYS)
@@ -87,14 +87,12 @@ public class ProductVariant {
     public void setSku(String sku) { this.sku = sku; }
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
-    public String getUnit() { return unit != null ? unit : packSizeUnit; }
+    public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
     public ProductUnit getProductUnit() { return ProductUnit.fromString(getUnit()); }
     public void setProductUnit(ProductUnit productUnit) { this.unit = productUnit != null ? productUnit.getUnitName() : null; }
     public Integer getPackSize() { return packSize; }
     public void setPackSize(Integer packSize) { this.packSize = packSize; }
-    public String getPackSizeUnit() { return packSizeUnit; }
-    public void setPackSizeUnit(String packSizeUnit) { this.packSizeUnit = packSizeUnit; }
     public Integer getPackQuantity() { return packQuantity; }
     public void setPackQuantity(Integer packQuantity) { this.packQuantity = packQuantity; }
     public String getShippedBy() { return shippedBy; }
@@ -103,6 +101,10 @@ public class ProductVariant {
     public void setShippingThrough(String shippingThrough) { this.shippingThrough = shippingThrough; }
     public Double getSwg() { return swg; }
     public void setSwg(Double swg) { this.swg = swg; }
+    public Double getProductWeight() { return productWeight; }
+    public void setProductWeight(Double productWeight) { this.productWeight = productWeight; }
+    public String getProductWeightUnit() { return productWeightUnit; }
+    public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
     public java.util.List<ProductDimensions> getDimensions() { return dimensions; }
     public void setDimensions(java.util.List<ProductDimensions> dimensions) {
         this.dimensions = dimensions != null ? dimensions : new java.util.ArrayList<>();
@@ -111,8 +113,6 @@ public class ProductVariant {
     public void setDisplayRate(Double displayRate) { this.displayRate = displayRate; }
     public Double getPrintedMrp() { return printedMrp; }
     public void setPrintedMrp(Double printedMrp) { this.printedMrp = printedMrp; }
-    public Double getAmountYouWillReceive() { return amountYouWillReceive; }
-    public void setAmountYouWillReceive(Double amountYouWillReceive) { this.amountYouWillReceive = amountYouWillReceive; }
     public Double getCommissionPercentage() { return commissionPercentage; }
     public void setCommissionPercentage(Double commissionPercentage) { this.commissionPercentage = commissionPercentage; }
     public Double getCourierCharges() { return courierCharges; }
@@ -144,7 +144,7 @@ public class ProductVariant {
     /** Selling price divided by normalized total ml or g. */
     public Double getPricePerBaseUnit() {
         Long quantity = null;
-        String unitName = packSizeUnit;
+        String unitName = unit;
         if (packSize != null && packSize > 0) {
             try {
                 quantity = Math.multiplyExact(packSize.longValue(),
@@ -152,7 +152,7 @@ public class ProductVariant {
             } catch (ArithmeticException ex) {
                 return null;
             }
-            unitName = packSizeUnit;
+            unitName = unit;
         }
         BigDecimal baseUnits = toBaseUnits(quantity, unitName);
         Double sale = getEffectivePrice();

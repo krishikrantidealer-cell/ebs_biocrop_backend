@@ -14,17 +14,17 @@ import jakarta.validation.constraints.Size;
 /** Full replacement payload for one product variant. */
 public class AdminProductVariantWriteRequest {
     @Size(max = 160) private String label;
-    @NotBlank @Size(max = 20) private String unit;
+    @NotBlank @Size(max = 20) @com.fasterxml.jackson.annotation.JsonAlias("packSizeUnit") private String unit;
     @NotNull @Positive private Integer packSize;
-    @NotBlank @Size(max = 20) private String packSizeUnit;
     @NotNull @Positive private Integer packQuantity;
     @Size(max = 120) private String shippedBy;
     @Size(max = 80) private String shippingThrough;
     @PositiveOrZero private Double swg;
+    @PositiveOrZero private Double productWeight;
+    @Size(max = 10) private String productWeightUnit;
     @Size(max = 10) @jakarta.validation.Valid private java.util.List<com.ebs.biocrop.entity.ProductDimensions> dimensions;
     @NotNull @PositiveOrZero private Double displayRate;
     @PositiveOrZero private Double printedMrp;
-    @PositiveOrZero private Double amountYouWillReceive;
     @PositiveOrZero @DecimalMax("100") private Double commissionPercentage;
     @PositiveOrZero private Double courierCharges;
     @PositiveOrZero @DecimalMax("100") private Double gstPercentage;
@@ -43,10 +43,11 @@ public class AdminProductVariantWriteRequest {
         ProductVariant value = new ProductVariant();
         value.setSku(sku);
         value.setLabel(label); value.setUnit(unit); value.setPackSize(packSize);
-        value.setPackSizeUnit(packSizeUnit); value.setPackQuantity(packQuantity);
-        value.setShippedBy(shippedBy); value.setShippingThrough(shippingThrough); value.setSwg(swg); value.setDimensions(dimensions);
+        value.setPackQuantity(packQuantity);
+        value.setShippedBy(shippedBy); value.setShippingThrough(shippingThrough); value.setSwg(swg);
+        value.setProductWeight(productWeight); value.setProductWeightUnit(productWeightUnit);
+        value.setDimensions(dimensions);
         value.setDisplayRate(displayRate); value.setPrintedMrp(printedMrp);
-        value.setAmountYouWillReceive(amountYouWillReceive);
         value.setCommissionPercentage(commissionPercentage); value.setCourierCharges(courierCharges);
         value.setGstPercentage(gstPercentage); value.setDiscountOnMrpRs(discountOnMrpRs);
         value.setDiscountPercentage(discountPercentage); value.setStock(stock); value.setPaymentMethod(paymentMethod);
@@ -60,16 +61,16 @@ public class AdminProductVariantWriteRequest {
     public String getLabel() { return label; } public void setLabel(String v) { label=v; }
     public String getUnit() { return unit; } public void setUnit(String v) { unit=v; }
     public Integer getPackSize() { return packSize; } public void setPackSize(Integer v) { packSize=v; }
-    public String getPackSizeUnit() { return packSizeUnit; } public void setPackSizeUnit(String v) { packSizeUnit=v; }
     public Integer getPackQuantity() { return packQuantity; } public void setPackQuantity(Integer v) { packQuantity=v; }
     public String getShippedBy() { return shippedBy; } public void setShippedBy(String v) { shippedBy=v; }
     public String getShippingThrough() { return shippingThrough; } public void setShippingThrough(String v) { shippingThrough=v; }
     public Double getSwg() { return swg; } public void setSwg(Double v) { swg=v; }
+    public Double getProductWeight() { return productWeight; } public void setProductWeight(Double v) { productWeight=v; }
+    public String getProductWeightUnit() { return productWeightUnit; } public void setProductWeightUnit(String v) { productWeightUnit=v; }
     public java.util.List<com.ebs.biocrop.entity.ProductDimensions> getDimensions() { return dimensions; } public void setDimensions(java.util.List<com.ebs.biocrop.entity.ProductDimensions> v) { dimensions=v; }
     public Double getDisplayRate() { return displayRate; } public void setDisplayRate(Double v) { displayRate=v; }
     public Double getDiscountOnMrpRs() { return discountOnMrpRs; } public void setDiscountOnMrpRs(Double v) { discountOnMrpRs=v; }
     public Double getDiscountPercentage() { return discountPercentage; } public void setDiscountPercentage(Double v) { discountPercentage=v; }
-    public Double getAmountYouWillReceive() { return amountYouWillReceive; } public void setAmountYouWillReceive(Double v) { amountYouWillReceive=v; }
     public Double getPrintedMrp() { return printedMrp; } public void setPrintedMrp(Double v) { printedMrp=v; }
     public Double getCommissionPercentage() { return commissionPercentage; } public void setCommissionPercentage(Double v) { commissionPercentage=v; }
     public Double getCourierCharges() { return courierCharges; } public void setCourierCharges(Double v) { courierCharges=v; }

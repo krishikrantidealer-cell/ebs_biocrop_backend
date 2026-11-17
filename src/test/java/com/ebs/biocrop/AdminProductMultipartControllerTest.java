@@ -85,7 +85,7 @@ class AdminProductMultipartControllerTest {
         variant.setLabel("1 Liter");
         variant.setUnit("liter");
         variant.setPackSize(1);
-        variant.setPackSizeUnit("liter");
+        variant.setUnit("liter");
         variant.setPackQuantity(1);
         variant.setDisplayRate(450.0);
         variant.setPrintedMrp(450.0);

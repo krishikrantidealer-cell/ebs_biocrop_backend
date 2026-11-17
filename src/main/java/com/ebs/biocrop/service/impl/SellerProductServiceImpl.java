@@ -84,7 +84,9 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         copySellerFields(request, listing, null);
         listing.setStatus("ACTIVE");
-        listing.setIsAvailable(true);
+        boolean hasAnyStock = listing.getVariants() != null
+                && listing.getVariants().stream().anyMatch(v -> v.getStock() != null && v.getStock() > 0);
+        listing.setIsAvailable(hasAnyStock);
         listing.setIsFeatured(false);
         listing.setAverageRating(null);
         listing.setCreatedAt(LocalDateTime.now());
@@ -206,9 +208,6 @@ public class SellerProductServiceImpl implements SellerProductService {
         if (variant.getPackSize() == null || variant.getPackSize() <= 0) {
             variant.setPackSize(1);
         }
-        if (variant.getPackSizeUnit() == null || variant.getPackSizeUnit().isBlank()) {
-            variant.setPackSizeUnit(variant.getUnit() != null && !variant.getUnit().isBlank() ? variant.getUnit() : "unit");
-        }
         if (variant.getPackQuantity() == null || variant.getPackQuantity() <= 0) {
             variant.setPackQuantity(1);
         }
@@ -216,10 +215,10 @@ public class SellerProductServiceImpl implements SellerProductService {
             variant.setUnit("unit");
         }
         if (variant.getSwg() != null && !finiteNonnegative(variant.getSwg())) variant.setSwg(null);
+        if (variant.getProductWeight() != null && !finiteNonnegative(variant.getProductWeight())) variant.setProductWeight(null);
         if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
         validateMoneyField(variant.getDisplayRate(), "Display rate");
         validateMoneyField(variant.getPrintedMrp(), "Printed MRP");
-        validateMoneyField(variant.getAmountYouWillReceive(), "Amount you will receive");
         validateMoneyField(variant.getCourierCharges(), "Courier charges");
         validateMoneyField(variant.getCodCharge(), "COD charge");
         validatePercentageField(variant.getCommissionPercentage(), "Commission percentage");
@@ -271,6 +270,7 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setSku(existing != null ? existing.getSku()
                 : (target.getSku() != null ? target.getSku() : source.getSku()));
         target.setHsnCode(source.getHsnCode());
+        target.setGst(source.getGst());
         target.setTitle(source.getTitle().trim());
         target.setBrandName(source.getBrandName() != null ? source.getBrandName().trim() : null);
         target.setTechnicalName(source.getTechnicalName());
@@ -284,7 +284,11 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
         String baseSku = existing == null ? target.getSku() : existing.getSku();
-        target.setVariants(sanitizeVariants(source.getVariants(), oldVariants, baseSku));
+        List<ProductVariant> sanitized = sanitizeVariants(source.getVariants(), oldVariants, baseSku);
+        target.setVariants(sanitized);
+        if (target.getGst() == null && !sanitized.isEmpty()) {
+            target.setGst(sanitized.get(0).getGstPercentage());
+        }
     }
 
     private String findSellerShopName(String sellerId) {
@@ -330,21 +334,21 @@ public class SellerProductServiceImpl implements SellerProductService {
                 clean.setSku(SellerCodeService.variantSku(productSku, nextVariantNumber(currentList, result)));
             }
             clean.setLabel(input.getLabel() != null && !input.getLabel().isBlank() ? input.getLabel() : "Variant " + (result.size() + 1));
-            String unit = input.getUnit() == null ? (input.getPackSizeUnit() == null ? "ml" : input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT)) : input.getUnit().trim().toLowerCase(Locale.ROOT);
+            String unit = input.getUnit() == null ? "ml" : input.getUnit().trim().toLowerCase(Locale.ROOT);
             clean.setUnit(unit.isBlank() ? "ml" : unit);
             clean.setPackSize(input.getPackSize() != null && input.getPackSize() > 0 ? input.getPackSize() : 1);
-            clean.setPackSizeUnit(input.getPackSizeUnit() != null && !input.getPackSizeUnit().isBlank() ? input.getPackSizeUnit().trim().toLowerCase(Locale.ROOT) : clean.getUnit());
             clean.setPackQuantity(input.getPackQuantity() != null && input.getPackQuantity() > 0 ? input.getPackQuantity() : 1);
             clean.setShippedBy(input.getShippedBy() == null || input.getShippedBy().isBlank() ? "essentialbiocropscience" : input.getShippedBy().trim());
             clean.setShippingThrough(input.getShippingThrough() == null ? "" : input.getShippingThrough().trim());
             clean.setSwg(input.getSwg());
+            clean.setProductWeight(input.getProductWeight());
+            clean.setProductWeightUnit(input.getProductWeightUnit() == null || input.getProductWeightUnit().isBlank() ? "g" : input.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
             clean.setDimensions(input.getDimensions() == null || input.getDimensions().isEmpty()
                     ? List.of(new ProductDimensions(20.0, 10.0, 10.0, "cm"))
                     : normalizeDimensions(input.getDimensions()));
 
             clean.setDisplayRate(input.getDisplayRate());
             clean.setPrintedMrp(input.getPrintedMrp());
-            clean.setAmountYouWillReceive(input.getAmountYouWillReceive());
             clean.setCommissionPercentage(input.getCommissionPercentage());
             clean.setCourierCharges(input.getCourierCharges());
             clean.setGstPercentage(input.getGstPercentage());
@@ -379,7 +383,6 @@ public class SellerProductServiceImpl implements SellerProductService {
     }
 
     private void copyVariantPricingSettings(ProductVariant source, ProductVariant target) {
-        target.setAmountYouWillReceive(source.getAmountYouWillReceive());
         target.setCommissionPercentage(source.getCommissionPercentage());
         target.setCourierCharges(source.getCourierCharges());
         target.setPaymentMethod(source.getPaymentMethod());

@@ -88,7 +88,7 @@ class SellerProductPricingTest {
         SellerProductWriteRequest.VariantWriteRequest variant = new SellerProductWriteRequest.VariantWriteRequest();
         variant.setUnit("l");
         variant.setPackSize(1);
-        variant.setPackSizeUnit("l");
+        variant.setUnit("l");
         variant.setPackQuantity(1);
         variant.setDisplayRate(100.0);
         variant.setPrintedMrp(100.0);
@@ -103,7 +103,7 @@ class SellerProductPricingTest {
         assertEquals(created.getProductCode(), created.getSku());
         assertNull(created.getSellerId());
         assertEquals("ACTIVE", created.getStatus());
-        assertEquals(Boolean.TRUE, created.getIsAvailable());
+        assertEquals(Boolean.FALSE, created.getIsAvailable());
         assertEquals(Boolean.FALSE, created.getIsFeatured());
         verifyNoInteractions(mongoTemplate, sellerCodeService);
     }

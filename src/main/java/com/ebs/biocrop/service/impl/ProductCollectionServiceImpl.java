@@ -439,7 +439,10 @@ public class ProductCollectionServiceImpl implements ProductCollectionService {
                 .regex("^" + Pattern.quote(value) + "$", "i")).toArray(Criteria[]::new);
         Query query = Query.query(new Criteria().andOperator(
                 Criteria.where("status").regex("^ACTIVE$", "i"),
-                Criteria.where("isAvailable").is(true),
+                new Criteria().orOperator(
+                        Criteria.where("isDeleted").is(false),
+                        Criteria.where("isDeleted").exists(false),
+                        Criteria.where("isDeleted").is(null)),
                 new Criteria().orOperator(matches)));
         return mongoTemplate.count(query, Product.class);
     }

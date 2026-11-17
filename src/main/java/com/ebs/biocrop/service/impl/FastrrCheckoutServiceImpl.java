@@ -401,7 +401,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 vs.setLabel(variant.getLabel());
                 vs.setUnit(variant.getUnit());
                 vs.setPackSize(variant.getPackSize());
-                vs.setPackSizeUnit(variant.getPackSizeUnit());
+                vs.setPackSizeUnit(variant.getUnit());
                 vs.setPackQuantity(variant.getPackQuantity());
                 item.setVariantSnapshot(vs);
             }
@@ -513,18 +513,56 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
     }
 
     private void decrementStock(Product product, ProductVariant variant, int quantity) {
-        if (product.getId() == null || variant == null || variant.getId() == null || product.getVariants() == null) {
+        if (product.getId() == null || variant == null || variant.getId() == null || quantity <= 0) {
             return;
         }
-        Query q = Query.query(Criteria.where("_id").is(product.getId()));
-        Update update = new Update();
-        for (int i = 0; i < product.getVariants().size(); i++) {
-            if (variant.getId().equals(product.getVariants().get(i).getId())) {
-                int vStock = variant.getStock() == null ? 0 : variant.getStock();
-                update.set("variants." + i + ".stock", Math.max(0, vStock - quantity));
-                mongoTemplate.updateFirst(q, update, Product.class);
+        Query q = Query.query(Criteria.where("_id").is(product.getId())
+                .and("variants._id").is(variant.getId()));
+        Product updated = mongoTemplate.findAndModify(
+                q,
+                new Update().inc("variants.$.stock", -quantity).inc("version", 1),
+                org.springframework.data.mongodb.core.FindAndModifyOptions.options().returnNew(true),
+                Product.class);
+        if (updated == null || updated.getVariants() == null) {
+            return;
+        }
+        int remainingStock = 0;
+        for (int i = 0; i < updated.getVariants().size(); i++) {
+            ProductVariant v = updated.getVariants().get(i);
+            if (variant.getId().equals(v.getId())) {
+                int raw = v.getStock() == null ? 0 : v.getStock();
+                if (raw < 0) {
+                    raw = 0;
+                    mongoTemplate.updateFirst(
+                            Query.query(Criteria.where("_id").is(updated.getId()).and("variants._id").is(variant.getId())),
+                            new Update().set("variants.$.stock", 0),
+                            Product.class);
+                    v.setStock(0);
+                }
+                remainingStock = raw;
                 break;
             }
+        }
+        boolean anyStockLeft = updated.getVariants().stream()
+                .anyMatch(v -> v.getStock() != null && v.getStock() > 0);
+        if (!anyStockLeft && Boolean.TRUE.equals(updated.getIsAvailable())) {
+            Product unavailable = mongoTemplate.findAndModify(
+                    Query.query(Criteria.where("_id").is(updated.getId())),
+                    new Update().set("isAvailable", false).inc("version", 1),
+                    org.springframework.data.mongodb.core.FindAndModifyOptions.options().returnNew(true),
+                    Product.class);
+            if (unavailable != null && webSocketService != null) {
+                webSocketService.broadcast("products:update", unavailable);
+            }
+        }
+        if (redisCache != null) {
+            redisCache.invalidateRegion("public-products");
+        }
+        if (webSocketService != null) {
+            webSocketService.broadcast("inventory:stock_update", Map.of(
+                    "productId", updated.getId(),
+                    "variantId", variant.getId(),
+                    "stock", remainingStock));
         }
     }
 

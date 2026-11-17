@@ -381,6 +381,18 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                     .findFirst()
                     .orElseThrow(() -> new AppException("Reserved stock could not be verified for '"
                             + line.product().getTitle() + "'", HttpStatus.CONFLICT));
+            boolean anyStockLeft = updated.getVariants().stream()
+                    .anyMatch(v -> v.getStock() != null && v.getStock() > 0);
+            if (!anyStockLeft && Boolean.TRUE.equals(updated.getIsAvailable())) {
+                Product unavailable = mongoTemplate.findAndModify(
+                        Query.query(Criteria.where("_id").is(updated.getId())),
+                        new Update().set("isAvailable", false).inc("version", 1),
+                        FindAndModifyOptions.options().returnNew(true),
+                        Product.class);
+                if (unavailable != null) {
+                    webSocketService.broadcast("products:update", unavailable);
+                }
+            }
             updates.add(new StockUpdate(line.product().getId(), line.variant().getId(), remainingStock));
         }
         return updates;
@@ -424,7 +436,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         variantSnapshot.setLabel(variantLabel(line.variant()));
         variantSnapshot.setUnit(line.variant().getUnit());
         variantSnapshot.setPackSize(line.variant().getPackSize());
-        variantSnapshot.setPackSizeUnit(line.variant().getPackSizeUnit());
+        variantSnapshot.setPackSizeUnit(line.variant().getUnit());
         variantSnapshot.setPackQuantity(line.variant().getPackQuantity());
         item.setVariantSnapshot(variantSnapshot);
         Order.ProductSnapshot snapshot = new Order.ProductSnapshot();
@@ -530,7 +542,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private String variantLabel(ProductVariant variant) {
         if (variant.getLabel() != null && !variant.getLabel().isBlank()) return variant.getLabel();
         return (variant.getPackSize() == null ? "" : variant.getPackSize())
-                + (variant.getPackSizeUnit() == null ? "" : " " + variant.getPackSizeUnit())
+                + (variant.getUnit() == null ? "" : " " + variant.getUnit())
                 + (variant.getPackQuantity() == null || variant.getPackQuantity() <= 1 ? "" : " × " + variant.getPackQuantity());
     }
 
