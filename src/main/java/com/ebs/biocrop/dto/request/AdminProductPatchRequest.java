@@ -19,10 +19,12 @@ public class AdminProductPatchRequest {
     @Size(max = 300) private String technicalName;
     @Size(max = 100000) private String description;
     @Size(max = 24) private String categoryId;
+    private java.util.List<String> subCategoryIds;
     @Size(max = 2000) private String refundPolicy;
     @PositiveOrZero private Double productWeight;
     @Size(max = 10) private String productWeightUnit;
     @DecimalMin("0.0") @DecimalMax("5.0") private Double averageRating;
+    private Boolean isMarketplace;
     @Size(max = 50) @Valid private List<SellerProductWriteRequest.VariantWriteRequest> variants;
 
     public String getSku() { return sku; } public void setSku(String v) { sku=v; }
@@ -33,17 +35,19 @@ public class AdminProductPatchRequest {
     public String getTechnicalName() { return technicalName; } public void setTechnicalName(String v) { technicalName=v; }
     public String getDescription() { return description; } public void setDescription(String v) { description=v; }
     public String getCategoryId() { return categoryId; } public void setCategoryId(String v) { categoryId=v; }
+    public java.util.List<String> getSubCategoryIds() { return subCategoryIds; } public void setSubCategoryIds(java.util.List<String> v) { subCategoryIds=v; }
     public String getRefundPolicy() { return refundPolicy; } public void setRefundPolicy(String v) { refundPolicy=v; }
     public Double getProductWeight() { return productWeight; } public void setProductWeight(Double v) { productWeight=v; }
     public String getProductWeightUnit() { return productWeightUnit; } public void setProductWeightUnit(String v) { productWeightUnit=v; }
     public Double getAverageRating() { return averageRating; } public void setAverageRating(Double v) { averageRating=v; }
+    public Boolean getIsMarketplace() { return isMarketplace; } public void setIsMarketplace(Boolean v) { isMarketplace=v; }
     public List<SellerProductWriteRequest.VariantWriteRequest> getVariants() { return variants; } public void setVariants(List<SellerProductWriteRequest.VariantWriteRequest> v) { variants=v; }
 
     public boolean hasChanges() {
         return sku != null || hsnCode != null || gst != null || title != null || brandName != null || technicalName != null
-                || description != null || categoryId != null
+                || description != null || categoryId != null || subCategoryIds != null
                 || refundPolicy != null || productWeight != null || productWeightUnit != null
-                || averageRating != null
+                || averageRating != null || isMarketplace != null
                 || (variants != null && !variants.isEmpty());
     }
 }

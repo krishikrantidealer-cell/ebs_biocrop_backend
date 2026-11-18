@@ -47,6 +47,7 @@ public class Product {
     /** Leaf category document selected for this product/listing. */
     @Field(write = Field.Write.ALWAYS)
     private String categoryId;
+    private List<String> subCategoryIds = new ArrayList<>();
     /** String-based merchandising membership; values may match a collection or subcollection name, slug, or ID. */
     private List<String> assignedCollections = new ArrayList<>();
 
@@ -54,6 +55,7 @@ public class Product {
     private Boolean isAvailable;
     @Field(write = Field.Write.ALWAYS)
     private Boolean isFeatured;
+    private Boolean isMarketplace = Boolean.TRUE;
     private List<ProductVariant> variants = new ArrayList<>();
     @Field(write = Field.Write.ALWAYS)
     private Double averageRating;
@@ -110,12 +112,16 @@ public class Product {
     }
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public List<String> getSubCategoryIds() { return subCategoryIds; }
+    public void setSubCategoryIds(List<String> subCategoryIds) { this.subCategoryIds = subCategoryIds != null ? subCategoryIds : new ArrayList<>(); }
     public List<String> getAssignedCollections() { return assignedCollections; }
     public void setAssignedCollections(List<String> assignedCollections) { this.assignedCollections = assignedCollections != null ? assignedCollections : new ArrayList<>(); }
     public Boolean getIsAvailable() { return isAvailable; }
     public void setIsAvailable(Boolean available) { isAvailable = available; }
     public Boolean getIsFeatured() { return isFeatured; }
     public void setIsFeatured(Boolean featured) { isFeatured = featured; }
+    public Boolean getIsMarketplace() { return isMarketplace; }
+    public void setIsMarketplace(Boolean marketplace) { isMarketplace = marketplace; }
     public List<ProductVariant> getVariants() { return variants; }
     public void setVariants(List<ProductVariant> variants) { this.variants = variants != null ? variants : new ArrayList<>(); }
     public Double getAverageRating() { return averageRating; }

@@ -12,7 +12,6 @@ import com.ebs.biocrop.entity.Wishlist;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.repository.UserRepository;
-import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import com.ebs.biocrop.service.impl.AdminUserServiceImpl;
 import com.ebs.biocrop.websocket.WebSocketService;
@@ -42,13 +41,11 @@ class AdminUserManagementServiceTest {
     @Mock private UserRepository users;
     @Mock private RedisJsonCache redisCache;
     @Mock private WebSocketService webSocketService;
-    @Mock private GcsSellerKycDocumentService sellerKycDocumentService;
     private AdminUserServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new AdminUserServiceImpl(mongoTemplate, users, redisCache, webSocketService, null,
-                sellerKycDocumentService);
+        service = new AdminUserServiceImpl(mongoTemplate, users, redisCache, webSocketService, null);
     }
 
     @Test
@@ -74,7 +71,7 @@ class AdminUserManagementServiceTest {
     }
 
     @Test
-    void sellerDocumentsQualifyForReviewButDoNotAutomaticallyApproveKyc() {
+    void createsSellerWithPanLicenceAndWarehouseAddresses() {
         AdminManagedUserCreateRequest request = new AdminManagedUserCreateRequest();
         request.setPhoneNumber("9876543211");
         request.setEmail("SELLER@example.com");
@@ -82,7 +79,11 @@ class AdminUserManagementServiceTest {
         request.setLastName("Patel");
         request.setShopName("Farm Store");
         request.setAddress(completeAddress());
+        request.setWarehouseAddresses(List.of(completeAddress()));
         request.setGstNumber("GST-123");
+        request.setPanNumber("AABCU9603R");
+        request.setLicenceNo("LIC-2026-01");
+        request.setPassword("secret123");
         request.setBankDetails(Map.of("accountHolderName", "Krishi Seva Kendra LLP", "bankName", "State Bank of India"));
         request.setSettlementTerms(Map.of("commissionPercentage", 5, "settlementCycle", "MONTHLY"));
         when(users.existsByPhoneNumber("9876543211")).thenReturn(false);
@@ -102,9 +103,15 @@ class AdminUserManagementServiceTest {
         assertEquals("seller@example.com", seller.getEmail());
         assertEquals(0L, seller.getProductCodeSequence());
         assertEquals(0L, seller.getOrderNumberSequence());
-        assertFalse(seller.hasRequiredSellerKycInformation());
-        assertFalse(seller.getIsKycComplete());
-        assertNull(seller.getKycStatus());
+        assertEquals("AABCU9603R", seller.getPanNumber());
+        assertEquals("LIC-2026-01", seller.getLicenceNo());
+        assertEquals(1, seller.getWarehouseAddresses().size());
+        assertTrue(seller.getShippingAddresses().isEmpty());
+        assertNotNull(seller.getPasswordHash());
+        assertNotEquals("secret123", seller.getPasswordHash());
+        assertNull(seller.getIsVerified());
+        assertNull(seller.getWhatsappSequence());
+        assertTrue(seller.getBankDetails().containsKey("cancelledCheque"));
         assertEquals("Krishi Seva Kendra LLP", seller.getBankDetails().get("accountHolderName"));
         assertEquals("State Bank of India", seller.getBankDetails().get("bankName"));
         assertTrue(seller.getBankDetails().containsKey("accountNumber"));
@@ -114,72 +121,9 @@ class AdminUserManagementServiceTest {
         assertTrue(seller.getSettlementTerms().containsKey("payoutStatus"));
         assertTrue(seller.getIsProfileComplete());
         assertEquals("seller-id", response.id());
-    }
-
-    @Test
-    void changingSellerKycDocumentsClearsPreviousApproval() {
-        User seller = User.newSeller("9876543215", null);
-        seller.setGstNumber("GST-123");
-        seller.setLicenceImage(List.of("gs://bucket/licence.pdf"));
-        seller.setGstCertificate("gs://bucket/gst.pdf");
-        seller.setPanCard("gs://bucket/pan.pdf");
-        seller.setAadhaarCard("gs://bucket/aadhaar.pdf");
-        seller.setKycStatus("APPROVED");
-        assertTrue(seller.getIsKycComplete());
-
-        seller.setLicenceImage(List.of("gs://bucket/new-licence.pdf"));
-
-        assertNull(seller.getKycStatus());
-        assertFalse(seller.getIsKycComplete());
-        assertTrue(seller.hasRequiredSellerKycInformation());
-    }
-
-    @Test
-    void sellerCannotBeMarkedKycApprovedWithoutRequiredDocuments() {
-        User seller = User.newSeller("9876543216", null);
-
-        seller.setKycStatus("APPROVED");
-
-        assertNull(seller.getKycStatus());
-        assertFalse(seller.getIsKycComplete());
-    }
-
-    @Test
-    void adminKycApprovalRequiresAllDocumentsAndCanApproveAfterReview() {
-        User seller = User.newSeller("9876543217", null);
-        seller.setId("seller-id");
-        when(users.findById("seller-id")).thenReturn(Optional.of(seller));
-
-        AppException missingDocuments = assertThrows(AppException.class,
-                () -> service.reviewSellerKyc("seller-id", true));
-        assertEquals(HttpStatus.CONFLICT, missingDocuments.getStatus());
-        verify(users, never()).save(any(User.class));
-
-        seller.setGstNumber("GST-123");
-        seller.setLicenceImage(List.of("gs://bucket/licence.pdf"));
-        seller.setGstCertificate("gs://bucket/gst.pdf");
-        seller.setPanCard("gs://bucket/pan.pdf");
-        seller.setAadhaarCard("gs://bucket/aadhaar.pdf");
-        when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        var approved = service.reviewSellerKyc("seller-id", true);
-
-        assertEquals("APPROVED", approved.kycStatus());
-        assertTrue(approved.isKycComplete());
-        verify(webSocketService).sendToUser(eq("seller-id"), eq("users:kyc_updated"), any());
-    }
-
-    @Test
-    void kycReviewRejectsNonSellerAccounts() {
-        User customer = User.newCustomer("9876543218");
-        customer.setId("customer-id");
-        when(users.findById("customer-id")).thenReturn(Optional.of(customer));
-
-        AppException error = assertThrows(AppException.class,
-                () -> service.reviewSellerKyc("customer-id", true));
-
-        assertEquals(HttpStatus.CONFLICT, error.getStatus());
-        verify(users, never()).save(any(User.class));
+        assertEquals("AABCU9603R", response.panNumber());
+        assertEquals("LIC-2026-01", response.licenceNo());
+        assertEquals(1, response.warehouseAddresses().size());
     }
 
     @Test
@@ -389,20 +333,10 @@ class AdminUserManagementServiceTest {
         seller.setIsDeleted(true);
         when(users.findById("seller-with-products")).thenReturn(Optional.of(seller));
 
-        TransactionSynchronizationManager.initSynchronization();
-        try {
-            var response = service.permanentlyDelete("admin-id", "seller-with-products");
+        var response = service.permanentlyDelete("admin-id", "seller-with-products");
 
-            verify(users).delete(seller);
-            verify(sellerKycDocumentService, never()).deleteAllForSeller("seller-with-products");
-            assertEquals(1, response.count());
-
-            TransactionSynchronizationManager.getSynchronizations()
-                    .forEach(TransactionSynchronization::afterCommit);
-            verify(sellerKycDocumentService).deleteAllForSeller("seller-with-products");
-        } finally {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
+        verify(users).delete(seller);
+        assertEquals(1, response.count());
     }
 
     @Test

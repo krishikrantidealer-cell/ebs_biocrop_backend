@@ -470,7 +470,7 @@ public class FastrrCatalogController {
      * 4. POST /api/v1/fastrr/order/webhook
      * Verifies HMAC-SHA256 signature and creates an idempotent Order in MongoDB.
      */
-    @PostMapping({"/fastrr/order/webhook", "/fastrr/webhook"})
+    @PostMapping({"/fastrr/order/webhook", "/fastrr/order-webhook", "/fastrr/webhook"})
     @Operation(summary = "Fastrr Order Webhook", description = "Verifies HMAC-SHA256 signature and persists Fastrr orders")
     public ResponseEntity<Map<String, Object>> handleOrderWebhook(
             @RequestHeader(name = "X-Api-HMAC-SHA256", required = false) String hmacHeader,
@@ -523,6 +523,41 @@ public class FastrrCatalogController {
             return ResponseEntity.badRequest().body(Map.of(
                     "status", "BAD_REQUEST",
                     "message", "Invalid Fastrr webhook payload: " + ex.getMessage(),
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+    }
+
+    /**
+     * 5. POST /api/v1/fastrr/checkout/confirm
+     * Fallback/immediate confirmation endpoint called by storefront after Fastrr SDK reports success.
+     * Idempotently persists the order using catalog prices from MongoDB if the webhook hasn't arrived yet.
+     */
+    @PostMapping("/fastrr/checkout/confirm")
+    @Operation(summary = "Fastrr Checkout Confirm", description = "Idempotently persists a completed Fastrr checkout order using catalog prices")
+    public ResponseEntity<Map<String, Object>> confirmCheckoutOrder(@RequestBody(required = false) Map<String, Object> payload) {
+        if (fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
+            return ResponseEntity.status(503).body(Map.of(
+                    "status", "UNAVAILABLE",
+                    "message", "Fastrr Checkout integration is not configured",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+        try {
+            Map<String, Object> result = fastrrCheckoutService.processOrderWebhook(payload);
+            result.put("timestamp", Instant.now().toString());
+            return ResponseEntity.ok(result);
+        } catch (com.ebs.biocrop.exception.AppException ex) {
+            return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                    "status", "ERROR",
+                    "message", ex.getMessage(),
+                    "timestamp", Instant.now().toString()
+            ));
+        } catch (Exception ex) {
+            log.error("[FASTRR-CONFIRM] Failed to confirm Fastrr checkout order: {}", ex.getMessage(), ex);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "BAD_REQUEST",
+                    "message", "Invalid Fastrr confirm payload: " + ex.getMessage(),
                     "timestamp", Instant.now().toString()
             ));
         }

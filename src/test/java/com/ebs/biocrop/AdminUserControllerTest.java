@@ -10,7 +10,6 @@ import com.ebs.biocrop.repository.ProductRepository;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.AdminUserService;
-import com.ebs.biocrop.service.GcsSellerKycDocumentService;
 import com.ebs.biocrop.service.RateLimitGuard;
 import com.ebs.biocrop.service.RateLimitService;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,6 @@ class AdminUserControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private AdminUserService adminUserService;
-    @MockitoBean private GcsSellerKycDocumentService sellerKycDocuments;
     @MockitoBean private RateLimitGuard rateLimitGuard;
     @MockitoBean private RateLimitService rateLimitService;
     @MockitoBean private UserRepository userRepository;
@@ -96,11 +94,6 @@ class AdminUserControllerTest {
                 .thenReturn(response("seller-id", "ROLE_SELLER", false, true));
         when(adminUserService.setDeletedStatus("seller-id", false))
                 .thenReturn(response("seller-id", "ROLE_SELLER", false, false));
-        when(adminUserService.reviewSellerKyc("seller-id", true))
-                .thenReturn(new AdminUserResponse("seller-id", "9876543210", "seller@example.com", "First", "Last",
-                        "Shop", "ROLE_SELLER", null, true, false, "APPROVED", true, "GST-123",
-                        List.of("licence.pdf"), List.of(), false, false, null, null, "ACTIVE", null,
-                        List.of(), null, null, 0L, 0L));
 
         mockMvc.perform(patch("/api/v1/admin/users/seller-id/block")
                         .with(user(admin()))
@@ -123,14 +116,6 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isDeleted").value(false));
 
-        mockMvc.perform(patch("/api/v1/admin/users/seller-id/kyc")
-                        .with(user(admin()))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"approved\":true}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.kycStatus").value("APPROVED"))
-                .andExpect(jsonPath("$.data.isKycComplete").value(true));
-
         when(adminUserService.permanentlyDelete("admin-id", "seller-id"))
                 .thenReturn(PermanentDeleteUsersResponse.of(List.of("seller-id")));
 
@@ -142,7 +127,6 @@ class AdminUserControllerTest {
         verify(adminUserService).setBlockedStatus("seller-id", true);
         verify(adminUserService).setDeletedStatus("seller-id", true);
         verify(adminUserService).setDeletedStatus("seller-id", false);
-        verify(adminUserService).reviewSellerKyc("seller-id", true);
         verify(adminUserService).permanentlyDelete(anyString(), eq("seller-id"));
     }
 
@@ -180,11 +164,6 @@ class AdminUserControllerTest {
         mockMvc.perform(get("/api/v1/admin/users"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(patch("/api/v1/admin/users/seller-id/block")
-                        .with(user(admin()))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest());
-        mockMvc.perform(patch("/api/v1/admin/users/seller-id/kyc")
                         .with(user(admin()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -238,34 +217,6 @@ class AdminUserControllerTest {
                 .andExpect(jsonPath("$.message").value("Role changes are not permitted after account creation; create a new account instead."));
     }
 
-    @Test
-    void onlyAdminCanDownloadSellerKycDocuments() throws Exception {
-        when(sellerKycDocuments.download("seller-id", "pan-card", 0))
-                .thenReturn(new GcsSellerKycDocumentService.StoredDocument(
-                        new byte[]{1, 2, 3}, "application/pdf", "seller-pan-card-0.pdf"));
-
-        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
-                        .with(user(admin())))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
-                        .string("Content-Disposition", "attachment; filename=\"seller-pan-card-0.pdf\""));
-
-        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
-                        .with(user(seller())))
-                .andExpect(status().isForbidden());
-
-        User customer = User.newCustomer("9876543002");
-        customer.setId("customer-id");
-        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0")
-                        .with(user(CustomUserDetails.build(customer))))
-                .andExpect(status().isForbidden());
-
-        mockMvc.perform(get("/api/v1/admin/users/seller-id/kyc-documents/pan-card/0"))
-                .andExpect(status().isUnauthorized());
-
-        verify(sellerKycDocuments, times(1)).download("seller-id", "pan-card", 0);
-    }
-
     private CustomUserDetails admin() {
         User user = User.newAdmin("9876543000", "admin@example.com");
         user.setId("admin-id");
@@ -281,7 +232,7 @@ class AdminUserControllerTest {
     private AdminUserResponse response(String id, String role, boolean blocked, boolean deleted) {
         return new AdminUserResponse(id, "9876543210", "user@example.com", "First", "Last",
                 role.equals("ROLE_SELLER") ? "Shop" : null, role, null, true, false,
-                null, false, null, null, List.of(), blocked, deleted,
+                null, null, null, List.of(), List.of(), blocked, deleted,
                 null, null, "ACTIVE", null, List.of(), null, null,
                 role.equals("ROLE_SELLER") ? 0L : null, role.equals("ROLE_SELLER") ? 0L : null);
     }

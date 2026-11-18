@@ -37,6 +37,7 @@ public class AdminProductVariantPatchRequest {
     private Boolean isDefault;
     @JsonIgnore @Size(max = 80) private String sku;
 
+
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packQuantity != null
                 || shippedBy != null || shippingThrough != null || swg != null || productWeight != null || productWeightUnit != null || dimensions != null || displayRate != null
@@ -46,6 +47,7 @@ public class AdminProductVariantPatchRequest {
                 || isPartialPaymentAllowed != null || minimumPartialPaymentPercentage != null || codCharge != null
                 || stock != null || isDefault != null || sku != null;
     }
+
     public String getLabel() { return label; } public void setLabel(String v) { label=v; }
     public String getUnit() { return unit; } public void setUnit(String v) { unit=v; }
     public Integer getPackSize() { return packSize; } public void setPackSize(Integer v) { packSize=v; }

@@ -190,10 +190,29 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new AppException("Deleted products must be restored before editing", HttpStatus.CONFLICT);
         }
 
-        // Ownership validation
+        // Ownership validation & assignment for unassigned (platform) products
+        boolean assignedToDealerSeller = false;
+        double assignedDealerCommission = 0.0;
         if (request.getSellerId() != null && !request.getSellerId().isBlank()) {
-            if (current.getSellerId() != null && !current.getSellerId().equals(request.getSellerId().trim())) {
+            String requestedSellerId = request.getSellerId().trim();
+            if (current.getSellerId() != null && !current.getSellerId().isBlank()
+                    && !current.getSellerId().equals(requestedSellerId)) {
                 throw new AppException("Product ownership cannot be changed", HttpStatus.CONFLICT);
+            }
+            if (current.getSellerId() == null || current.getSellerId().isBlank()) {
+                User seller = mongoTemplate.findById(requestedSellerId, User.class);
+                if (seller == null) {
+                    throw new ResourceNotFoundException("Seller", "id", requestedSellerId);
+                }
+                current.setSellerId(seller.getId());
+                if ("DEALER_COMMISSION".equalsIgnoreCase(seller.getPricingModel())) {
+                    assignedToDealerSeller = true;
+                    assignedDealerCommission = seller.getCommissionPercentage() != null
+                            ? seller.getCommissionPercentage() : 0.0;
+                    current.setIsMarketplace(false);
+                } else {
+                    current.setIsMarketplace(true);
+                }
             }
         }
 
@@ -219,6 +238,17 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (request.getCategoryId().isBlank()) throw new AppException("Category ID cannot be blank", HttpStatus.BAD_REQUEST);
             current.setCategoryId(request.getCategoryId().trim());
         }
+        if (request.getSubCategoryIds() != null) {
+            List<String> cleanedSubs = request.getSubCategoryIds().stream()
+                    .filter(s -> s != null && !s.isBlank())
+                    .map(String::trim)
+                    .distinct()
+                    .toList();
+            current.setSubCategoryIds(new ArrayList<>(cleanedSubs));
+            if ((current.getCategoryId() == null || current.getCategoryId().isBlank()) && !cleanedSubs.isEmpty()) {
+                current.setCategoryId(cleanedSubs.get(0));
+            }
+        }
         if (request.getRefundPolicy() != null) current.setRefundPolicy(request.getRefundPolicy().trim());
         if (request.getProductWeight() != null) current.setProductWeight(request.getProductWeight());
         if (request.getProductWeightUnit() != null) {
@@ -226,6 +256,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
         if (request.getAverageRating() != null) {
             current.setAverageRating(normalizeAverageRating(request.getAverageRating()));
+        }
+        if (request.getIsMarketplace() != null) {
+            current.setIsMarketplace(request.getIsMarketplace());
+        } else if (current.getIsMarketplace() == null) {
+            current.setIsMarketplace(Boolean.TRUE);
         }
 
         // Variants update (if provided)
@@ -248,6 +283,20 @@ public class AdminProductServiceImpl implements AdminProductService {
             for (String variantId : removedVariantIds) cartService.removeVariantFromAllCarts(variantId);
             removeWishlistReferences(removedVariantIds);
         }
+        if (assignedToDealerSeller && current.getVariants() != null) {
+            for (ProductVariant variant : current.getVariants()) {
+                variant.setSwg(0.0);
+                variant.setDisplayRate(0.0);
+                variant.setPrintedMrp(0.0);
+                variant.setCourierCharges(0.0);
+                variant.setCodCharge(0.0);
+                variant.setDiscountOnMrpRs(0.0);
+                variant.setDiscountPercentage(0.0);
+                variant.setStock(0);
+                variant.setCommissionPercentage(assignedDealerCommission);
+            }
+            current.setIsAvailable(false);
+        }
 
         sellerProducts.validateProduct(current);
         if (current.getStatus() == null || current.getStatus().isBlank()) {
@@ -256,9 +305,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (current.getIsAvailable() == null) {
             current.setIsAvailable(true);
         }
-        boolean hasAnyStock = current.getVariants() != null
-                && current.getVariants().stream().anyMatch(v -> v.getStock() != null && v.getStock() > 0);
-        if (!hasAnyStock) {
+        boolean hasSellableVariant = current.getVariants() != null
+                && current.getVariants().stream().anyMatch(v ->
+                        v.getStock() != null && v.getStock() > 0
+                                && v.getDisplayRate() != null && v.getDisplayRate() > 0);
+        if (!hasSellableVariant) {
             current.setIsAvailable(false);
         }
         if (current.getIsFeatured() == null) {
@@ -280,10 +331,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
         updateRequest.setCategoryId(request.getCategoryId());
+        updateRequest.setSubCategoryIds(request.getSubCategoryIds());
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
         updateRequest.setAverageRating(request.getAverageRating());
+        updateRequest.setIsMarketplace(request.getIsMarketplace());
         updateRequest.setVariants(request.getVariants());
         return update(id, updateRequest);
     }
@@ -299,10 +352,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setTechnicalName(request.getTechnicalName());
         updateRequest.setDescription(request.getDescription());
         updateRequest.setCategoryId(request.getCategoryId());
+        updateRequest.setSubCategoryIds(request.getSubCategoryIds());
         updateRequest.setRefundPolicy(request.getRefundPolicy());
         updateRequest.setProductWeight(request.getProductWeight());
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
         updateRequest.setAverageRating(request.getAverageRating());
+        updateRequest.setIsMarketplace(request.getIsMarketplace());
         updateRequest.setVariants(request.getVariants());
         return update(id, updateRequest);
     }

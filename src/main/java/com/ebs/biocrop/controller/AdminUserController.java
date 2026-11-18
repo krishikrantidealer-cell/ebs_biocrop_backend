@@ -4,7 +4,6 @@ import com.ebs.biocrop.common.pagination.PageRequestSupport;
 import com.ebs.biocrop.dto.request.UpdateUserRoleRequest;
 import com.ebs.biocrop.dto.request.AdminManagedUserCreateRequest;
 import com.ebs.biocrop.dto.request.AdminManagedUserUpdateRequest;
-import com.ebs.biocrop.dto.request.SellerKycReviewRequest;
 import com.ebs.biocrop.dto.request.UserBlockedStatusRequest;
 import com.ebs.biocrop.dto.request.UserDeletedStatusRequest;
 import com.ebs.biocrop.dto.request.DeleteUsersRequest;
@@ -154,18 +153,6 @@ public class AdminUserController {
             return ResponseEntity.ok(ApiResponse.ok(message, responses.get(0)));
         }
         return ResponseEntity.ok(ApiResponse.ok(message, CountedListResponse.from(responses)));
-    }
-
-    @PatchMapping("/{userId}/kyc")
-    @Operation(summary = "Approve or return a seller KYC submission")
-    public ResponseEntity<ApiResponse<AdminUserResponse>> reviewSellerKyc(
-            @AuthenticationPrincipal CustomUserDetails admin,
-            @PathVariable String userId,
-            @Valid @RequestBody SellerKycReviewRequest request) {
-        rateLimitGuard.enforce("admin-user-write", admin.getId(), 60, Duration.ofMinutes(1));
-        boolean approved = request.approved();
-        return ResponseEntity.ok(ApiResponse.ok(approved ? "Seller KYC approved" : "Seller KYC returned for review",
-                adminUsers.reviewSellerKyc(userId, approved)));
     }
 
     // Assign a role to an admin-managed user.

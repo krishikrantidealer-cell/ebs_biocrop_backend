@@ -32,6 +32,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -52,7 +54,10 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
     private final SellerCodeService sellerCodeService;
-    private final GcsSellerKycDocumentService sellerKycDocumentService;
+    @Autowired(required = false)
+    private PasswordEncoder passwordEncoder;
+    @Autowired(required = false)
+    private GcsSellerKycDocumentService sellerKycDocumentService;
 
     @Autowired
     public AdminUserServiceImpl(
@@ -60,27 +65,18 @@ public class AdminUserServiceImpl implements AdminUserService {
             UserRepository users,
             RedisJsonCache redisCache,
             WebSocketService webSocketService,
-            SellerCodeService sellerCodeService,
-            GcsSellerKycDocumentService sellerKycDocumentService) {
+            SellerCodeService sellerCodeService) {
         this.mongoTemplate = mongoTemplate;
         this.users = users;
         this.redisCache = redisCache;
         this.webSocketService = webSocketService;
         this.sellerCodeService = sellerCodeService;
-        this.sellerKycDocumentService = sellerKycDocumentService;
-    }
-
-    /** Keeps existing direct construction source-compatible. */
-    public AdminUserServiceImpl(MongoTemplate mongoTemplate, UserRepository users,
-                                RedisJsonCache redisCache, WebSocketService webSocketService,
-                                SellerCodeService sellerCodeService) {
-        this(mongoTemplate, users, redisCache, webSocketService, sellerCodeService, null);
     }
 
     /** Keeps direct construction in existing unit tests source-compatible. */
     public AdminUserServiceImpl(MongoTemplate mongoTemplate, UserRepository users,
                                 RedisJsonCache redisCache, WebSocketService webSocketService) {
-        this(mongoTemplate, users, redisCache, webSocketService, null, null);
+        this(mongoTemplate, users, redisCache, webSocketService, null);
     }
 
     @Override
@@ -96,11 +92,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         if (request.getRole() != null && !role.name().equalsIgnoreCase(request.getRole())) {
             throw new AppException("The role in the request must match the endpoint", HttpStatus.BAD_REQUEST);
-        }
-        if (role == UserRole.ROLE_SELLER
-                && (Boolean.TRUE.equals(request.getIsKycComplete())
-                || "APPROVED".equalsIgnoreCase(request.getKycStatus()))) {
-            throw new AppException("Seller KYC approval must use the admin KYC review endpoint", HttpStatus.CONFLICT);
         }
         String phone = request.getPhoneNumber();
         if (users.existsByPhoneNumber(phone)) {
@@ -121,27 +112,37 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         User user = role == UserRole.ROLE_SELLER ? User.newSeller(phone, email) : User.newCustomer(phone);
         if (role == UserRole.ROLE_SELLER && (isBlank(request.getFirstName()) || isBlank(request.getLastName())
-                || isBlank(request.getShopName()) || isBlank(request.getGstNumber()) || isBlank(email))) {
-            throw new AppException("Seller first name, last name, phone, email, shop name, and GST number are required", HttpStatus.BAD_REQUEST);
+                || isBlank(request.getShopName()) || isBlank(email))) {
+            throw new AppException("Seller first name, last name, phone, email, and shop name are required", HttpStatus.BAD_REQUEST);
         }
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAddress(request.getAddress());
-        user.setShippingAddresses(request.getShippingAddresses() == null
-                ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
+        if (role == UserRole.ROLE_CUSTOMER) {
+            user.setShippingAddresses(request.getShippingAddresses() == null
+                    ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
+            if (request.getNotesHistory() != null) user.setNotesHistory(new ArrayList<>(request.getNotesHistory()));
+            if (request.getIsVerified() != null) user.setIsVerified(request.getIsVerified());
+        }
         user.setStatus(request.getStatus() == null ? "ACTIVE" : request.getStatus());
         user.setNotes(request.getNotes());
-        if (request.getNotesHistory() != null) user.setNotesHistory(new ArrayList<>(request.getNotesHistory()));
         user.setIsBlocked(Boolean.TRUE.equals(request.getIsBlocked()));
         user.setIsDeleted(Boolean.TRUE.equals(request.getIsDeleted()));
-        if (request.getIsVerified() != null) user.setIsVerified(request.getIsVerified());
+        if (role != UserRole.ROLE_CUSTOMER && request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(encodePassword(request.getPassword()));
+        }
         if (role == UserRole.ROLE_SELLER) {
             user.setShopName(request.getShopName());
             user.setGstNumber(request.getGstNumber());
+            user.setPanNumber(request.getPanNumber());
+            user.setLicenceNo(request.getLicenceNo());
+            user.setWarehouseAddresses(request.getWarehouseAddresses() == null
+                    ? new ArrayList<>() : new ArrayList<>(request.getWarehouseAddresses()));
             user.setMonthlyTarget(request.getMonthlyTarget());
             user.setPreferredLanguage(request.getPreferredLanguage());
             if (request.getBankDetails() != null) user.setBankDetails(merge(user.getBankDetails(), request.getBankDetails()));
             if (request.getSettlementTerms() != null) user.setSettlementTerms(merge(user.getSettlementTerms(), request.getSettlementTerms()));
+            applySellerPricingModel(user, request.getPricingModel(), request.getCommissionPercentage(), true);
         }
         user.setIsProfileComplete(user.hasCompleteProfile());
         user.setUpdatedAt(LocalDateTime.now());
@@ -196,17 +197,30 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (replace || request.getFirstName() != null) user.setFirstName(request.getFirstName());
         if (replace || request.getLastName() != null) user.setLastName(request.getLastName());
         if (replace || request.getAddress() != null) user.setAddress(request.getAddress());
-        if (replace || request.getShippingAddresses() != null) user.setShippingAddresses(
-                request.getShippingAddresses() == null ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
+        if (user.getRole() == UserRole.ROLE_CUSTOMER && (replace || request.getShippingAddresses() != null)) {
+            user.setShippingAddresses(request.getShippingAddresses() == null
+                    ? new ArrayList<>() : new ArrayList<>(request.getShippingAddresses()));
+        }
         if (replace || request.getStatus() != null) user.setStatus(request.getStatus() == null ? "ACTIVE" : request.getStatus());
         if (replace || request.getNotes() != null) user.setNotes(request.getNotes());
-        if (replace || request.getNotesHistory() != null) user.setNotesHistory(
-                request.getNotesHistory() == null ? new ArrayList<>() : new ArrayList<>(request.getNotesHistory()));
-        if (replace || request.getIsVerified() != null) user.setIsVerified(Boolean.TRUE.equals(request.getIsVerified()));
+        if (user.getRole() == UserRole.ROLE_CUSTOMER) {
+            if (replace || request.getNotesHistory() != null) user.setNotesHistory(
+                    request.getNotesHistory() == null ? new ArrayList<>() : new ArrayList<>(request.getNotesHistory()));
+            if (replace || request.getIsVerified() != null) user.setIsVerified(Boolean.TRUE.equals(request.getIsVerified()));
+        }
+        if (user.getRole() != UserRole.ROLE_CUSTOMER && request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(encodePassword(request.getPassword()));
+        }
         String priorShopName = user.getShopName();
+        String priorPricingModel = user.getPricingModel();
+        Double priorCommission = user.getCommissionPercentage();
         if (user.getRole() == UserRole.ROLE_SELLER) {
             if (replace || request.getShopName() != null) user.setShopName(request.getShopName());
             if (replace || request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
+            if (replace || request.getPanNumber() != null) user.setPanNumber(request.getPanNumber());
+            if (replace || request.getLicenceNo() != null) user.setLicenceNo(request.getLicenceNo());
+            if (replace || request.getWarehouseAddresses() != null) user.setWarehouseAddresses(
+                    request.getWarehouseAddresses() == null ? new ArrayList<>() : new ArrayList<>(request.getWarehouseAddresses()));
             if (replace || request.getMonthlyTarget() != null) {
                 if (request.getMonthlyTarget() != null && request.getMonthlyTarget() < 0)
                     throw new AppException("Monthly target cannot be negative", HttpStatus.BAD_REQUEST);
@@ -217,6 +231,12 @@ public class AdminUserServiceImpl implements AdminUserService {
                     ? defaultBankDetails() : merge(defaultBankDetails(), request.getBankDetails()));
             if (replace || request.getSettlementTerms() != null) user.setSettlementTerms(request.getSettlementTerms() == null
                     ? defaultSettlementTerms() : merge(defaultSettlementTerms(), request.getSettlementTerms()));
+            if (priorPricingModel != null && !priorPricingModel.isBlank()
+                    && request.getPricingModel() != null && !request.getPricingModel().isBlank()
+                    && !priorPricingModel.trim().equalsIgnoreCase(request.getPricingModel().trim())) {
+                throw new AppException("Seller pricing model cannot be changed once set", HttpStatus.CONFLICT);
+            }
+            applySellerPricingModel(user, request.getPricingModel(), request.getCommissionPercentage(), replace);
         }
         Boolean desiredBlocked = replace ? (request.getIsBlocked() != null ? request.getIsBlocked() : Boolean.FALSE) : request.getIsBlocked();
         Boolean desiredDeleted = replace ? (request.getIsDeleted() != null ? request.getIsDeleted() : Boolean.FALSE) : request.getIsDeleted();
@@ -241,6 +261,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 redisCache.invalidateRegion("public-products");
                 redisCache.invalidateRegion("public-collections");
             }
+            syncSellerProductsPricingIfChanged(finalUser, priorPricingModel, priorCommission);
             return AdminUserResponse.from(finalUser);
         } catch (org.springframework.dao.DuplicateKeyException duplicate) {
             throw new AppException("A user with this email already exists", HttpStatus.CONFLICT);
@@ -268,8 +289,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         values.put("ifscCode", null);
         values.put("branch", null);
         values.put("upiId", null);
+        values.put("cancelledCheque", null);
         values.put("isVerified", false);
         return values;
+    }
+
+    private String encodePassword(String rawPassword) {
+        PasswordEncoder encoder = this.passwordEncoder != null ? this.passwordEncoder : new BCryptPasswordEncoder();
+        return encoder.encode(rawPassword);
     }
 
     private Map<String, Object> defaultSettlementTerms() {
@@ -419,27 +446,6 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
-    public AdminUserResponse reviewSellerKyc(String id, boolean approved) {
-        User seller = findUser(id);
-        if (seller.getRole() != UserRole.ROLE_SELLER) {
-            throw new AppException("KYC review is only available for seller accounts", HttpStatus.CONFLICT);
-        }
-        if (approved && !seller.hasRequiredSellerKycInformation()) {
-            throw new AppException("Seller must provide GST number, licence files, GST certificate, PAN card, and Aadhaar card before approval",
-                    HttpStatus.CONFLICT);
-        }
-
-        seller.setKycStatus(approved ? "APPROVED" : null);
-        seller.setUpdatedAt(LocalDateTime.now());
-        User saved = users.save(seller);
-        webSocketService.sendToUser(id, "users:kyc_updated", Map.of(
-                "userId", id,
-                "status", approved ? "APPROVED" : "PENDING"
-        ));
-        return AdminUserResponse.from(saved);
-    }
-
-    @Override
     public UserRole assignRole(String id, String requestedRole) {
         User user = findUser(id);
         UserRole role = parseRole(requestedRole);
@@ -501,8 +507,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             mongoTemplate.remove(Query.query(Criteria.where("user").is(id)), Wishlist.class);
 
             users.delete(user);
-            if (user.getRole() == UserRole.ROLE_SELLER) {
-                deleteSellerKycDocumentsAfterCommit(id);
+            if (user.getRole() == UserRole.ROLE_SELLER && sellerKycDocumentService != null) {
+                sellerKycDocumentService.deleteAllForSeller(id);
             }
             webSocketService.sendToUser(id, "auth:session_revoked", Map.of(
                     "userId", id,
@@ -513,21 +519,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         return PermanentDeleteUsersResponse.of(deletedIds);
-    }
-
-    private void deleteSellerKycDocumentsAfterCommit(String sellerId) {
-        if (sellerKycDocumentService == null) return;
-        Runnable cleanup = () -> sellerKycDocumentService.deleteAllForSeller(sellerId);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    cleanup.run();
-                }
-            });
-        } else {
-            cleanup.run();
-        }
     }
 
     private void addRoleFilter(List<Criteria> filters, String role) {
@@ -610,6 +601,102 @@ public class AdminUserServiceImpl implements AdminUserService {
                         .set("isFeatured", false)
                         .set("updatedAt", LocalDateTime.now()),
                 "products");
+        redisCache.invalidateRegion("public-products");
+        redisCache.invalidateRegion("public-collections");
+    }
+
+    private void applySellerPricingModel(
+            User user, String requestedModel, Double requestedCommission, boolean defaultIfMissing) {
+        String effectiveModel = requestedModel;
+        if (effectiveModel == null || effectiveModel.isBlank()) {
+            if (defaultIfMissing && (user.getPricingModel() == null || user.getPricingModel().isBlank())) {
+                effectiveModel = "MARKETPLACE";
+            } else {
+                effectiveModel = user.getPricingModel() == null || user.getPricingModel().isBlank()
+                        ? "MARKETPLACE" : user.getPricingModel();
+            }
+        } else {
+            effectiveModel = effectiveModel.trim().toUpperCase(Locale.ROOT);
+        }
+
+        if (!"MARKETPLACE".equals(effectiveModel) && !"DEALER_COMMISSION".equals(effectiveModel)) {
+            throw new AppException("Pricing model must be MARKETPLACE or DEALER_COMMISSION", HttpStatus.BAD_REQUEST);
+        }
+
+        Map<String, Object> terms = user.getSettlementTerms() != null
+                ? new java.util.LinkedHashMap<>(user.getSettlementTerms())
+                : defaultSettlementTerms();
+
+        if ("DEALER_COMMISSION".equals(effectiveModel)) {
+            Double comm = requestedCommission != null ? requestedCommission : user.getCommissionPercentage();
+            if (comm == null || !Double.isFinite(comm) || comm < 0.0 || comm > 100.0) {
+                throw new AppException("Commission percentage must be between 0 and 100 for Dealer Commission",
+                        HttpStatus.BAD_REQUEST);
+            }
+            user.setPricingModel("DEALER_COMMISSION");
+            user.setCommissionPercentage(comm);
+            terms.put("commissionPercentage", comm);
+        } else {
+            user.setPricingModel("MARKETPLACE");
+            user.setCommissionPercentage(0.0);
+            if (requestedModel != null) {
+                terms.put("commissionPercentage", 0.0);
+            }
+        }
+        user.setSettlementTerms(terms);
+    }
+
+    private void syncSellerProductsPricingIfChanged(
+            User seller, String priorPricingModel, Double priorCommission) {
+        if (seller == null || seller.getRole() != UserRole.ROLE_SELLER) return;
+        boolean modelChanged = !Objects.equals(priorPricingModel, seller.getPricingModel());
+        boolean commissionChanged = !Objects.equals(priorCommission, seller.getCommissionPercentage());
+        if (!modelChanged && !commissionChanged) return;
+
+        boolean isDealerCommission = "DEALER_COMMISSION".equalsIgnoreCase(seller.getPricingModel());
+        if (!modelChanged && !isDealerCommission) return;
+
+        double newComm = isDealerCommission && seller.getCommissionPercentage() != null
+                ? seller.getCommissionPercentage() : 0.0;
+        List<Product> sellerProducts = mongoTemplate.find(
+                Query.query(Criteria.where("sellerId").is(seller.getId())),
+                Product.class);
+        if (sellerProducts.isEmpty()) return;
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Product product : sellerProducts) {
+            product.setIsMarketplace(!isDealerCommission);
+            if (product.getVariants() != null) {
+                for (com.ebs.biocrop.entity.ProductVariant variant : product.getVariants()) {
+                    if (modelChanged) {
+                        // Switching pricing models invalidates prior pricing/stock so admin re-enters valid values.
+                        variant.setSwg(0.0);
+                        variant.setDisplayRate(0.0);
+                        variant.setPrintedMrp(0.0);
+                        variant.setCourierCharges(0.0);
+                        variant.setCodCharge(0.0);
+                        variant.setDiscountOnMrpRs(0.0);
+                        variant.setDiscountPercentage(0.0);
+                        variant.setStock(0);
+                        variant.setCommissionPercentage(newComm);
+                    } else {
+                        variant.setCommissionPercentage(newComm);
+                        variant.setCourierCharges(0.0);
+                        variant.setCodCharge(0.0);
+                        if (variant.getDisplayRate() != null && variant.getDisplayRate() > 0) {
+                            double updatedSwg = variant.getDisplayRate() * (1.0 - newComm / 100.0);
+                            variant.setSwg(Math.round(updatedSwg * 100.0) / 100.0);
+                        }
+                    }
+                }
+            }
+            if (modelChanged) {
+                // Cleaned variants have zero stock/pricing, so take the product offline until re-priced.
+                product.setIsAvailable(false);
+            }
+            product.setUpdatedAt(now);
+            mongoTemplate.save(product);
+        }
         redisCache.invalidateRegion("public-products");
         redisCache.invalidateRegion("public-collections");
     }

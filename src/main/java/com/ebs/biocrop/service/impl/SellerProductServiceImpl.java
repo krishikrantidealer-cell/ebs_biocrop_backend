@@ -84,9 +84,11 @@ public class SellerProductServiceImpl implements SellerProductService {
         }
         copySellerFields(request, listing, null);
         listing.setStatus("ACTIVE");
-        boolean hasAnyStock = listing.getVariants() != null
-                && listing.getVariants().stream().anyMatch(v -> v.getStock() != null && v.getStock() > 0);
-        listing.setIsAvailable(hasAnyStock);
+        boolean hasSellableVariant = listing.getVariants() != null
+                && listing.getVariants().stream().anyMatch(v ->
+                        v.getStock() != null && v.getStock() > 0
+                                && v.getDisplayRate() != null && v.getDisplayRate() > 0);
+        listing.setIsAvailable(hasSellableVariant);
         listing.setIsFeatured(false);
         listing.setAverageRating(null);
         listing.setCreatedAt(LocalDateTime.now());
@@ -179,6 +181,24 @@ public class SellerProductServiceImpl implements SellerProductService {
                 && !Set.of("g", "kg").contains(product.getProductWeightUnit().trim().toLowerCase(Locale.ROOT))) {
             throw badRequest("Product weight unit must be g or kg");
         }
+        if (product.getSubCategoryIds() != null && !product.getSubCategoryIds().isEmpty()) {
+            List<String> cleanedSubs = new ArrayList<>();
+            for (String subId : product.getSubCategoryIds()) {
+                if (subId == null || subId.isBlank()) continue;
+                String trimmed = subId.trim();
+                categories.findById(trimmed)
+                        .filter(item -> !Boolean.FALSE.equals(item.getIsActive()))
+                        .filter(item -> item.getLevel() != null && item.getLevel() <= 2)
+                        .orElseThrow(() -> badRequest("Selected sub-category does not exist or is inactive"));
+                if (!cleanedSubs.contains(trimmed)) {
+                    cleanedSubs.add(trimmed);
+                }
+            }
+            product.setSubCategoryIds(cleanedSubs);
+            if ((product.getCategoryId() == null || product.getCategoryId().isBlank()) && !cleanedSubs.isEmpty()) {
+                product.setCategoryId(cleanedSubs.get(0));
+            }
+        }
         if (product.getCategoryId() == null || product.getCategoryId().isBlank()) throw badRequest("Category ID is required");
         Category category = categories.findById(product.getCategoryId())
                 .filter(item -> !Boolean.FALSE.equals(item.getIsActive()))
@@ -219,6 +239,10 @@ public class SellerProductServiceImpl implements SellerProductService {
         if (variant.getStock() == null || variant.getStock() < 0) variant.setStock(0);
         validateMoneyField(variant.getDisplayRate(), "Display rate");
         validateMoneyField(variant.getPrintedMrp(), "Printed MRP");
+        if (Boolean.FALSE.equals(product.getIsMarketplace())) {
+            variant.setCourierCharges(0.0);
+            variant.setCodCharge(0.0);
+        }
         validateMoneyField(variant.getCourierCharges(), "Courier charges");
         validateMoneyField(variant.getCodCharge(), "COD charge");
         validatePercentageField(variant.getCommissionPercentage(), "Commission percentage");
@@ -278,10 +302,16 @@ public class SellerProductServiceImpl implements SellerProductService {
         target.setProductImages(
                 existing == null ? List.of() : existing.getProductImages());
         target.setCategoryId(source.getCategoryId());
+        target.setSubCategoryIds(source.getSubCategoryIds() != null
+                ? new ArrayList<>(source.getSubCategoryIds())
+                : new ArrayList<>());
         target.setAssignedCollections(existing == null ? List.of()
                 : normalizeAssignedCollections(existing.getAssignedCollections()));
         target.setRefundPolicy(source.getRefundPolicy()); target.setProductWeight(source.getProductWeight());
         target.setProductWeightUnit(source.getProductWeightUnit() == null ? null : source.getProductWeightUnit().trim().toLowerCase(Locale.ROOT));
+        target.setIsMarketplace(source.getIsMarketplace() != null
+                ? source.getIsMarketplace()
+                : (existing != null && existing.getIsMarketplace() != null ? existing.getIsMarketplace() : Boolean.TRUE));
         List<ProductVariant> oldVariants = existing == null || existing.getVariants() == null ? List.of() : existing.getVariants();
         String baseSku = existing == null ? target.getSku() : existing.getSku();
         List<ProductVariant> sanitized = sanitizeVariants(source.getVariants(), oldVariants, baseSku);

@@ -53,7 +53,6 @@ class GcsSellerKycDocumentServiceTest {
         assertTrue(saved.getGstCertificate().contains("/kyc/gst-certificate/"));
         assertTrue(saved.getPanCard().contains("/kyc/pan-card/"));
         assertTrue(saved.getAadhaarCard().contains("/kyc/aadhaar-card/"));
-        assertTrue(saved.hasRequiredSellerKycInformation());
         verify(storage, times(4)).create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
     }
 

@@ -39,8 +39,8 @@ public class AdminSellerKycDocumentController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload private seller KYC documents to GCS",
-            description = "Upload licenceImage files (up to 10 total) and/or one gstCertificate, panCard, or aadhaarCard. Each file must be at most 8 MB and a JPEG, PNG, WEBP, or PDF.")
+    @Operation(summary = "Upload private seller documents to GCS",
+            description = "Upload licenceImage files (up to 10 total) and/or one gstCertificate, panCard, aadhaarCard, cancelledCheque, or agreement. Each file must be at most 8 MB and a JPEG, PNG, WEBP, or PDF.")
     public ResponseEntity<ApiResponse<AdminUserResponse>> uploadDocuments(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String userId,
@@ -48,10 +48,12 @@ public class AdminSellerKycDocumentController {
             @RequestParam(name = "gstCertificate", required = false) MultipartFile gstCertificate,
             @RequestParam(name = "panCard", required = false) MultipartFile panCard,
             @RequestParam(name = "aadhaarCard", required = false) MultipartFile aadhaarCard,
+            @RequestParam(name = "cancelledCheque", required = false) MultipartFile cancelledCheque,
+            @RequestParam(name = "agreement", required = false) MultipartFile agreement,
             @RequestParam(name = "replaceLicenceFiles", defaultValue = "false") boolean replaceLicenceFiles) {
         rateLimitGuard.enforce("admin-user-write", admin.getId(), 20, Duration.ofMinutes(1));
-        User saved = documents.upload(userId, licenceFiles, gstCertificate, panCard, aadhaarCard, replaceLicenceFiles);
-        return ResponseEntity.ok(ApiResponse.ok("Seller KYC documents uploaded to private storage", AdminUserResponse.from(saved)));
+        User saved = documents.upload(userId, licenceFiles, gstCertificate, panCard, aadhaarCard, cancelledCheque, agreement, replaceLicenceFiles);
+        return ResponseEntity.ok(ApiResponse.ok("Seller documents uploaded to private storage", AdminUserResponse.from(saved)));
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/{documentType}/{index}")

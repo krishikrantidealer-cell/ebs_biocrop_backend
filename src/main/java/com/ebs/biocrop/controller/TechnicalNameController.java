@@ -34,45 +34,42 @@ public class TechnicalNameController {
     @Operation(summary = "List active technical names for storefront search (public, no commission exposed)")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listPublic(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String category,
             @RequestParam(required = false) String letter) {
         return ResponseEntity.ok(ApiResponse.ok(
                 "Technical names fetched",
-                technicalNameService.listPublic(search, category, letter)));
+                technicalNameService.listPublic(search, letter)));
     }
 
     @GetMapping("/seller/technical-names")
     @Operation(summary = "List active technical names with default commission for Seller Hub product forms")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listForSellers(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String category,
             @RequestParam(required = false) String letter) {
         return ResponseEntity.ok(ApiResponse.ok(
                 "Technical names fetched",
-                technicalNameService.listForPanel(search, category, letter, true)));
+                technicalNameService.listForPanel(search, letter, true)));
     }
 
     @GetMapping("/admin/technical-names")
     @Operation(summary = "List all technical names with commissions for Admin management")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listForAdmin(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String category,
             @RequestParam(required = false) String letter,
             @RequestParam(defaultValue = "false") boolean activeOnly) {
         return ResponseEntity.ok(ApiResponse.ok(
                 "Technical names fetched",
-                technicalNameService.listForPanel(search, category, letter, activeOnly)));
+                technicalNameService.listForPanel(search, letter, activeOnly)));
     }
 
     @PostMapping("/admin/technical-names")
     @Operation(summary = "Create a new technical name and default commission percentage")
     public ResponseEntity<ApiResponse<Map<String, Object>>> create(@RequestBody Map<String, Object> body) {
         String name = asString(body.get("name"));
-        String category = asString(body.get("category"));
         Double commission = asDouble(body.get("commissionPercentage"));
         Boolean isActive = body.get("isActive") instanceof Boolean b ? b : Boolean.TRUE;
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Technical name created", technicalNameService.create(name, category, commission, isActive)));
+                .body(ApiResponse.ok("Technical name created",
+                        technicalNameService.create(name, commission, isActive)));
     }
 
     @PutMapping("/admin/technical-names/{id}")
@@ -81,13 +78,12 @@ public class TechnicalNameController {
             @PathVariable String id,
             @RequestBody Map<String, Object> body) {
         String name = asString(body.get("name"));
-        String category = asString(body.get("category"));
         Double commission = asDouble(body.get("commissionPercentage"));
         Boolean isActive = body.get("isActive") instanceof Boolean b ? b : null;
         boolean syncProducts = Boolean.TRUE.equals(body.get("syncProducts"));
         return ResponseEntity.ok(ApiResponse.ok(
                 "Technical name updated",
-                technicalNameService.update(id, name, category, commission, isActive, syncProducts)));
+                technicalNameService.update(id, name, commission, isActive, syncProducts)));
     }
 
     @DeleteMapping("/admin/technical-names/{id}")

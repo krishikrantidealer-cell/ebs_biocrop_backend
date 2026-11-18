@@ -46,10 +46,24 @@ public class GcsSellerKycDocumentService {
     public User upload(String sellerId, List<MultipartFile> licenceFiles,
                        MultipartFile gstCertificate, MultipartFile panCard, MultipartFile aadhaarCard,
                        boolean replaceLicenceFiles) {
+        return upload(sellerId, licenceFiles, gstCertificate, panCard, aadhaarCard, null, replaceLicenceFiles);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public User upload(String sellerId, List<MultipartFile> licenceFiles,
+                       MultipartFile gstCertificate, MultipartFile panCard, MultipartFile aadhaarCard,
+                       MultipartFile cancelledCheque, boolean replaceLicenceFiles) {
+        return upload(sellerId, licenceFiles, gstCertificate, panCard, aadhaarCard, cancelledCheque, null, replaceLicenceFiles);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public User upload(String sellerId, List<MultipartFile> licenceFiles,
+                       MultipartFile gstCertificate, MultipartFile panCard, MultipartFile aadhaarCard,
+                       MultipartFile cancelledCheque, MultipartFile agreement, boolean replaceLicenceFiles) {
         User seller = findSeller(sellerId);
         List<MultipartFile> licenses = nonEmpty(licenceFiles);
         // A replacement flag applies only when licence files are part of this request.
-        // Updating a GST/PAN/Aadhaar file alone must not clear the existing licence list.
+        // Updating a GST/PAN/Aadhaar/cheque/agreement file alone must not clear the existing licence list.
         boolean replaceLicences = replaceLicenceFiles && !licenses.isEmpty();
         int currentCount = replaceLicences || seller.getLicenceImage() == null ? 0 : seller.getLicenceImage().size();
         if (currentCount + licenses.size() > MAX_LICENCE_FILES) {
@@ -58,8 +72,10 @@ public class GcsSellerKycDocumentService {
         MultipartFile gst = nonEmpty(gstCertificate);
         MultipartFile pan = nonEmpty(panCard);
         MultipartFile aadhaar = nonEmpty(aadhaarCard);
-        if (licenses.isEmpty() && gst == null && pan == null && aadhaar == null) {
-            throw badRequest("At least one seller KYC document must be uploaded");
+        MultipartFile cheque = nonEmpty(cancelledCheque);
+        MultipartFile agreementFile = nonEmpty(agreement);
+        if (licenses.isEmpty() && gst == null && pan == null && aadhaar == null && cheque == null && agreementFile == null) {
+            throw badRequest("At least one seller document must be uploaded");
         }
 
         List<UploadFile> files = new ArrayList<>();
@@ -67,6 +83,8 @@ public class GcsSellerKycDocumentService {
         if (gst != null) files.add(validate(gst, "gst-certificate"));
         if (pan != null) files.add(validate(pan, "pan-card"));
         if (aadhaar != null) files.add(validate(aadhaar, "aadhaar-card"));
+        if (cheque != null) files.add(validate(cheque, "cancelled-cheque"));
+        if (agreementFile != null) files.add(validate(agreementFile, "agreement"));
 
         List<String> uploaded = new ArrayList<>();
         List<String> replaced = new ArrayList<>();
@@ -98,7 +116,20 @@ public class GcsSellerKycDocumentService {
                         rememberOld(replaced, seller.getAadhaarCard(), sellerId);
                         seller.setAadhaarCard(storageUri);
                     }
-                    default -> throw new IllegalStateException("Unexpected KYC document type");
+                    case "cancelled-cheque" -> {
+                        java.util.Map<String, Object> bank = seller.getBankDetails() != null
+                                ? new java.util.LinkedHashMap<>(seller.getBankDetails())
+                                : new java.util.LinkedHashMap<>();
+                        Object oldCheque = bank.get("cancelledCheque");
+                        if (oldCheque != null) rememberOld(replaced, oldCheque.toString(), sellerId);
+                        bank.put("cancelledCheque", storageUri);
+                        seller.setBankDetails(bank);
+                    }
+                    case "agreement" -> {
+                        rememberOld(replaced, seller.getAgreement(), sellerId);
+                        seller.setAgreement(storageUri);
+                    }
+                    default -> throw new IllegalStateException("Unexpected seller document type");
                 }
             }
             seller.setLicenceImage(updatedLicences);
@@ -121,7 +152,11 @@ public class GcsSellerKycDocumentService {
             case "gst-certificate" -> index == 0 ? seller.getGstCertificate() : null;
             case "pan-card" -> index == 0 ? seller.getPanCard() : null;
             case "aadhaar-card" -> index == 0 ? seller.getAadhaarCard() : null;
-            default -> throw badRequest("Unsupported seller KYC document type");
+            case "cancelled-cheque" -> index == 0 && seller.getBankDetails() != null
+                    && seller.getBankDetails().get("cancelledCheque") != null
+                    ? seller.getBankDetails().get("cancelledCheque").toString() : null;
+            case "agreement" -> index == 0 ? seller.getAgreement() : null;
+            default -> throw badRequest("Unsupported seller document type");
         };
         String objectName = objectName(storageUri, sellerId);
         Blob blob = storage.get(bucketName, objectName);

@@ -20,7 +20,6 @@ public interface AdminUserService {
     AdminUserResponse setBlockedStatus(String id, boolean blocked);
     AdminUserResponse setDeletedStatus(String id, boolean deleted);
     List<AdminUserResponse> setDeletedStatusMany(List<String> ids, boolean deleted);
-    AdminUserResponse reviewSellerKyc(String id, boolean approved);
     UserRole assignRole(String id, String requestedRole);
     PermanentDeleteUsersResponse permanentlyDelete(String adminId, String id);
     PermanentDeleteUsersResponse permanentlyDeleteMany(String adminId, List<String> ids);

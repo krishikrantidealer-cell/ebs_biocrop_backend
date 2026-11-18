@@ -27,9 +27,11 @@ public class SellerProductWriteRequest {
     @Size(max = 300) private String technicalName;
     @Size(max = 100000) private String description;
     @NotBlank private String categoryId;
+    private List<String> subCategoryIds;
     @Size(max = 2000) private String refundPolicy;
     @PositiveOrZero private Double productWeight;
     @Size(max = 10) private String productWeightUnit;
+    private Boolean isMarketplace = Boolean.TRUE;
     @NotEmpty @Size(max = 50) @Valid private List<VariantWriteRequest> variants;
 
     public Product toProduct() {
@@ -38,7 +40,9 @@ public class SellerProductWriteRequest {
         product.setGst(gst);
         product.setTitle(title); product.setBrandName(brandName); product.setTechnicalName(technicalName);
         product.setDescription(description); product.setCategoryId(categoryId);
+        product.setSubCategoryIds(subCategoryIds);
         product.setRefundPolicy(refundPolicy); product.setProductWeight(productWeight); product.setProductWeightUnit(productWeightUnit);
+        product.setIsMarketplace(isMarketplace == null ? Boolean.TRUE : isMarketplace);
         product.setVariants(variants == null ? List.of() : variants.stream().map(VariantWriteRequest::toVariant).toList());
         return product;
     }
@@ -59,12 +63,16 @@ public class SellerProductWriteRequest {
     public void setDescription(String description) { this.description = description; }
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public List<String> getSubCategoryIds() { return subCategoryIds; }
+    public void setSubCategoryIds(List<String> subCategoryIds) { this.subCategoryIds = subCategoryIds; }
     public String getRefundPolicy() { return refundPolicy; }
     public void setRefundPolicy(String refundPolicy) { this.refundPolicy = refundPolicy; }
     public Double getProductWeight() { return productWeight; }
     public void setProductWeight(Double productWeight) { this.productWeight = productWeight; }
     public String getProductWeightUnit() { return productWeightUnit; }
     public void setProductWeightUnit(String productWeightUnit) { this.productWeightUnit = productWeightUnit; }
+    public Boolean getIsMarketplace() { return isMarketplace; }
+    public void setIsMarketplace(Boolean isMarketplace) { this.isMarketplace = isMarketplace; }
     public List<VariantWriteRequest> getVariants() { return variants; }
     public void setVariants(List<VariantWriteRequest> variants) { this.variants = variants; }
 

@@ -98,6 +98,7 @@ public class SecurityConfig {
                                 "/api/v1/blogs",
                                 "/api/v1/blogs/**",
                                 "/api/v1/checkout/serviceability",
+                                "/api/v1/locations/**",
                                 "/api/v1/health")
                         .permitAll()
                         .requestMatchers(

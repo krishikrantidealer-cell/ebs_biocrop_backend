@@ -32,6 +32,7 @@ public class Category {
     private Instant updatedAt;
 
     // Optional merchandising assets retained from the existing category API.
+    private String iconUrl;
     private String bannerImage;
     private String cataloguePdf;
     private String categoryImageUri;
@@ -60,6 +61,8 @@ public class Category {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public String getIconUrl() { return iconUrl; }
+    public void setIconUrl(String iconUrl) { this.iconUrl = iconUrl; }
     public String getBannerImage() { return bannerImage; }
     public void setBannerImage(String bannerImage) { this.bannerImage = bannerImage; }
     public String getCataloguePdf() { return cataloguePdf; }

@@ -79,20 +79,23 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
     }
 
     @Override
-    public List<Map<String, Object>> listPublic(String search, String category, String letter) {
-        return filterAndMap(repository.findByIsActiveTrueOrderByNameAsc(), search, category, letter, false);
+    public List<Map<String, Object>> listPublic(String search, String letter) {
+        return filterAndMap(repository.findByIsActiveTrueOrderByNameAsc(), search, letter, false);
     }
 
     @Override
-    public List<Map<String, Object>> listForPanel(String search, String category, String letter, boolean activeOnly) {
+    public List<Map<String, Object>> listForPanel(String search, String letter, boolean activeOnly) {
         List<TechnicalName> source = activeOnly
                 ? repository.findByIsActiveTrueOrderByNameAsc()
                 : repository.findAllByOrderByNameAsc();
-        return filterAndMap(source, search, category, letter, true);
+        return filterAndMap(source, search, letter, true);
     }
 
     @Override
-    public Map<String, Object> create(String name, String category, Double commissionPercentage, Boolean isActive) {
+    public Map<String, Object> create(
+            String name,
+            Double commissionPercentage,
+            Boolean isActive) {
         String cleanName = requireCleanName(name);
         String normalized = normalize(cleanName);
         if (repository.findByNormalizedName(normalized).isPresent()) {
@@ -104,7 +107,6 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
         entity.setName(cleanName);
         entity.setNormalizedName(normalized);
         entity.setLetter(extractLetter(cleanName));
-        entity.setCategory(cleanCategory(category));
         entity.setCommissionPercentage(sanitizeCommission(commissionPercentage));
         entity.setIsActive(isActive == null || isActive);
         entity.setCreatedAt(now);
@@ -119,7 +121,6 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
     public Map<String, Object> update(
             String id,
             String name,
-            String category,
             Double commissionPercentage,
             Boolean isActive,
             boolean syncProducts) {
@@ -139,9 +140,6 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
             entity.setLetter(extractLetter(cleanName));
         }
 
-        if (category != null) {
-            entity.setCategory(cleanCategory(category));
-        }
         if (commissionPercentage != null) {
             entity.setCommissionPercentage(sanitizeCommission(commissionPercentage));
         }
@@ -193,25 +191,21 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
                 // - 5-col sheet (#, Letter, Technical Name, Category, Commission)
                 // - 4-col sheet (Main Category, Sub-Category, Technical Name, Commission)
                 // - 3-col CSV (Technical Name, Category, Commission)
+                // - 2-col CSV (Technical Name, Commission)
                 String rawName;
-                String rawCategory;
-                String rawMainCategory = null;
-                String rawSubCategory = null;
                 String rawCommission;
                 if (cols.size() >= 5 && !cols.get(4).trim().equalsIgnoreCase("Not in commission sheet")) {
                     rawName = cols.get(2);
-                    rawCategory = cols.get(3);
                     rawCommission = cols.get(4);
                 } else if (cols.size() >= 4) {
-                    rawMainCategory = cols.get(0);
-                    rawSubCategory = cols.get(1);
                     rawName = cols.get(2);
-                    rawCategory = rawSubCategory;
                     rawCommission = cols.get(3);
                 } else if (cols.size() >= 3) {
                     rawName = cols.get(0);
-                    rawCategory = cols.get(1);
                     rawCommission = cols.get(2);
+                } else if (cols.size() >= 2) {
+                    rawName = cols.get(0);
+                    rawCommission = cols.get(1);
                 } else {
                     skipped++;
                     continue;
@@ -225,18 +219,12 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
 
                 String normalized = normalize(cleanName);
                 double commission = parseCommission(rawCommission);
-                String cat = cleanCategory(rawCategory);
-                String mainCat = rawMainCategory != null && !rawMainCategory.isBlank() ? rawMainCategory.trim() : null;
-                String subCat = rawSubCategory != null && !rawSubCategory.isBlank() ? rawSubCategory.trim() : cat;
                 Instant now = Instant.now();
 
                 TechnicalName existing = repository.findByNormalizedName(normalized).orElse(null);
                 if (existing != null) {
                     existing.setName(cleanName);
                     existing.setLetter(extractLetter(cleanName));
-                    existing.setCategory(cat);
-                    if (mainCat != null) existing.setMainCategory(mainCat);
-                    existing.setSubCategory(subCat);
                     existing.setCommissionPercentage(commission);
                     existing.setIsActive(true);
                     existing.setUpdatedAt(now);
@@ -247,9 +235,6 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
                     created.setName(cleanName);
                     created.setNormalizedName(normalized);
                     created.setLetter(extractLetter(cleanName));
-                    created.setCategory(cat);
-                    if (mainCat != null) created.setMainCategory(mainCat);
-                    created.setSubCategory(subCat);
                     created.setCommissionPercentage(commission);
                     created.setIsActive(true);
                     created.setCreatedAt(now);
@@ -282,26 +267,16 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
     private List<Map<String, Object>> filterAndMap(
             List<TechnicalName> source,
             String search,
-            String category,
             String letter,
             boolean includeCommission) {
         String searchLower = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
-        String catLower = category == null ? "" : category.trim().toLowerCase(Locale.ROOT);
         String letterUpper = letter == null ? "" : letter.trim().toUpperCase(Locale.ROOT);
 
         List<Map<String, Object>> out = new ArrayList<>();
         for (TechnicalName item : source) {
-            String c = item.getCategory() == null ? "" : item.getCategory().toLowerCase(Locale.ROOT);
-            String mc = item.getMainCategory() == null ? "" : item.getMainCategory().toLowerCase(Locale.ROOT);
-            String sc = item.getSubCategory() == null ? "" : item.getSubCategory().toLowerCase(Locale.ROOT);
             if (!searchLower.isEmpty()) {
                 String n = item.getName() == null ? "" : item.getName().toLowerCase(Locale.ROOT);
-                if (!n.contains(searchLower) && !c.contains(searchLower) && !mc.contains(searchLower) && !sc.contains(searchLower)) {
-                    continue;
-                }
-            }
-            if (!catLower.isEmpty() && !catLower.equals("all")) {
-                if (!c.equals(catLower) && !mc.equals(catLower) && !sc.equals(catLower)) {
+                if (!n.contains(searchLower)) {
                     continue;
                 }
             }
@@ -321,13 +296,6 @@ public class TechnicalNameServiceImpl implements TechnicalNameService {
         m.put("id", item.getId());
         m.put("name", item.getName());
         m.put("letter", item.getLetter());
-        m.put("category", item.getCategory());
-        if (item.getMainCategory() != null && !item.getMainCategory().isBlank()) {
-            m.put("mainCategory", item.getMainCategory());
-        }
-        if (item.getSubCategory() != null && !item.getSubCategory().isBlank()) {
-            m.put("subCategory", item.getSubCategory());
-        }
         m.put("isActive", !Boolean.FALSE.equals(item.getIsActive()));
         if (includeCommission) {
             m.put("commissionPercentage", item.getCommissionPercentage() != null ? item.getCommissionPercentage() : 0.0);

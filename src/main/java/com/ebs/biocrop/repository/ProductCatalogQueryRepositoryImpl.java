@@ -30,7 +30,9 @@ public class ProductCatalogQueryRepositoryImpl implements ProductCatalogQueryRep
     public Page<Product> findPublicByCategoryIds(Collection<String> categoryIds, Pageable pageable) {
         List<Criteria> filters = new ArrayList<>();
         filters.add(publicCriteria());
-        filters.add(Criteria.where("categoryId").in(categoryIds));
+        filters.add(new Criteria().orOperator(
+                Criteria.where("categoryId").in(categoryIds),
+                Criteria.where("subCategoryIds").in(categoryIds)));
         return findPage(new Criteria().andOperator(filters.toArray(Criteria[]::new)), pageable);
     }
 
@@ -49,6 +51,7 @@ public class ProductCatalogQueryRepositoryImpl implements ProductCatalogQueryRep
     private Criteria publicCriteria() {
         return new Criteria().andOperator(
                 Criteria.where("status").regex("^ACTIVE$", "i"),
+                Criteria.where("isAvailable").is(true),
                 new Criteria().orOperator(
                         Criteria.where("isDeleted").is(false),
                         Criteria.where("isDeleted").exists(false),

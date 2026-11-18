@@ -14,8 +14,9 @@ public record ProductManagementResponse(
         String id, String sku, String productCode, String hsnCode, Double gst, String sellerId,
         String title, String brandName, String technicalName, String sellerName, String description,
         List<ManagementProductImage> productImages, String categoryId,
+        List<String> subCategoryIds,
         List<String> assignedCollections,
-        Boolean isAvailable, Boolean isFeatured, List<ManagementVariant> variants,
+        Boolean isAvailable, Boolean isFeatured, Boolean isMarketplace, List<ManagementVariant> variants,
         Double averageRating, Long totalReviews, String refundPolicy, Double productWeight, String productWeightUnit,
         String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt,
         Integer version) {
@@ -33,8 +34,11 @@ public record ProductManagementResponse(
 
         return new ProductManagementResponse(product.getId(), product.getSku(), product.getProductCode(),
                 product.getHsnCode(), product.getGst(), product.getSellerId(), product.getTitle(), product.getBrandName(), product.getTechnicalName(),
-                currentSellerName, product.getDescription(), managementImages, product.getCategoryId(), product.getAssignedCollections(),
+                currentSellerName, product.getDescription(), managementImages, product.getCategoryId(),
+                product.getSubCategoryIds() == null ? List.of() : List.copyOf(product.getSubCategoryIds()),
+                product.getAssignedCollections(),
                 product.getIsAvailable(), product.getIsFeatured(),
+                product.getIsMarketplace() == null ? Boolean.TRUE : product.getIsMarketplace(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
                 product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,
                 product.getRefundPolicy(), product.getProductWeight(), product.getProductWeightUnit(),

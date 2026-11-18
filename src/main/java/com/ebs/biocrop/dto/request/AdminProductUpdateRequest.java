@@ -49,6 +49,8 @@ public class AdminProductUpdateRequest {
     @Size(max = 24)
     private String categoryId;
 
+    private List<String> subCategoryIds;
+
     @Size(max = 2000)
     private String refundPolicy;
 
@@ -61,6 +63,8 @@ public class AdminProductUpdateRequest {
     @DecimalMin("0.0")
     @DecimalMax("5.0")
     private Double averageRating;
+
+    private Boolean isMarketplace;
 
     @Size(max = 50)
     @Valid
@@ -76,12 +80,17 @@ public class AdminProductUpdateRequest {
                 || technicalName != null
                 || description != null
                 || (categoryId != null && !categoryId.isBlank())
+                || subCategoryIds != null
                 || refundPolicy != null
                 || productWeight != null
                 || productWeightUnit != null
                 || averageRating != null
+                || isMarketplace != null
                 || (variants != null && !variants.isEmpty());
     }
+
+    public Boolean getIsMarketplace() { return isMarketplace; }
+    public void setIsMarketplace(Boolean isMarketplace) { this.isMarketplace = isMarketplace; }
 
     public String getSellerId() { return sellerId; }
     public void setSellerId(String sellerId) { this.sellerId = sellerId; }
@@ -109,6 +118,8 @@ public class AdminProductUpdateRequest {
 
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+    public List<String> getSubCategoryIds() { return subCategoryIds; }
+    public void setSubCategoryIds(List<String> subCategoryIds) { this.subCategoryIds = subCategoryIds; }
 
     public String getRefundPolicy() { return refundPolicy; }
     public void setRefundPolicy(String refundPolicy) { this.refundPolicy = refundPolicy; }

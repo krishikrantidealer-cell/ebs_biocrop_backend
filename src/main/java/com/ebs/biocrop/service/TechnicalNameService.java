@@ -7,13 +7,13 @@ import java.util.Map;
 
 public interface TechnicalNameService {
 
-    List<Map<String, Object>> listPublic(String search, String category, String letter);
+    List<Map<String, Object>> listPublic(String search, String letter);
 
-    List<Map<String, Object>> listForPanel(String search, String category, String letter, boolean activeOnly);
+    List<Map<String, Object>> listForPanel(String search, String letter, boolean activeOnly);
 
-    Map<String, Object> create(String name, String category, Double commissionPercentage, Boolean isActive);
+    Map<String, Object> create(String name, Double commissionPercentage, Boolean isActive);
 
-    Map<String, Object> update(String id, String name, String category, Double commissionPercentage, Boolean isActive, boolean syncProducts);
+    Map<String, Object> update(String id, String name, Double commissionPercentage, Boolean isActive, boolean syncProducts);
 
     void delete(String id);
 

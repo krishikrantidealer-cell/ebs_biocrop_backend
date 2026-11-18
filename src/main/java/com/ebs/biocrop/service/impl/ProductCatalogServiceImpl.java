@@ -76,6 +76,7 @@ public class ProductCatalogServiceImpl implements ProductCatalogService {
 
     private boolean isPubliclyAvailable(Product product) {
         return product.getStatus() != null && "ACTIVE".equalsIgnoreCase(product.getStatus().trim())
+                && Boolean.TRUE.equals(product.getIsAvailable())
                 && !Boolean.TRUE.equals(product.getIsDeleted());
     }
 }

@@ -2,6 +2,8 @@ package com.ebs.biocrop.dto.request;
 
 import com.ebs.biocrop.entity.Address;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
@@ -23,11 +25,12 @@ public class AdminManagedUserCreateRequest {
     @Size(max = 120) private String shopName;
     @Valid private Address address;
     @Valid private List<Address> shippingAddresses;
+    @Valid private List<Address> warehouseAddresses;
     @Size(max = 32) private String gstNumber;
+    @Size(max = 20) private String panNumber;
+    @Size(max = 64) private String licenceNo;
     @Size(max = 100) private String status;
     private Boolean isProfileComplete;
-    private String kycStatus;
-    private Boolean isKycComplete;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     @Size(max = 2000) private String notes;
@@ -41,6 +44,9 @@ public class AdminManagedUserCreateRequest {
     @Min(0) private Long orderNumberSequence;
     private Map<String, Object> bankDetails;
     private Map<String, Object> settlementTerms;
+    @Size(max = 32) private String pricingModel;
+    @DecimalMin("0.0") @DecimalMax("100.0") private Double commissionPercentage;
+    @Size(min = 6, max = 100) private String password;
 
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String value) { phoneNumber = value == null ? null : value.trim(); }
@@ -58,18 +64,19 @@ public class AdminManagedUserCreateRequest {
     public void setAddress(Address value) { address = value; }
     public List<Address> getShippingAddresses() { return shippingAddresses; }
     public void setShippingAddresses(List<Address> value) { shippingAddresses = value; }
+    public List<Address> getWarehouseAddresses() { return warehouseAddresses; }
+    public void setWarehouseAddresses(List<Address> value) { warehouseAddresses = value; }
     public String getGstNumber() { return gstNumber; }
     public void setGstNumber(String value) { gstNumber = trim(value); }
+    public String getPanNumber() { return panNumber; }
+    public void setPanNumber(String value) { panNumber = trim(value); }
+    public String getLicenceNo() { return licenceNo; }
+    public void setLicenceNo(String value) { licenceNo = trim(value); }
     public String getStatus() { return status; }
     public void setStatus(String value) { status = trim(value); }
     /** Accepted for schema-shaped requests; profile completion is computed from the submitted profile. */
     public Boolean getIsProfileComplete() { return isProfileComplete; }
     public void setIsProfileComplete(Boolean value) { isProfileComplete = value; }
-    /** KYC status is controlled by the separate KYC review endpoint. */
-    public String getKycStatus() { return kycStatus; }
-    public void setKycStatus(String value) { kycStatus = trim(value); }
-    public Boolean getIsKycComplete() { return isKycComplete; }
-    public void setIsKycComplete(Boolean value) { isKycComplete = value; }
     /** Request timestamps are ignored; the server assigns them. */
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime value) { createdAt = value; }
@@ -97,5 +104,11 @@ public class AdminManagedUserCreateRequest {
     public void setBankDetails(Map<String, Object> value) { bankDetails = value; }
     public Map<String, Object> getSettlementTerms() { return settlementTerms; }
     public void setSettlementTerms(Map<String, Object> value) { settlementTerms = value; }
+    public String getPricingModel() { return pricingModel; }
+    public void setPricingModel(String value) { pricingModel = trim(value); }
+    public Double getCommissionPercentage() { return commissionPercentage; }
+    public void setCommissionPercentage(Double value) { commissionPercentage = value; }
+    public String getPassword() { return password; }
+    public void setPassword(String value) { password = value; }
     private static String trim(String value) { return value == null ? null : value.trim(); }
 }

@@ -43,10 +43,16 @@ class UserRoleSchemaPersistenceTest {
         assertFalse(customerDocument.containsKey("settlementTerms"));
         assertTrue(customerDocument.containsKey("email"));
         assertTrue(customerDocument.containsKey("address"));
-        assertTrue(customerDocument.containsKey("isKycComplete"));
+        assertTrue(customerDocument.containsKey("shippingAddresses"));
+        assertFalse(customerDocument.containsKey("passwordHash"));
+        assertFalse(customerDocument.containsKey("isKycComplete"));
+        assertFalse(customerDocument.containsKey("kycStatus"));
+        assertFalse(customerDocument.containsKey("warehouseAddresses"));
 
         User seller = User.newSeller("9876543211", "seller@example.com");
         seller.setShopName("Farm Shop");
+        seller.setPanNumber("AABCU9603R");
+        seller.setLicenceNo("LIC-2026-01");
         seller.setVersion(4);
         Document sellerDocument = new Document();
         converter.write(seller, sellerDocument);
@@ -54,6 +60,8 @@ class UserRoleSchemaPersistenceTest {
         assertEquals(UserRole.ROLE_SELLER.name(), sellerDocument.getString("role"));
         assertEquals("ACTIVE", sellerDocument.getString("status"));
         assertEquals("Farm Shop", sellerDocument.getString("shopName"));
+        assertEquals("AABCU9603R", sellerDocument.getString("panNumber"));
+        assertEquals("LIC-2026-01", sellerDocument.getString("licenceNo"));
         assertEquals(0L, sellerDocument.get("productCodeSequence"));
         assertEquals(0L, sellerDocument.get("orderNumberSequence"));
         assertEquals(4, sellerDocument.get("version"));
@@ -62,15 +70,27 @@ class UserRoleSchemaPersistenceTest {
         java.util.Map<String, Object> bankDetails = (java.util.Map<String, Object>) sellerDocument.get("bankDetails");
         assertTrue(bankDetails.containsKey("accountHolderName"));
         assertTrue(bankDetails.containsKey("accountNumber"));
+        assertTrue(bankDetails.containsKey("cancelledCheque"));
         assertEquals(Boolean.FALSE, bankDetails.get("isVerified"));
         assertTrue(sellerDocument.containsKey("settlementTerms"));
         @SuppressWarnings("unchecked")
         java.util.Map<String, Object> settlementTerms = (java.util.Map<String, Object>) sellerDocument.get("settlementTerms");
         assertEquals(0, settlementTerms.get("commissionPercentage"));
         assertTrue(settlementTerms.containsKey("payoutStatus"));
-        assertTrue(sellerDocument.containsKey("notesHistory"));
-        assertTrue(sellerDocument.containsKey("shippingAddresses"));
-
+        assertTrue(sellerDocument.containsKey("warehouseAddresses"));
+        assertTrue(sellerDocument.containsKey("passwordHash"));
+        assertFalse(sellerDocument.containsKey("notesHistory"));
+        assertFalse(sellerDocument.containsKey("whatsappSequence"));
+        assertFalse(sellerDocument.containsKey("isVerified"));
+        assertFalse(sellerDocument.containsKey("shippingAddresses"));
+        assertFalse(sellerDocument.containsKey("isKycComplete"));
+        assertFalse(sellerDocument.containsKey("kycStatus"));
+        assertTrue(sellerDocument.containsKey("licenceImage"));
+        assertTrue(sellerDocument.containsKey("gstCertificate"));
+        assertTrue(sellerDocument.containsKey("panCard"));
+        assertTrue(sellerDocument.containsKey("aadhaarCard"));
+        assertTrue(sellerDocument.containsKey("agreement"));
+        
         User admin = User.newAdmin("9876543212", "admin@example.com");
         Document adminDocument = new Document();
         converter.write(admin, adminDocument);
@@ -87,5 +107,6 @@ class UserRoleSchemaPersistenceTest {
         assertFalse(adminDocument.containsKey("isDeleted"));
         assertFalse(adminDocument.containsKey("whatsappSequence"));
         assertEquals(true, adminDocument.getBoolean("isProfileComplete"));
+        
     }
 }

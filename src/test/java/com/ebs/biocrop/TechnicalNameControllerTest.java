@@ -47,7 +47,6 @@ class TechnicalNameControllerTest {
         item.setId("tn_1");
         item.setName("Abamectin 1.9% EC");
         item.setLetter("A");
-        item.setCategory("Insecticide");
         item.setCommissionPercentage(15.0);
         item.setIsActive(true);
 
@@ -67,7 +66,6 @@ class TechnicalNameControllerTest {
         item.setId("tn_1");
         item.setName("Acetobacter");
         item.setLetter("A");
-        item.setCategory("Bio-Fertilizer");
         item.setCommissionPercentage(25.0);
         item.setIsActive(true);
 

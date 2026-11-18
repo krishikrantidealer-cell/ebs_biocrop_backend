@@ -31,26 +31,32 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             putMissing(document, "isBlocked");
             putMissing(document, "isDeleted");
             putMissing(document, "gstNumber");
+            putMissing(document, "panNumber");
+            putMissing(document, "licenceNo");
             if (!(document.get("licenceImage") instanceof java.util.List<?>)) {
                 document.put("licenceImage", java.util.List.of());
             }
             putMissing(document, "gstCertificate");
             putMissing(document, "panCard");
             putMissing(document, "aadhaarCard");
+            putMissing(document, "agreement");
             document.remove("shopImage");
-            putMissing(document, "kycStatus");
-            putMissing(document, "isKycComplete");
-            putMissing(document, "isVerified");
+            document.remove("kycStatus");
+            document.remove("isKycComplete");
+            document.remove("shippingAddresses");
+            document.remove("isVerified");
+            document.remove("whatsappSequence");
+            document.remove("notesHistory");
             putMissing(document, "isProfileComplete");
             putMissing(document, "productCodeSequence");
             putMissing(document, "orderNumberSequence");
             putMissing(document, "monthlyTarget");
             putMissing(document, "preferredLanguage");
             putMissing(document, "notes");
-            putMissing(document, "notesHistory");
             putMissing(document, "address");
-            putMissing(document, "shippingAddresses");
-            putMissing(document, "whatsappSequence");
+            if (!(document.get("warehouseAddresses") instanceof java.util.List<?>)) {
+                document.put("warehouseAddresses", java.util.List.of());
+            }
             putMissing(document, "createdAt");
             putMissing(document, "updatedAt");
             document.put("bankDetails", normalize(document.get("bankDetails"), bankDefaults()));
@@ -58,13 +64,14 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
         } else if (user.getRole() == UserRole.ROLE_CUSTOMER) {
             putMissing(document, "phoneNumber");
             putMissing(document, "email");
-            putMissing(document, "passwordHash");
+            document.remove("passwordHash");
+            document.remove("passwordResetTokenHash");
+            document.remove("passwordResetExpiresAt");
             putMissing(document, "firstName");
             putMissing(document, "lastName");
             putMissing(document, "role");
             putMissing(document, "isVerified");
             putMissing(document, "isProfileComplete");
-            putMissing(document, "isKycComplete");
             putMissing(document, "shippingAddresses");
             putMissing(document, "address");
             putMissing(document, "isBlocked");
@@ -82,7 +89,13 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             document.remove("gstCertificate");
             document.remove("panCard");
             document.remove("aadhaarCard");
+            document.remove("agreement");
             document.remove("sellerCode");
+            document.remove("kycStatus");
+            document.remove("isKycComplete");
+            document.remove("panNumber");
+            document.remove("licenceNo");
+            document.remove("warehouseAddresses");
         } else {
             document.remove("bankDetails");
             document.remove("settlementTerms");
@@ -91,7 +104,13 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             document.remove("gstCertificate");
             document.remove("panCard");
             document.remove("aadhaarCard");
+            document.remove("agreement");
             document.remove("sellerCode");
+            document.remove("kycStatus");
+            document.remove("isKycComplete");
+            document.remove("panNumber");
+            document.remove("licenceNo");
+            document.remove("warehouseAddresses");
         }
         return user;
     }
@@ -108,6 +127,7 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
         defaults.put("ifscCode", null);
         defaults.put("branch", null);
         defaults.put("upiId", null);
+        defaults.put("cancelledCheque", null);
         defaults.put("isVerified", false);
         return defaults;
     }
