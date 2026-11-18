@@ -268,11 +268,32 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             }
         }
 
+        String latestStage = firstNonBlank(
+                asString(payload.get("latest_stage")),
+                asString(payload.get("stage")));
+        if (latestStage != null) {
+            String normalizedStage = latestStage.trim().toUpperCase(Locale.ROOT);
+            boolean isOrderPlacedStage = normalizedStage.equals("ORDER_PLACED")
+                    || normalizedStage.equals("ORDER_CONFIRMED")
+                    || normalizedStage.equals("CONFIRMED")
+                    || normalizedStage.equals("PLACED")
+                    || normalizedStage.equals("SUCCESS")
+                    || normalizedStage.equals("PAID")
+                    || normalizedStage.equals("COMPLETED");
+            if (!isOrderPlacedStage) {
+                Map<String, Object> ignored = new LinkedHashMap<>();
+                ignored.put("status", "IGNORED_STAGE");
+                ignored.put("stage", latestStage);
+                return ignored;
+            }
+        }
+
         String fastrrOrderId = firstNonBlank(
                 asString(payload.get("order_id")),
                 asString(payload.get("fastrr_order_id")),
                 asString(payload.get("client_order_id")),
                 asString(payload.get("fastrrOrderId")),
+                asString(payload.get("cart_id")),
                 asString(payload.get("id")));
         if (fastrrOrderId == null) {
             throw new AppException("Missing order_id in Fastrr webhook payload", HttpStatus.BAD_REQUEST);
@@ -343,6 +364,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         String paymentTypeRaw = firstNonBlank(
                 asString(payload.get("payment_type")),
                 asString(payload.get("payment_method")),
+                asString(payload.get("payment_mode")),
                 "PREPAID");
         boolean isCod = paymentTypeRaw.toUpperCase(Locale.ROOT).contains("COD")
                 || paymentTypeRaw.toUpperCase(Locale.ROOT).contains("CASH");
@@ -482,7 +504,24 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         event.setNote("Order created via Fastrr 1-Click Checkout (" + fastrrOrderId + ")");
         order.setStatusHistory(List.of(event));
 
-        Order saved = orderRepository.save(order);
+        Order saved;
+        try {
+            saved = orderRepository.save(order);
+        } catch (org.springframework.dao.DuplicateKeyException dupEx) {
+            Order concurrent = mongoTemplate.findOne(
+                    Query.query(new Criteria().orOperator(
+                            Criteria.where("idempotencyKey").is(idempotencyKey),
+                            Criteria.where("orderNumber").is("FASTRR-" + fastrrOrderId))),
+                    Order.class);
+            if (concurrent != null) {
+                Map<String, Object> dup = new LinkedHashMap<>();
+                dup.put("status", "ALREADY_PROCESSED");
+                dup.put("orderId", concurrent.getId());
+                dup.put("orderNumber", concurrent.getOrderNumber());
+                return dup;
+            }
+            throw dupEx;
+        }
         if (redisCache != null) {
             redisCache.invalidateRegion("public-products");
         }
@@ -587,8 +626,11 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             if (variants != null && !variants.isEmpty()) {
                 for (int i = 0; i < variants.size(); i++) {
                     ProductVariant v = variants.get(i);
-                    String numericVarId = String.valueOf(FastrrCatalogController.toFastrrVariantId(p, v, i));
-                    if (variantIdStr != null && (variantIdStr.equals(numericVarId) || variantIdStr.equals(v.getId()))) {
+                    String numericVarIdOneBased = String.valueOf(FastrrCatalogController.toFastrrVariantId(p, v, i + 1));
+                    String numericVarIdZeroBased = String.valueOf(FastrrCatalogController.toFastrrVariantId(p, v, i));
+                    if (variantIdStr != null && (variantIdStr.equals(numericVarIdOneBased)
+                            || variantIdStr.equals(numericVarIdZeroBased)
+                            || variantIdStr.equals(v.getId()))) {
                         return new ResolvedLine(p, v);
                     }
                     if (skuStr != null && skuStr.equalsIgnoreCase(v.getSku())) {
