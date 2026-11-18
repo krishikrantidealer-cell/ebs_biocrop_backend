@@ -500,7 +500,11 @@ public class FastrrCatalogController {
             ));
         }
 
-        String signature = firstNonBlank(hmacHeader, xHmacSha256, fastrrSig, shiprocketSig, shiprocketHmac, webhookSig);
+        String signature = java.util.stream.Stream
+                .of(hmacHeader, xHmacSha256, fastrrSig, shiprocketSig, shiprocketHmac, webhookSig)
+                .filter(s -> s != null && !s.isBlank())
+                .findFirst()
+                .orElse(null);
         if (signature != null && signature.toLowerCase(Locale.ROOT).startsWith("sha256=")) {
             signature = signature.substring(7).trim();
         }
