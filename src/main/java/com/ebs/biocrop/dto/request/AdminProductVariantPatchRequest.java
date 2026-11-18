@@ -37,7 +37,6 @@ public class AdminProductVariantPatchRequest {
     private Boolean isDefault;
     @JsonIgnore @Size(max = 80) private String sku;
 
-
     public boolean hasChanges() {
         return label != null || unit != null || packSize != null || packQuantity != null
                 || shippedBy != null || shippingThrough != null || swg != null || productWeight != null || productWeightUnit != null || dimensions != null || displayRate != null
