@@ -259,9 +259,20 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             throw new AppException("Empty webhook payload", HttpStatus.BAD_REQUEST);
         }
 
+        // Unwrap nested `data` envelope if Fastrr sends { "data": { "order_id": ... } }
+        if (!payload.containsKey("order_id") && !payload.containsKey("fastrr_order_id")
+                && !payload.containsKey("id") && payload.get("data") instanceof Map<?, ?>) {
+            Map<String, Object> nested = asMap(payload.get("data"));
+            if (!nested.isEmpty()) {
+                payload = nested;
+            }
+        }
+
         String fastrrOrderId = firstNonBlank(
                 asString(payload.get("order_id")),
                 asString(payload.get("fastrr_order_id")),
+                asString(payload.get("client_order_id")),
+                asString(payload.get("fastrrOrderId")),
                 asString(payload.get("id")));
         if (fastrrOrderId == null) {
             throw new AppException("Missing order_id in Fastrr webhook payload", HttpStatus.BAD_REQUEST);
@@ -629,7 +640,10 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
     private List<Map<String, Object>> extractItems(Map<String, Object> payload) {
         Map<String, Object> cartData = asMap(payload.get("cart_data"));
         Object itemsObj = cartData.containsKey("items") ? cartData.get("items")
-                : (payload.containsKey("items") ? payload.get("items") : payload.get("line_items"));
+                : (payload.containsKey("items") ? payload.get("items")
+                : (payload.containsKey("line_items") ? payload.get("line_items")
+                : (payload.containsKey("order_items") ? payload.get("order_items")
+                : payload.get("products"))));
         if (!(itemsObj instanceof List<?> list)) {
             return List.of();
         }

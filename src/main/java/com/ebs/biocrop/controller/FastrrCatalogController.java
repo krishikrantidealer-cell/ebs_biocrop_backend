@@ -539,6 +539,8 @@ public class FastrrCatalogController {
             result.put("timestamp", Instant.now().toString());
             return ResponseEntity.ok(result);
         } catch (com.ebs.biocrop.exception.AppException ex) {
+            log.warn("[FASTRR-WEBHOOK] Rejected payload (status={}, message={}): {}",
+                    ex.getStatus().value(), ex.getMessage(), rawBody);
             return ResponseEntity.status(ex.getStatus()).body(Map.of(
                     "status", "ERROR",
                     "message", ex.getMessage(),
@@ -574,6 +576,8 @@ public class FastrrCatalogController {
             result.put("timestamp", Instant.now().toString());
             return ResponseEntity.ok(result);
         } catch (com.ebs.biocrop.exception.AppException ex) {
+            log.warn("[FASTRR-WEBHOOK] Rejected payload (status={}, message={}): {}",
+                    ex.getStatus().value(), ex.getMessage(), rawBody);
             return ResponseEntity.status(ex.getStatus()).body(Map.of(
                     "status", "ERROR",
                     "message", ex.getMessage(),
