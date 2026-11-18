@@ -474,7 +474,11 @@ public class FastrrCatalogController {
     @Operation(summary = "Fastrr Order Webhook", description = "Verifies HMAC-SHA256 signature and persists Fastrr orders")
     public ResponseEntity<Map<String, Object>> handleOrderWebhook(
             @RequestHeader(name = "X-Api-HMAC-SHA256", required = false) String hmacHeader,
+            @RequestHeader(name = "X-Hmac-SHA256", required = false) String xHmacSha256,
             @RequestHeader(name = "X-Fastrr-Signature", required = false) String fastrrSig,
+            @RequestHeader(name = "X-Shiprocket-Signature", required = false) String shiprocketSig,
+            @RequestHeader(name = "X-Shiprocket-Hmac-SHA256", required = false) String shiprocketHmac,
+            @RequestHeader(name = "X-Webhook-Signature", required = false) String webhookSig,
             HttpServletRequest httpRequest) {
         if (fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
             log.info("[FASTRR-WEBHOOK] Webhook rejected: integration credentials are not configured");
@@ -496,9 +500,14 @@ public class FastrrCatalogController {
             ));
         }
 
-        String signature = (hmacHeader != null && !hmacHeader.isBlank()) ? hmacHeader : fastrrSig;
+        String signature = firstNonBlank(hmacHeader, xHmacSha256, fastrrSig, shiprocketSig, shiprocketHmac, webhookSig);
+        if (signature != null && signature.toLowerCase(Locale.ROOT).startsWith("sha256=")) {
+            signature = signature.substring(7).trim();
+        }
         if (rawBody.isBlank() || !fastrrCheckoutService.verifyWebhookSignature(rawBody, signature)) {
-            log.warn("[FASTRR-WEBHOOK] Rejected webhook with missing or invalid HMAC signature");
+            List<String> headerNames = java.util.Collections.list(httpRequest.getHeaderNames());
+            log.warn("[FASTRR-WEBHOOK] Rejected webhook (sigPresent={}, bodyLen={}, headers={})",
+                    signature != null && !signature.isBlank(), rawBody.length(), headerNames);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                     "status", "UNAUTHORIZED",
                     "message", "Invalid or missing Fastrr webhook signature",
