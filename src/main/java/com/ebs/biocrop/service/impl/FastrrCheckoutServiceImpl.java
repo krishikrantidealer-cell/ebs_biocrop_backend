@@ -302,8 +302,8 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         String idempotencyKey = "fastrr:" + fastrrOrderId;
         List<Order> existingOrders = mongoTemplate.find(
                 Query.query(new Criteria().orOperator(
-                        Criteria.where("idempotencyKey").regex("^" + Pattern.quote(idempotencyKey) + "(?::S\\d+)?$"),
-                        Criteria.where("orderNumber").regex("^" + Pattern.quote("FASTRR-" + fastrrOrderId) + "(?:-S\\d+)?$"))),
+                        Criteria.where("idempotencyKey").regex("^" + java.util.regex.Pattern.quote(idempotencyKey) + "(?::S\\d+)?$"),
+                        Criteria.where("orderNumber").regex("^" + java.util.regex.Pattern.quote("FASTRR-" + fastrrOrderId) + "(?:-S\\d+)?$"))),
                 Order.class);
         if (!existingOrders.isEmpty()) {
             Order first = existingOrders.getFirst();
