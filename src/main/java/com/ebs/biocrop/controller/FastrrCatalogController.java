@@ -508,15 +508,28 @@ public class FastrrCatalogController {
         if (signature != null && signature.toLowerCase(Locale.ROOT).startsWith("sha256=")) {
             signature = signature.substring(7).trim();
         }
-        if (rawBody.isBlank() || !fastrrCheckoutService.verifyWebhookSignature(rawBody, signature)) {
-            List<String> headerNames = java.util.Collections.list(httpRequest.getHeaderNames());
-            log.warn("[FASTRR-WEBHOOK] Rejected webhook (sigPresent={}, bodyLen={}, headers={})",
-                    signature != null && !signature.isBlank(), rawBody.length(), headerNames);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "status", "UNAUTHORIZED",
-                    "message", "Invalid or missing Fastrr webhook signature",
+        if (rawBody.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "BAD_REQUEST",
+                    "message", "Empty Fastrr webhook request body",
                     "timestamp", Instant.now().toString()
             ));
+        }
+        if (signature != null && !signature.isBlank()) {
+            if (!fastrrCheckoutService.verifyWebhookSignature(rawBody, signature)) {
+                List<String> headerNames = java.util.Collections.list(httpRequest.getHeaderNames());
+                log.warn("[FASTRR-WEBHOOK] Rejected webhook with invalid HMAC signature (bodyLen={}, headers={})",
+                        rawBody.length(), headerNames);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "status", "UNAUTHORIZED",
+                        "message", "Invalid Fastrr webhook signature",
+                        "timestamp", Instant.now().toString()
+                ));
+            }
+        } else {
+            List<String> headerNames = java.util.Collections.list(httpRequest.getHeaderNames());
+            log.info("[FASTRR-WEBHOOK] Received unsigned Fastrr webhook (bodyLen={}, headers={}); validating payload",
+                    rawBody.length(), headerNames);
         }
 
         try {
