@@ -300,16 +300,20 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         }
 
         String idempotencyKey = "fastrr:" + fastrrOrderId;
-        Order existing = mongoTemplate.findOne(
+        List<Order> existingOrders = mongoTemplate.find(
                 Query.query(new Criteria().orOperator(
-                        Criteria.where("idempotencyKey").is(idempotencyKey),
-                        Criteria.where("orderNumber").is("FASTRR-" + fastrrOrderId))),
+                        Criteria.where("idempotencyKey").regex("^" + Pattern.quote(idempotencyKey) + "(?::S\\d+)?$"),
+                        Criteria.where("orderNumber").regex("^" + Pattern.quote("FASTRR-" + fastrrOrderId) + "(?:-S\\d+)?$"))),
                 Order.class);
-        if (existing != null) {
+        if (!existingOrders.isEmpty()) {
+            Order first = existingOrders.getFirst();
             Map<String, Object> dup = new LinkedHashMap<>();
             dup.put("status", "ALREADY_PROCESSED");
-            dup.put("orderId", existing.getId());
-            dup.put("orderNumber", existing.getOrderNumber());
+            dup.put("orderId", first.getId());
+            dup.put("orderNumber", first.getOrderNumber());
+            dup.put("orderIds", existingOrders.stream().map(Order::getId).toList());
+            dup.put("orderNumbers", existingOrders.stream().map(Order::getOrderNumber).toList());
+            dup.put("orderCount", existingOrders.size());
             return dup;
         }
 
@@ -323,10 +327,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 Product.class);
 
         LocalDateTime now = LocalDateTime.now();
-        Order order = new Order();
-        order.setOrderNumber("FASTRR-" + fastrrOrderId);
-        order.setCheckoutGroupId("CHK-FASTRR-" + fastrrOrderId);
-        order.setIdempotencyKey(idempotencyKey);
+        String checkoutGroupId = "CHK-FASTRR-" + fastrrOrderId;
 
         Map<String, Object> shippingMap = asMap(payload.get("shipping_address"));
         Map<String, Object> customerMap = asMap(payload.get("customer_details"));
@@ -347,19 +348,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 "Fastrr Customer");
 
         User matchedCustomer = findCustomerByPhone(phone);
-        if (matchedCustomer != null) {
-            order.setCustomerId(matchedCustomer.getId());
-        }
-
-        OrderCustomerSnapshot customerSnapshot = new OrderCustomerSnapshot();
-        customerSnapshot.setName(customerName);
-        customerSnapshot.setPhoneNumber(phone);
-        customerSnapshot.setEmail(email);
-        order.setCustomerSnapshot(customerSnapshot);
-
         OrderAddressSnapshot address = buildAddressSnapshot(shippingMap, customerName, phone);
-        order.setShippingAddress(address);
-        order.setBillingAddress(address);
 
         String paymentTypeRaw = firstNonBlank(
                 asString(payload.get("payment_type")),
@@ -369,173 +358,217 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         boolean isCod = paymentTypeRaw.toUpperCase(Locale.ROOT).contains("COD")
                 || paymentTypeRaw.toUpperCase(Locale.ROOT).contains("CASH");
 
-        Map<String, Order.SellerFulfillment> fulfillmentsBySeller = new LinkedHashMap<>();
-        List<OrderItem> orderItems = new ArrayList<>();
-        BigDecimal totalList = BigDecimal.ZERO;
-        BigDecimal totalDiscount = BigDecimal.ZERO;
-        BigDecimal orderTotal = BigDecimal.ZERO;
-        int seq = 1;
-
+        // Group incoming Fastrr cart items by seller so each seller gets an independent Order + tracking.
+        record ResolvedCartEntry(Product product, ProductVariant variant, int quantity, Map<String, Object> rawItem) {}
+        Map<String, List<ResolvedCartEntry>> entriesBySeller = new LinkedHashMap<>();
         for (Map<String, Object> rawItem : rawItems) {
             ResolvedLine resolved = resolveCatalogLine(catalog, rawItem);
             int quantity = Math.max(1, parseInt(rawItem.get("quantity"), 1));
-
             Product product = resolved.product();
-            ProductVariant variant = resolved.variant();
             String sellerKey = (product.getSellerId() != null && !product.getSellerId().isBlank())
                     ? product.getSellerId()
                     : "PLATFORM";
-
-            Order.SellerFulfillment fulfillment = fulfillmentsBySeller.computeIfAbsent(
-                    sellerKey,
-                    id -> buildSellerFulfillment(id, OrderStatus.CONFIRMED.name()));
-
-            BigDecimal listPrice = resolveMoney(variant != null ? variant.getPrintedMrp() : null,
-                    null, parseDecimal(rawItem.get("price")));
-            BigDecimal unitPrice = resolveMoney(variant != null ? variant.getDisplayRate() : null,
-                    null, parseDecimal(rawItem.get("price")));
-            if (listPrice.compareTo(unitPrice) < 0) {
-                listPrice = unitPrice;
-            }
-
-            BigDecimal qtyBd = BigDecimal.valueOf(quantity);
-            BigDecimal lineList = listPrice.multiply(qtyBd).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal lineTotal = unitPrice.multiply(qtyBd).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal lineDiscount = lineList.subtract(lineTotal).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
-
-            OrderItem item = new OrderItem();
-            item.setItemOrderId(order.getOrderNumber() + "-" + String.format(Locale.ROOT, "%03d", seq++));
-            item.setSellerId("PLATFORM".equals(sellerKey) ? null : sellerKey);
-            item.setSellerFulfillmentId(fulfillment.getId());
-            item.setProductId(product.getId());
-            item.setCategoryId(product.getCategoryId());
-            item.setVariantId(variant != null ? variant.getId() : null);
-            item.setProductCode(product.getProductCode());
-            item.setProductSku(product.getSku());
-            item.setVariantSku(variant != null ? variant.getSku() : product.getSku());
-            item.setQuantity(quantity);
-            item.setListPrice(listPrice);
-            item.setUnitPrice(unitPrice);
-            item.setDiscountAmount(lineDiscount);
-            item.setLineTotal(lineTotal);
-            item.setItemStatus(OrderStatus.CONFIRMED.name());
-
-            Order.ProductSnapshot ps = new Order.ProductSnapshot();
-            ps.setTitle(product.getTitle());
-            ps.setVariantLabel(variant != null ? variant.getLabel() : product.getTitle());
-            ps.setHsnCode(product.getHsnCode());
-            if (product.getProductImages() != null && !product.getProductImages().isEmpty()) {
-                ps.setImageObjectName(product.getProductImages().getFirst().getMidObjectName());
-            }
-            item.setProductSnapshot(ps);
-
-            if (variant != null) {
-                OrderItem.VariantSnapshot vs = new OrderItem.VariantSnapshot();
-                vs.setLabel(variant.getLabel());
-                vs.setUnit(variant.getUnit());
-                vs.setPackSize(variant.getPackSize());
-                vs.setPackSizeUnit(variant.getUnit());
-                vs.setPackQuantity(variant.getPackQuantity());
-                item.setVariantSnapshot(vs);
-            }
-
-            fulfillment.getItemOrderIds().add(item.getItemOrderId());
-            orderItems.add(item);
-
-            totalList = totalList.add(lineList);
-            totalDiscount = totalDiscount.add(lineDiscount);
-            orderTotal = orderTotal.add(lineTotal);
-
-            decrementStock(product, variant, quantity);
+            entriesBySeller.computeIfAbsent(sellerKey, k -> new ArrayList<>())
+                    .add(new ResolvedCartEntry(product, resolved.variant(), quantity, rawItem));
         }
 
-        order.setItems(orderItems);
-        order.setSellerFulfillments(new ArrayList<>(fulfillmentsBySeller.values()));
-        order.setStockReserved(true);
+        boolean multiSeller = entriesBySeller.size() > 1;
+        List<Order> savedOrders = new ArrayList<>();
+        int sellerIdx = 1;
 
-        Order.FinancialSummary summary = new Order.FinancialSummary();
-        summary.setGrossMerchandiseValue(totalList.setScale(2, RoundingMode.HALF_UP));
-        summary.setDiscountTotal(totalDiscount.setScale(2, RoundingMode.HALF_UP));
-        summary.setOriginalOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
-        summary.setCurrentOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
-        if (isCod) {
-            summary.setOnlineAmountCaptured(BigDecimal.ZERO);
-            summary.setCodDue(orderTotal.setScale(2, RoundingMode.HALF_UP));
-        } else {
-            summary.setOnlineAmountCaptured(orderTotal.setScale(2, RoundingMode.HALF_UP));
-            summary.setNetOnlineAmountRetained(orderTotal.setScale(2, RoundingMode.HALF_UP));
-            summary.setCodDue(BigDecimal.ZERO);
-        }
-        order.setFinancialSummary(summary);
+        for (Map.Entry<String, List<ResolvedCartEntry>> sellerEntry : entriesBySeller.entrySet()) {
+            String sellerKey = sellerEntry.getKey();
+            List<ResolvedCartEntry> sellerLines = sellerEntry.getValue();
 
-        OrderPaymentDetails payment = new OrderPaymentDetails();
-        payment.setProvider("FASTRR");
-        payment.setProviderOrderId(fastrrOrderId);
-        payment.setPaymentType(isCod ? PaymentMethod.COD.name() : PaymentMethod.PREPAID.name());
-        payment.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
-        payment.setAmountPaid(isCod ? BigDecimal.ZERO : orderTotal.setScale(2, RoundingMode.HALF_UP));
-        payment.setCodDue(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
-        payment.setRemainingAmount(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            String orderNumber = multiSeller
+                    ? "FASTRR-" + fastrrOrderId + "-S" + sellerIdx
+                    : "FASTRR-" + fastrrOrderId;
+            String sellerIdempotencyKey = multiSeller
+                    ? idempotencyKey + ":S" + sellerIdx
+                    : idempotencyKey;
 
-        OrderPaymentTransaction txn = new OrderPaymentTransaction();
-        txn.setTransactionId(firstNonBlank(
-                asString(payload.get("fastrr_transaction_id")),
-                asString(payload.get("transaction_id")),
-                "FASTRR-TXN-" + fastrrOrderId));
-        txn.setType(isCod ? "COD_ORDER" : "CAPTURE");
-        txn.setAmount(orderTotal.setScale(2, RoundingMode.HALF_UP));
-        txn.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
-        txn.setProvider("FASTRR");
-        txn.setProviderPaymentId(fastrrOrderId);
-        txn.setOccurredAt(now);
-        payment.setTransactions(List.of(txn));
-        order.setPayment(payment);
-
-        String overallStatus = OrderStatus.CONFIRMED.name();
-        order.setOverallStatus(overallStatus);
-        order.setPlacedAt(now);
-        order.setCreatedAt(now);
-        order.setUpdatedAt(now);
-
-        OrderStatusEvent event = new OrderStatusEvent();
-        event.setStatus(overallStatus);
-        event.setOccurredAt(now);
-        event.setActor("FASTRR_WEBHOOK");
-        event.setNote("Order created via Fastrr 1-Click Checkout (" + fastrrOrderId + ")");
-        order.setStatusHistory(List.of(event));
-
-        Order saved;
-        try {
-            saved = orderRepository.save(order);
-        } catch (org.springframework.dao.DuplicateKeyException dupEx) {
-            Order concurrent = mongoTemplate.findOne(
-                    Query.query(new Criteria().orOperator(
-                            Criteria.where("idempotencyKey").is(idempotencyKey),
-                            Criteria.where("orderNumber").is("FASTRR-" + fastrrOrderId))),
-                    Order.class);
-            if (concurrent != null) {
-                Map<String, Object> dup = new LinkedHashMap<>();
-                dup.put("status", "ALREADY_PROCESSED");
-                dup.put("orderId", concurrent.getId());
-                dup.put("orderNumber", concurrent.getOrderNumber());
-                return dup;
+            Order order = new Order();
+            order.setOrderNumber(orderNumber);
+            order.setCheckoutGroupId(checkoutGroupId);
+            order.setIdempotencyKey(sellerIdempotencyKey);
+            if (matchedCustomer != null) {
+                order.setCustomerId(matchedCustomer.getId());
             }
-            throw dupEx;
+
+            OrderCustomerSnapshot customerSnapshot = new OrderCustomerSnapshot();
+            customerSnapshot.setName(customerName);
+            customerSnapshot.setPhoneNumber(phone);
+            customerSnapshot.setEmail(email);
+            order.setCustomerSnapshot(customerSnapshot);
+            order.setShippingAddress(address);
+            order.setBillingAddress(address);
+
+            Order.SellerFulfillment fulfillment = buildSellerFulfillment(sellerKey, OrderStatus.CONFIRMED.name());
+            List<OrderItem> orderItems = new ArrayList<>();
+            BigDecimal totalList = BigDecimal.ZERO;
+            BigDecimal totalDiscount = BigDecimal.ZERO;
+            BigDecimal orderTotal = BigDecimal.ZERO;
+            int seq = 1;
+
+            for (ResolvedCartEntry entry : sellerLines) {
+                Product product = entry.product();
+                ProductVariant variant = entry.variant();
+                int quantity = entry.quantity();
+                Map<String, Object> rawItem = entry.rawItem();
+
+                BigDecimal listPrice = resolveMoney(variant != null ? variant.getPrintedMrp() : null,
+                        null, parseDecimal(rawItem.get("price")));
+                BigDecimal unitPrice = resolveMoney(variant != null ? variant.getDisplayRate() : null,
+                        null, parseDecimal(rawItem.get("price")));
+                if (listPrice.compareTo(unitPrice) < 0) {
+                    listPrice = unitPrice;
+                }
+
+                BigDecimal qtyBd = BigDecimal.valueOf(quantity);
+                BigDecimal lineList = listPrice.multiply(qtyBd).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal lineTotal = unitPrice.multiply(qtyBd).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal lineDiscount = lineList.subtract(lineTotal).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+
+                OrderItem item = new OrderItem();
+                item.setItemOrderId(orderNumber + "-" + String.format(Locale.ROOT, "%03d", seq++));
+                item.setSellerId("PLATFORM".equals(sellerKey) ? null : sellerKey);
+                item.setSellerFulfillmentId(fulfillment.getId());
+                item.setProductId(product.getId());
+                item.setCategoryId(product.getCategoryId());
+                item.setVariantId(variant != null ? variant.getId() : null);
+                item.setProductCode(product.getProductCode());
+                item.setProductSku(product.getSku());
+                item.setVariantSku(variant != null ? variant.getSku() : product.getSku());
+                item.setQuantity(quantity);
+                item.setListPrice(listPrice);
+                item.setUnitPrice(unitPrice);
+                item.setDiscountAmount(lineDiscount);
+                item.setLineTotal(lineTotal);
+                item.setItemStatus(OrderStatus.CONFIRMED.name());
+
+                Order.ProductSnapshot ps = new Order.ProductSnapshot();
+                ps.setTitle(product.getTitle());
+                ps.setVariantLabel(variant != null ? variant.getLabel() : product.getTitle());
+                ps.setHsnCode(product.getHsnCode());
+                if (product.getProductImages() != null && !product.getProductImages().isEmpty()) {
+                    ps.setImageObjectName(product.getProductImages().getFirst().getMidObjectName());
+                }
+                item.setProductSnapshot(ps);
+
+                if (variant != null) {
+                    OrderItem.VariantSnapshot vs = new OrderItem.VariantSnapshot();
+                    vs.setLabel(variant.getLabel());
+                    vs.setUnit(variant.getUnit());
+                    vs.setPackSize(variant.getPackSize());
+                    vs.setPackSizeUnit(variant.getUnit());
+                    vs.setPackQuantity(variant.getPackQuantity());
+                    item.setVariantSnapshot(vs);
+                }
+
+                fulfillment.getItemOrderIds().add(item.getItemOrderId());
+                orderItems.add(item);
+
+                totalList = totalList.add(lineList);
+                totalDiscount = totalDiscount.add(lineDiscount);
+                orderTotal = orderTotal.add(lineTotal);
+
+                decrementStock(product, variant, quantity);
+            }
+
+            order.setItems(orderItems);
+            order.setSellerFulfillments(List.of(fulfillment));
+            order.setStockReserved(true);
+
+            Order.FinancialSummary summary = new Order.FinancialSummary();
+            summary.setGrossMerchandiseValue(totalList.setScale(2, RoundingMode.HALF_UP));
+            summary.setDiscountTotal(totalDiscount.setScale(2, RoundingMode.HALF_UP));
+            summary.setOriginalOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
+            summary.setCurrentOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
+            if (isCod) {
+                summary.setOnlineAmountCaptured(BigDecimal.ZERO);
+                summary.setCodDue(orderTotal.setScale(2, RoundingMode.HALF_UP));
+            } else {
+                summary.setOnlineAmountCaptured(orderTotal.setScale(2, RoundingMode.HALF_UP));
+                summary.setNetOnlineAmountRetained(orderTotal.setScale(2, RoundingMode.HALF_UP));
+                summary.setCodDue(BigDecimal.ZERO);
+            }
+            order.setFinancialSummary(summary);
+
+            OrderPaymentDetails payment = new OrderPaymentDetails();
+            payment.setProvider("FASTRR");
+            payment.setProviderOrderId(fastrrOrderId);
+            payment.setPaymentType(isCod ? PaymentMethod.COD.name() : PaymentMethod.PREPAID.name());
+            payment.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
+            payment.setAmountPaid(isCod ? BigDecimal.ZERO : orderTotal.setScale(2, RoundingMode.HALF_UP));
+            payment.setCodDue(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            payment.setRemainingAmount(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+
+            OrderPaymentTransaction txn = new OrderPaymentTransaction();
+            String baseTxnId = firstNonBlank(
+                    asString(payload.get("fastrr_transaction_id")),
+                    asString(payload.get("transaction_id")),
+                    "FASTRR-TXN-" + fastrrOrderId);
+            txn.setTransactionId(multiSeller ? baseTxnId + "-S" + sellerIdx : baseTxnId);
+            txn.setType(isCod ? "COD_ORDER" : "CAPTURE");
+            txn.setAmount(orderTotal.setScale(2, RoundingMode.HALF_UP));
+            txn.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
+            txn.setProvider("FASTRR");
+            txn.setProviderPaymentId(fastrrOrderId);
+            txn.setOccurredAt(now);
+            payment.setTransactions(List.of(txn));
+            order.setPayment(payment);
+
+            String overallStatus = OrderStatus.CONFIRMED.name();
+            order.setOverallStatus(overallStatus);
+            order.setPlacedAt(now);
+            order.setCreatedAt(now);
+            order.setUpdatedAt(now);
+
+            OrderStatusEvent event = new OrderStatusEvent();
+            event.setStatus(overallStatus);
+            event.setOccurredAt(now);
+            event.setActor("FASTRR_WEBHOOK");
+            event.setNote("Order created via Fastrr 1-Click Checkout (" + fastrrOrderId + ")");
+            order.setStatusHistory(List.of(event));
+
+            Order saved;
+            try {
+                saved = orderRepository.save(order);
+            } catch (org.springframework.dao.DuplicateKeyException dupEx) {
+                Order concurrent = mongoTemplate.findOne(
+                        Query.query(new Criteria().orOperator(
+                                Criteria.where("idempotencyKey").is(sellerIdempotencyKey),
+                                Criteria.where("orderNumber").is(orderNumber))),
+                        Order.class);
+                if (concurrent != null) {
+                    saved = concurrent;
+                } else {
+                    throw dupEx;
+                }
+            }
+            savedOrders.add(saved);
+            if (webSocketService != null) {
+                webSocketService.broadcast("orders:created", Map.of(
+                        "orderId", saved.getId(),
+                        "orderNumber", saved.getOrderNumber(),
+                        "status", saved.getOverallStatus()));
+            }
+            sellerIdx++;
         }
+
         if (redisCache != null) {
             redisCache.invalidateRegion("public-products");
         }
-        if (webSocketService != null) {
-            webSocketService.broadcast("orders:created", Map.of(
-                    "orderId", saved.getId(),
-                    "orderNumber", saved.getOrderNumber(),
-                    "status", saved.getOverallStatus()));
-        }
 
+        Order primary = savedOrders.getFirst();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "SUCCESS");
-        result.put("orderId", saved.getId());
-        result.put("orderNumber", saved.getOrderNumber());
+        result.put("orderId", primary.getId());
+        result.put("orderNumber", primary.getOrderNumber());
+        result.put("checkoutGroupId", checkoutGroupId);
+        result.put("orderIds", savedOrders.stream().map(Order::getId).toList());
+        result.put("orderNumbers", savedOrders.stream().map(Order::getOrderNumber).toList());
+        result.put("orderCount", savedOrders.size());
         return result;
     }
 
