@@ -352,21 +352,18 @@ class OrderFulfillmentEndToEndTest {
         mockMvc.perform(post("/api/v1/admin/orders/ord-happy/shipment/delhivery"))
                 .andExpect(status().isConflict());
 
-        // Step 1: Confirm order -> PENDING -> CONFIRMED
+        // Step 1: Confirm order -> PENDING -> CONFIRMED AND auto-fetches Delhivery AWB + Label URL
         mockMvc.perform(post("/api/v1/admin/orders/ord-happy/confirm"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.overallStatus").value("CONFIRMED"));
-
-        // Guard 3: Still 404 on /label when CONFIRMED but Delhivery shipment not booked yet
-        mockMvc.perform(get("/api/v1/admin/orders/ord-happy/label"))
-                .andExpect(status().isNotFound());
-
-        // Step 2: Book Delhivery One shipment over real HTTP stub -> AWB + Label URL stored
-        mockMvc.perform(post("/api/v1/admin/orders/ord-happy/shipment/delhivery"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.overallStatus").value("CONFIRMED"))
                 .andExpect(jsonPath("$.data.sellerFulfillments[0].shipments[0].trackingNumber").value(SAMPLE_AWB))
                 .andExpect(jsonPath("$.data.sellerFulfillments[0].shipments[0].labelReference").isNotEmpty());
+
+        // Step 2: Explicit shipment endpoint remains idempotent if called again
+        mockMvc.perform(post("/api/v1/admin/orders/ord-happy/shipment/delhivery"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.overallStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.data.sellerFulfillments[0].shipments[0].trackingNumber").value(SAMPLE_AWB));
 
         // Step 3: Download Label -> streams real PDF bytes & auto-marks PACKED
         String expectedBase64 = Base64.getEncoder().encodeToString(SAMPLE_PDF);

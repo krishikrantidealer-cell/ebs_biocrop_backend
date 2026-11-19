@@ -126,7 +126,7 @@ public class DelhiveryOneService {
         return enabled && !apiToken.isBlank() && !defaultPickupLocation.isBlank();
     }
 
-    /** Step 1: PENDING -> CONFIRMED */
+    /** Step 1: PENDING -> CONFIRMED (and automatically book Delhivery AWB + fetch label when configured). */
     public Order confirmOrder(String actorId, String orderId) {
         Order order = getOrder(orderId);
         String current = normalizeStatus(order.getOverallStatus());
@@ -140,6 +140,15 @@ public class DelhiveryOneService {
                 "Order confirmed and queued for Delhivery One shipment booking");
         Order saved = orderRepository.save(order);
         broadcastOrderUpdate(saved);
+
+        if (isConfigured()) {
+            try {
+                return createShipmentAndLabel(actorId, saved.getId());
+            } catch (Exception ex) {
+                log.warn("[DELHIVERY] Order {} confirmed, but auto-fetching Delhivery label failed: {}",
+                        saved.getOrderNumber(), ex.getMessage());
+            }
+        }
         return saved;
     }
 
@@ -167,7 +176,13 @@ public class DelhiveryOneService {
                     HttpStatus.SERVICE_UNAVAILABLE);
         }
 
-        String waybill = manifestShipmentInDelhivery(order, fulfillment);
+        String waybill = lookupWaybillByOrderRef(order);
+        if (!hasText(waybill)) {
+            throw new AppException(
+                    "Shipment is not booked in Delhivery One yet for order " + order.getOrderNumber()
+                            + ". Dispatch team must book it in Delhivery One first.",
+                    HttpStatus.NOT_FOUND);
+        }
         String labelUrl = fetchPackingSlipUrl(waybill);
 
         LocalDateTime now = LocalDateTime.now();
@@ -330,6 +345,22 @@ public class DelhiveryOneService {
                 Query.query(Criteria.where("sellerFulfillments.shipments.trackingNumber").is(waybill)),
                 Order.class);
         if (order == null) {
+            String refNo = firstNonBlank(
+                    asString(shipMap.get("ReferenceNo")),
+                    asString(shipMap.get("reference_no")),
+                    asString(shipMap.get("OrderID")),
+                    asString(payload.get("reference_no")),
+                    asString(payload.get("order")));
+            if (hasText(refNo)) {
+                order = mongoTemplate.findOne(
+                        Query.query(new Criteria().orOperator(
+                                Criteria.where("orderNumber").is(refNo),
+                                Criteria.where("orderNumber").is("FASTRR-" + refNo),
+                                Criteria.where("checkoutGroupId").is(refNo))),
+                        Order.class);
+            }
+        }
+        if (order == null) {
             return Map.of("status", "IGNORED_UNKNOWN_WAYBILL", "waybill", waybill);
         }
 
@@ -338,6 +369,22 @@ public class DelhiveryOneService {
                 .filter(s -> waybill.equals(s.getTrackingNumber()))
                 .findFirst()
                 .orElse(findPrimaryShipment(fulfillment));
+        if (shipment == null) {
+            shipment = new Order.Shipment();
+            shipment.setShipmentId(new ObjectId().toHexString());
+            shipment.setCarrier("DELHIVERY");
+            shipment.setTrackingNumber(waybill);
+            shipment.setBookingReference(waybill);
+            shipment.setItemOrderIds(fulfillment.getItemOrderIds());
+            fulfillment.getShipments().add(shipment);
+        } else if (!hasText(shipment.getTrackingNumber())) {
+            shipment.setCarrier("DELHIVERY");
+            shipment.setTrackingNumber(waybill);
+        }
+        if (!hasText(shipment.getLabelReference()) && isConfigured()) {
+            shipment.setLabelReference(fetchPackingSlipUrl(waybill));
+            shipment.setLabelCreatedAt(LocalDateTime.now());
+        }
 
         String statusName = firstNonBlank(asString(statusMap.get("Status")), asString(payload.get("status")));
         String statusType = firstNonBlank(asString(statusMap.get("StatusType")), asString(payload.get("status_type")));
@@ -426,10 +473,25 @@ public class DelhiveryOneService {
         return saved;
     }
 
-    /** 15-minute safety-net reconciliation for active Delhivery shipments. */
+    /** 15-minute safety-net reconciliation: discovers newly booked labels for CONFIRMED orders and syncs active tracking. */
     @Scheduled(fixedDelayString = "${delhivery.poll-interval-ms:900000}")
     public void reconcileActiveShipments() {
         if (!isConfigured()) return;
+
+        // 1. Discover AWBs & labels for CONFIRMED orders booked in Delhivery One by dispatch team
+        List<Order> confirmedWithoutLabel = mongoTemplate.find(
+                Query.query(Criteria.where("overallStatus").is(OrderStatus.CONFIRMED.name())
+                        .and("sellerFulfillments.shipments.labelReference").exists(false)),
+                Order.class);
+        for (Order order : confirmedWithoutLabel) {
+            try {
+                createShipmentAndLabel("DELHIVERY_POLL", order.getId());
+            } catch (Exception ignored) {
+                // Not booked in Delhivery One by dispatch team yet
+            }
+        }
+
+        // 2. Sync live tracking & RTO scans for active Delhivery shipments
         List<Order> activeOrders = mongoTemplate.find(
                 Query.query(Criteria.where("overallStatus").in(ACTIVE_DELHIVERY_STATUSES)
                         .and("sellerFulfillments.shipments.carrier").is("DELHIVERY")),
@@ -441,6 +503,40 @@ public class DelhiveryOneService {
                 log.warn("[DELHIVERY-POLL] Failed syncing order {}: {}", order.getOrderNumber(), ex.getMessage());
             }
         }
+    }
+
+    /** Looks up a shipment booked by the dispatch team in Delhivery One using order reference IDs (never creates a shipment). */
+    private String lookupWaybillByOrderRef(Order order) {
+        List<String> refs = new ArrayList<>();
+        if (hasText(order.getOrderNumber())) {
+            refs.add(order.getOrderNumber().trim());
+            if (order.getOrderNumber().startsWith("FASTRR-")) {
+                refs.add(order.getOrderNumber().substring("FASTRR-".length()));
+            }
+        }
+        if (hasText(order.getCheckoutGroupId())) {
+            refs.add(order.getCheckoutGroupId().trim());
+        }
+        if (refs.isEmpty()) return null;
+
+        String refParam = String.join(",", refs.stream().distinct().toList());
+        String url = baseUrl + "/api/v1/packages/json/?ref_ids=" + java.net.URLEncoder.encode(refParam, java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(authHeaders()), String.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+                return null;
+            }
+            Map<String, Object> parsed = objectMapper.readValue(resp.getBody(), new TypeReference<>() {});
+            Object shipDataObj = parsed.get("ShipmentData");
+            if (shipDataObj instanceof List<?> list && !list.isEmpty() && list.getFirst() instanceof Map<?, ?> first) {
+                Map<String, Object> shipMap = asMap(first.get("Shipment"));
+                return firstNonBlank(asString(shipMap.get("AWB")), asString(shipMap.get("Waybill")));
+            }
+        } catch (Exception ex) {
+            log.warn("[DELHIVERY] ref_ids lookup failed for {}: {}", order.getOrderNumber(), ex.getMessage());
+        }
+        return null;
     }
 
     /** Maps Delhivery One scan status + StatusType to canonical OrderStatus (including full RTO states). */
@@ -541,76 +637,6 @@ public class DelhiveryOneService {
             applyStatusToOrder(order, mapped.name(), now, actor, note);
         } else {
             order.setUpdatedAt(now);
-        }
-    }
-
-    private String manifestShipmentInDelhivery(Order order, Order.SellerFulfillment fulfillment) {
-        OrderAddressSnapshot addr = order.getShippingAddress();
-        boolean isCod = order.getPayment() != null
-                && PaymentMethod.COD.name().equalsIgnoreCase(order.getPayment().getPaymentType());
-        BigDecimal total = order.getFinancialSummary() != null && order.getFinancialSummary().getCurrentOrderTotal() != null
-                ? order.getFinancialSummary().getCurrentOrderTotal().setScale(2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        String productsDesc = order.getItems() == null ? "Agricultural Product"
-                : order.getItems().stream()
-                .map(i -> i.getProductSnapshot() != null ? i.getProductSnapshot().getTitle() : "Item")
-                .filter(Objects::nonNull)
-                .limit(3)
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("Agricultural Product");
-
-        Map<String, Object> shipmentObj = new LinkedHashMap<>();
-        shipmentObj.put("name", addr != null ? firstNonBlank(addr.getName(), "Customer") : "Customer");
-        shipmentObj.put("add", addr != null ? firstNonBlank(addr.getVillageArea(), addr.getAddress2(), "India") : "India");
-        shipmentObj.put("pin", addr != null ? firstNonBlank(addr.getPincode(), "") : "");
-        shipmentObj.put("city", addr != null ? firstNonBlank(addr.getCityTehsil(), "") : "");
-        shipmentObj.put("state", addr != null ? firstNonBlank(addr.getState(), "") : "");
-        shipmentObj.put("country", "India");
-        shipmentObj.put("phone", addr != null ? firstNonBlank(addr.getPhoneNumber(), "") : "");
-        shipmentObj.put("order", order.getOrderNumber());
-        shipmentObj.put("payment_mode", isCod ? "COD" : "Prepaid");
-        shipmentObj.put("cod_amount", isCod ? total.toPlainString() : "0");
-        shipmentObj.put("total_amount", total.toPlainString());
-        shipmentObj.put("products_desc", productsDesc);
-        shipmentObj.put("quantity", String.valueOf(order.getItems() == null ? 1 : order.getItems().stream()
-                .mapToInt(i -> i.getQuantity() == null ? 1 : i.getQuantity()).sum()));
-        shipmentObj.put("shipping_mode", "Surface");
-
-        Map<String, Object> dataPayload = new LinkedHashMap<>();
-        dataPayload.put("shipments", List.of(shipmentObj));
-        dataPayload.put("pickup_location", Map.of("name", defaultPickupLocation));
-
-        try {
-            String jsonData = objectMapper.writeValueAsString(dataPayload);
-            HttpHeaders headers = authHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-            form.add("format", "json");
-            form.add("data", jsonData);
-
-            ResponseEntity<String> resp = restTemplate.postForEntity(
-                    baseUrl + "/api/cmu/create.json",
-                    new HttpEntity<>(form, headers),
-                    String.class);
-            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-                throw new AppException("Delhivery One manifest failed (HTTP " + resp.getStatusCode().value() + ")",
-                        HttpStatus.BAD_GATEWAY);
-            }
-            Map<String, Object> parsed = objectMapper.readValue(resp.getBody(), new TypeReference<>() {});
-            Object packagesObj = parsed.get("packages");
-            if (packagesObj instanceof List<?> pkgs && !pkgs.isEmpty() && pkgs.getFirst() instanceof Map<?, ?> first) {
-                String waybill = asString(first.get("waybill"));
-                if (hasText(waybill)) {
-                    return waybill;
-                }
-            }
-            throw new AppException("Delhivery One did not return a waybill: " + parsed.getOrDefault("rmk", resp.getBody()),
-                    HttpStatus.BAD_GATEWAY);
-        } catch (AppException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new AppException("Delhivery One manifest error: " + ex.getMessage(), HttpStatus.BAD_GATEWAY);
         }
     }
 
