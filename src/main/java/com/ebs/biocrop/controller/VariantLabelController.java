@@ -180,14 +180,31 @@ public class VariantLabelController {
         if (value == Math.rint(value)) {
             return String.valueOf((long) value);
         }
-        return String.valueOf(value);
+        return java.math.BigDecimal.valueOf(value)
+                .setScale(3, java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString();
     }
 
     private static String formatLabel(double packSize, String unit, int packQuantity) {
         String sizeStr = formatNum(packSize);
         int qty = Math.max(packQuantity, 1);
-        String totalStr = formatNum(packSize * qty);
-        return totalStr + "(" + sizeStr + unit + " x " + qty + ")";
+        String cleanUnit = unit == null ? "" : unit.trim();
+        String lowerUnit = cleanUnit.toLowerCase(Locale.ROOT);
+        double rawTotal = packSize * qty;
+        double displayTotal = rawTotal;
+        String displayUnit = cleanUnit;
+        if (rawTotal > 999) {
+            if (lowerUnit.equals("g") || lowerUnit.equals("gm") || lowerUnit.equals("gram") || lowerUnit.equals("grams")) {
+                displayTotal = rawTotal / 1000.0;
+                displayUnit = "kg";
+            } else if (lowerUnit.equals("ml")) {
+                displayTotal = rawTotal / 1000.0;
+                displayUnit = "Ltr";
+            }
+        }
+        String totalStr = formatNum(displayTotal);
+        return totalStr + " " + displayUnit + " (" + sizeStr + cleanUnit + " x " + qty + " Qty)";
     }
 
     private static Map<String, Object> toDto(VariantLabel item) {
