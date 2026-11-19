@@ -91,6 +91,13 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
                 Map.of("assignedCollections", 1, "status", 1, "isAvailable", 1),
                 new Index().on("assignedCollections", Sort.Direction.ASC).on("status", Sort.Direction.ASC)
                         .on("isAvailable", Sort.Direction.ASC).named("product_assigned_collections_status_available_idx"));
+        ensure("products", "product_sub_categories_status_idx",
+                Map.of("subCategoryIds", 1, "status", 1),
+                new Index().on("subCategoryIds", Sort.Direction.ASC).on("status", Sort.Direction.ASC)
+                        .named("product_sub_categories_status_idx"));
+        ensure("products", "product_title_idx",
+                Map.of("title", 1),
+                new Index().on("title", Sort.Direction.ASC).named("product_title_idx"));
 
         if (!mongoTemplate.collectionExists("orders")) {
             try {
@@ -121,6 +128,22 @@ public class DomainCollectionIndexInitializer implements ApplicationRunner {
         ensure("orders", "order_overall_status_created_idx", Map.of("overallStatus", 1, "createdAt", -1),
                 new Index().on("overallStatus", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC)
                         .named("order_overall_status_created_idx"));
+        ensure("orders", "order_provider_order_id_idx", Map.of("payment.providerOrderId", 1),
+                new Index().on("payment.providerOrderId", Sort.Direction.ASC)
+                        .named("order_provider_order_id_idx"));
+        ensure("orders", "order_tracking_number_idx", Map.of("sellerFulfillments.shipments.trackingNumber", 1),
+                new Index().on("sellerFulfillments.shipments.trackingNumber", Sort.Direction.ASC)
+                        .named("order_tracking_number_idx"));
+        ensure("orders", "order_fulfillment_status_deadline_idx",
+                Map.of("sellerFulfillments.status", 1, "sellerFulfillments.responseDeadlineAt", 1),
+                new Index().on("sellerFulfillments.status", Sort.Direction.ASC)
+                        .on("sellerFulfillments.responseDeadlineAt", Sort.Direction.ASC)
+                        .named("order_fulfillment_status_deadline_idx"));
+        ensure("orders", "order_fulfillment_dispatch_sla_idx",
+                Map.of("sellerFulfillments.status", 1, "sellerFulfillments.dispatchSlaDeadlineAt", 1),
+                new Index().on("sellerFulfillments.status", Sort.Direction.ASC)
+                        .on("sellerFulfillments.dispatchSlaDeadlineAt", Sort.Direction.ASC)
+                        .named("order_fulfillment_dispatch_sla_idx"));
     }
 
     private void ensure(String collection, String requestedName, Map<String, Integer> requestedKeys, Index index) {

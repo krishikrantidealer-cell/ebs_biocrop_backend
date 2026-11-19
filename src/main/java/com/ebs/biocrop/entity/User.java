@@ -67,6 +67,7 @@ public class User {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer tokenVersion = 0;
 
     @Version
     private Integer version;
@@ -308,4 +309,8 @@ public class User {
 
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
+
+    public Integer getTokenVersion() { return tokenVersion == null ? 0 : tokenVersion; }
+    public void setTokenVersion(Integer tokenVersion) { this.tokenVersion = tokenVersion == null ? 0 : tokenVersion; }
+    public void incrementTokenVersion() { this.tokenVersion = getTokenVersion() + 1; }
 }

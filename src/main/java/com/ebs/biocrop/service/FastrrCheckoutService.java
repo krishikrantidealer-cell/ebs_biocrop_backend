@@ -17,6 +17,10 @@ public interface FastrrCheckoutService {
 
     boolean verifyWebhookSignature(String rawBody, String signatureHeader);
 
+    default boolean verifyConfirmToken(String confirmToken, String fastrrToken) {
+        return false;
+    }
+
     Map<String, Object> createCheckoutToken(List<Map<String, Object>> fastrrItems, String redirectUrl);
 
     Map<String, Object> processOrderWebhook(Map<String, Object> payload);

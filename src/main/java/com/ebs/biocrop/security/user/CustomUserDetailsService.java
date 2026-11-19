@@ -25,4 +25,10 @@ public class CustomUserDetailsService implements UserDetailsService {
                     .orElseThrow(() -> new UsernameNotFoundException("Account not found"));
         return CustomUserDetails.build(user);
     }
+
+    public UserDetails loadUserById(String userId) throws UsernameNotFoundException {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("Account not found"));
+        return CustomUserDetails.build(user);
+    }
 }

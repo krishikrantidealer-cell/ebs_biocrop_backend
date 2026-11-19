@@ -297,7 +297,11 @@ public class DelhiveryOneService {
     /** Step 5: Real-time Delhivery One tracking & RTO webhook receiver. */
     public Map<String, Object> processTrackingWebhook(Map<String, Object> payload, String providedToken) {
         if (hasText(webhookToken)) {
-            if (!hasText(providedToken) || !webhookToken.equals(providedToken.trim())) {
+            byte[] expectedBytes = webhookToken.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] providedBytes = providedToken == null
+                    ? new byte[0]
+                    : providedToken.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            if (!hasText(providedToken) || !java.security.MessageDigest.isEqual(expectedBytes, providedBytes)) {
                 throw new AppException("Invalid Delhivery webhook token", HttpStatus.UNAUTHORIZED);
             }
         }
@@ -372,11 +376,27 @@ public class DelhiveryOneService {
             for (OrderItem item : order.getItems()) {
                 if (hasText(item.getProductId()) && hasText(item.getVariantId())
                         && item.getQuantity() != null && item.getQuantity() > 0) {
-                    mongoTemplate.updateFirst(
+                    Product restocked = mongoTemplate.findAndModify(
                             Query.query(Criteria.where("_id").is(item.getProductId())
                                     .and("variants._id").is(item.getVariantId())),
-                            new Update().inc("variants.$.stock", item.getQuantity()).inc("version", 1),
+                            new Update()
+                                    .inc("variants.$.stock", item.getQuantity())
+                                    .set("isAvailable", true)
+                                    .inc("version", 1),
+                            org.springframework.data.mongodb.core.FindAndModifyOptions.options().returnNew(true),
                             Product.class);
+                    if (restocked != null && webSocketService != null) {
+                        int newStock = restocked.getVariants() == null ? item.getQuantity()
+                                : restocked.getVariants().stream()
+                                        .filter(v -> item.getVariantId().equals(v.getId()))
+                                        .map(v -> v.getStock() == null ? 0 : v.getStock())
+                                        .findFirst()
+                                        .orElse(item.getQuantity());
+                        webSocketService.broadcast("inventory:stock_update", Map.of(
+                                "productId", item.getProductId(),
+                                "variantId", item.getVariantId(),
+                                "stock", newStock));
+                    }
                 }
             }
         }
@@ -401,7 +421,7 @@ public class DelhiveryOneService {
         }
         broadcastOrderUpdate(saved);
         if (webSocketService != null) {
-            webSocketService.broadcast("products:updated", Map.of("reason", "RTO_RESTOCK", "orderId", saved.getId()));
+            webSocketService.broadcast("products:update", Map.of("reason", "RTO_RESTOCK", "orderId", saved.getId()));
         }
         return saved;
     }
@@ -681,11 +701,23 @@ public class DelhiveryOneService {
     }
 
     private void broadcastOrderUpdate(Order saved) {
-        if (webSocketService != null) {
-            webSocketService.broadcast("orders:updated", Map.of(
-                    "orderId", saved.getId(),
-                    "orderNumber", saved.getOrderNumber(),
-                    "status", saved.getOverallStatus()));
+        if (webSocketService == null || saved == null) {
+            return;
+        }
+        Map<String, Object> payload = Map.of(
+                "orderId", saved.getId(),
+                "orderNumber", saved.getOrderNumber(),
+                "status", saved.getOverallStatus());
+        webSocketService.sendToRole("ADMIN", "orders:updated", payload);
+        if (hasText(saved.getCustomerId())) {
+            webSocketService.sendToUser(saved.getCustomerId(), "orders:updated", payload);
+        }
+        if (saved.getSellerFulfillments() != null) {
+            saved.getSellerFulfillments().stream()
+                    .map(Order.SellerFulfillment::getSellerId)
+                    .filter(DelhiveryOneService::hasText)
+                    .distinct()
+                    .forEach(sellerId -> webSocketService.sendToUser(sellerId, "orders:updated", payload));
         }
     }
 

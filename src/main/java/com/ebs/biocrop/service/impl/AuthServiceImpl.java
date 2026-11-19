@@ -110,15 +110,19 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED);
         }
 
-        String identifier = jwtTokenProvider.getPhoneNumberFromToken(refreshToken);
-        User user = findByIdentifier(identifier)
+        String userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+        User user = (userId != null && !userId.isBlank() ? userRepository.findById(userId) : findByIdentifier(jwtTokenProvider.getPhoneNumberFromToken(refreshToken)))
                 .orElseThrow(() -> new AppException("User account is unavailable", HttpStatus.UNAUTHORIZED));
-        if (Boolean.TRUE.equals(user.getIsDeleted()) || Boolean.TRUE.equals(user.getIsBlocked())) {
+        if (Boolean.TRUE.equals(user.getIsDeleted()) || Boolean.TRUE.equals(user.getIsBlocked())
+                || "INACTIVE".equalsIgnoreCase(user.getStatus())) {
             throw new AppException("User account is unavailable", HttpStatus.UNAUTHORIZED);
+        }
+        if (jwtTokenProvider.getTokenVersionFromToken(refreshToken) != user.getTokenVersion()) {
+            throw new AppException("Session has been revoked. Please sign in again.", HttpStatus.UNAUTHORIZED);
         }
 
         String roleName = user.getRole() != null ? user.getRole().name() : UserRole.ROLE_CUSTOMER.name();
-        String accessToken = jwtTokenProvider.generateAccessToken(loginIdentifier(user), user.getId(), roleName);
+        String accessToken = jwtTokenProvider.generateAccessToken(loginIdentifier(user), user.getId(), roleName, user.getTokenVersion());
 
         // Keep the original refresh token so refreshes do not extend its original lifetime.
         return new AuthResponse(
@@ -197,6 +201,7 @@ public class AuthServiceImpl implements AuthService {
         if (user.getPasswordHash() != null)
             throw new AppException("Password is already set. Use the forgot password flow to change it.", HttpStatus.CONFLICT);
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.incrementTokenVersion();
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }
@@ -235,6 +240,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setPasswordResetTokenHash(null);
         user.setPasswordResetExpiresAt(null);
+        user.incrementTokenVersion();
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }
@@ -242,8 +248,9 @@ public class AuthServiceImpl implements AuthService {
     private AuthResponse issueTokens(User user) {
         String roleName = user.getRole() != null ? user.getRole().name() : UserRole.ROLE_CUSTOMER.name();
         String identifier = loginIdentifier(user);
-        String accessToken = jwtTokenProvider.generateAccessToken(identifier, user.getId(), roleName);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(identifier, user.getId());
+        int ver = user.getTokenVersion();
+        String accessToken = jwtTokenProvider.generateAccessToken(identifier, user.getId(), roleName, ver);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(identifier, user.getId(), ver);
         log.info("Account authenticated with role [{}]", roleName);
         return new AuthResponse(accessToken, refreshToken, jwtTokenProvider.getExpirationMs(), user.getId(),
                 user.getPhoneNumber(), roleName, Boolean.TRUE.equals(user.getIsProfileComplete()));

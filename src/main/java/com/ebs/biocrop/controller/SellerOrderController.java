@@ -7,8 +7,10 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.security.user.CustomUserDetails;
+import com.ebs.biocrop.service.DelhiveryOneService;
 import com.ebs.biocrop.service.OrderQueryService;
 import com.ebs.biocrop.service.OrderLifecycleService;
+import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,10 +35,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class SellerOrderController {
     private final OrderQueryService orderQueries;
     private final OrderLifecycleService orderLifecycle;
+    private final DelhiveryOneService delhiveryOneService;
 
     public SellerOrderController(OrderQueryService orderQueries, OrderLifecycleService orderLifecycle) {
+        this(orderQueries, orderLifecycle, null);
+    }
+
+    @Autowired
+    public SellerOrderController(
+            OrderQueryService orderQueries,
+            OrderLifecycleService orderLifecycle,
+            @Autowired(required = false) DelhiveryOneService delhiveryOneService) {
         this.orderQueries = orderQueries;
         this.orderLifecycle = orderLifecycle;
+        this.delhiveryOneService = delhiveryOneService;
     }
 
     // List the authenticated seller's orders.
@@ -88,23 +100,19 @@ public class SellerOrderController {
     }
 
     @PostMapping({"/{orderId}/fulfillments/{fulfillmentId}/shipment", "/{orderId}/fulfillments/{fulfillmentId}/shipments"})
-    @Operation(summary = "Book a Shiprocket package for selected unassigned items in this seller's fulfillment")
+    @Operation(summary = "Book a Delhivery One shipment & label for this seller's order")
     public ResponseEntity<ApiResponse<OrderResponse>> bookFulfillmentShipment(
             @AuthenticationPrincipal CustomUserDetails seller,
             @PathVariable String orderId,
             @PathVariable String fulfillmentId,
             @RequestBody(required = false) ShipmentBookingRequest request) {
-        Order.Shipment packageDetails = null;
-        if (request != null) {
-            packageDetails = new Order.Shipment();
-            packageDetails.setPackageWeightKg(request.packageWeightKg());
-            packageDetails.setLengthCm(request.lengthCm());
-            packageDetails.setBreadthCm(request.breadthCm());
-            packageDetails.setHeightCm(request.heightCm());
+        orderQueries.getForSeller(seller.getId(), orderId);
+        if (delhiveryOneService == null) {
+            throw new AppException("Delhivery One fulfillment service is unavailable",
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE);
         }
-        Order updated = orderLifecycle.bookSellerFulfillmentShipment(seller.getId(), orderId, fulfillmentId,
-                request == null ? null : request.itemOrderIds(), packageDetails);
-        return ResponseEntity.ok(ApiResponse.ok("Shipment booked successfully in Shiprocket",
+        Order updated = delhiveryOneService.createShipmentAndLabel(seller.getId(), orderId);
+        return ResponseEntity.ok(ApiResponse.ok("Shipment booked successfully in Delhivery One",
                 OrderResponse.forSeller(updated, seller.getId())));
     }
 

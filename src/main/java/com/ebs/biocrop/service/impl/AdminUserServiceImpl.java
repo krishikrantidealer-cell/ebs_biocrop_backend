@@ -376,6 +376,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         user.setIsBlocked(blocked);
+        if (blocked) {
+            user.incrementTokenVersion();
+        }
         user.setUpdatedAt(LocalDateTime.now());
         User saved = users.save(user);
         if (blocked) {
@@ -431,6 +434,9 @@ public class AdminUserServiceImpl implements AdminUserService {
             }
 
             user.setIsDeleted(deleted);
+            if (deleted) {
+                user.incrementTokenVersion();
+            }
             user.setUpdatedAt(LocalDateTime.now());
             User saved = users.save(user);
             if (deleted) {

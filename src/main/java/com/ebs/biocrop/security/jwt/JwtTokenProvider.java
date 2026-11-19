@@ -44,6 +44,10 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(String phoneNumber, String userId, String role) {
+        return generateAccessToken(phoneNumber, userId, role, 0);
+    }
+
+    public String generateAccessToken(String phoneNumber, String userId, String role, int tokenVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
@@ -52,6 +56,7 @@ public class JwtTokenProvider {
                 .claim("userId", userId)
                 .claim("role", role != null ? role : "ROLE_USER")
                 .claim("tokenType", "ACCESS")
+                .claim("tokenVersion", tokenVersion)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -59,6 +64,10 @@ public class JwtTokenProvider {
     }
 
     public String generateRefreshToken(String phoneNumber, String userId) {
+        return generateRefreshToken(phoneNumber, userId, 0);
+    }
+
+    public String generateRefreshToken(String phoneNumber, String userId, int tokenVersion) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtRefreshExpirationMs);
 
@@ -66,10 +75,24 @@ public class JwtTokenProvider {
                 .subject(phoneNumber)
                 .claim("userId", userId)
                 .claim("tokenType", "REFRESH")
+                .claim("tokenVersion", tokenVersion)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
+    }
+
+    public int getTokenVersionFromToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        Object ver = claims.get("tokenVersion");
+        if (ver instanceof Number n) {
+            return n.intValue();
+        }
+        return 0;
     }
 
     public String getPhoneNumberFromToken(String token) {

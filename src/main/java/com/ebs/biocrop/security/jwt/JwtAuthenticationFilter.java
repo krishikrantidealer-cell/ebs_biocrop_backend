@@ -48,10 +48,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
             try {
-                String phoneNumber = tokenProvider.getPhoneNumberFromToken(jwt);
-
-                UserDetails userDetails = userDetailsService.loadUserByUsername(phoneNumber);
+                String userId = tokenProvider.getUserIdFromToken(jwt);
+                UserDetails userDetails = (userId != null && !userId.isBlank())
+                        ? userDetailsService.loadUserById(userId)
+                        : userDetailsService.loadUserByUsername(tokenProvider.getPhoneNumberFromToken(jwt));
                 if (!userDetails.isEnabled()) {
+                    rejectInvalidToken(request, response);
+                    return;
+                }
+                if (userDetails instanceof com.ebs.biocrop.security.user.CustomUserDetails customUser
+                        && tokenProvider.getTokenVersionFromToken(jwt) != customUser.getTokenVersion()) {
                     rejectInvalidToken(request, response);
                     return;
                 }

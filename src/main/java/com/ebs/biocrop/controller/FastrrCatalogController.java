@@ -563,11 +563,24 @@ public class FastrrCatalogController {
      */
     @PostMapping("/fastrr/checkout/confirm")
     @Operation(summary = "Fastrr Checkout Confirm", description = "Idempotently persists a completed Fastrr checkout order using catalog prices")
-    public ResponseEntity<Map<String, Object>> confirmCheckoutOrder(@RequestBody(required = false) Map<String, Object> payload) {
+    public ResponseEntity<Map<String, Object>> confirmCheckoutOrder(
+            @RequestHeader(name = "X-Api-HMAC-SHA256", required = false) String signature,
+            @RequestBody(required = false) Map<String, Object> payload) {
         if (fastrrCheckoutService == null || !fastrrCheckoutService.isConfigured()) {
             return ResponseEntity.status(503).body(Map.of(
                     "status", "UNAVAILABLE",
                     "message", "Fastrr Checkout integration is not configured",
+                    "timestamp", Instant.now().toString()
+            ));
+        }
+        String confirmToken = payload == null ? null : String.valueOf(payload.getOrDefault("confirmToken", ""));
+        String fastrrToken = payload == null ? null : String.valueOf(payload.getOrDefault("fastrrToken", ""));
+        boolean hasValidConfirmToken = fastrrCheckoutService.verifyConfirmToken(confirmToken, fastrrToken);
+        if (!hasValidConfirmToken && (signature == null || signature.isBlank())) {
+            log.warn("[FASTRR-CONFIRM] Rejected unauthenticated/unsigned checkout confirm attempt");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "status", "UNAUTHORIZED",
+                    "message", "Missing or invalid checkout confirmation token",
                     "timestamp", Instant.now().toString()
             ));
         }

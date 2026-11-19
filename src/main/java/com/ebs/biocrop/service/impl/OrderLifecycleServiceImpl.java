@@ -1053,7 +1053,10 @@ public class OrderLifecycleServiceImpl implements OrderLifecycleService {
                 Query variantQuery = Query.query(Criteria.where("_id").is(item.getProductId())
                         .and("variants._id").is(item.getVariantId()));
                 Product updatedProduct = mongoTemplate.findAndModify(variantQuery,
-                        new Update().inc("variants.$.stock", item.getQuantity()),
+                        new Update()
+                                .inc("variants.$.stock", item.getQuantity())
+                                .set("isAvailable", true)
+                                .inc("version", 1),
                         FindAndModifyOptions.options().returnNew(true), Product.class);
                 if (updatedProduct == null) {
                     throw new AppException("Could not safely release reserved stock for order item "

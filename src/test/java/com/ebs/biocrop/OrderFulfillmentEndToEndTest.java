@@ -224,6 +224,13 @@ class OrderFulfillmentEndToEndTest {
                 new ArrayList<>(productStore.values()));
         lenient().when(mongoTemplate.find(any(Query.class), eq(Product.class))).thenAnswer(inv ->
                 new ArrayList<>(productStore.values()));
+        lenient().when(mongoTemplate.findAndModify(any(Query.class), any(Update.class), any(), eq(Product.class))).thenAnswer(inv -> {
+            String qStr = inv.<Query>getArgument(0).toString();
+            return productStore.values().stream()
+                    .filter(p -> qStr.contains(p.getId()))
+                    .findFirst()
+                    .orElse(null);
+        });
 
         // Real DelhiveryOneService with a real RestTemplate calling our local HTTP stub
         delhiveryOneService = new DelhiveryOneService(
@@ -323,6 +330,12 @@ class OrderFulfillmentEndToEndTest {
         Map<String, Object> second = fastrrService.processOrderWebhook(payload);
         assertEquals("ALREADY_PROCESSED", second.get("status"));
         assertEquals(2, orderStore.size(), "Duplicate webhook must NOT create extra orders");
+
+        // Confirm token issued for Fastrr session verifies cleanly and rejects tampering
+        String confirmTok = fastrrService.issueConfirmToken("fastrr-tok-abc");
+        assertTrue(fastrrService.verifyConfirmToken(confirmTok, "fastrr-tok-abc"));
+        assertFalse(fastrrService.verifyConfirmToken(confirmTok, "wrong-tok"));
+        assertFalse(fastrrService.verifyConfirmToken("9999999999.tampered", "fastrr-tok-abc"));
     }
 
     @Test
@@ -449,17 +462,17 @@ class OrderFulfillmentEndToEndTest {
                 .andExpect(jsonPath("$.overallStatus").value("RTO_DELIVERED"));
 
         // Stock MUST NOT have been auto-restocked yet
-        verify(mongoTemplate, never()).updateFirst(any(Query.class), any(Update.class), eq(Product.class));
+        verify(mongoTemplate, never()).findAndModify(any(Query.class), any(Update.class), any(), eq(Product.class));
 
         // Admin clicks Verify RTO & Restock -> stock incremented ONCE
         mockMvc.perform(post("/api/v1/admin/orders/ord-rto/rto/restock"))
                 .andExpect(status().isOk());
-        verify(mongoTemplate, times(1)).updateFirst(any(Query.class), any(Update.class), eq(Product.class));
+        verify(mongoTemplate, times(1)).findAndModify(any(Query.class), any(Update.class), any(), eq(Product.class));
 
         // Second click on Verify RTO & Restock -> idempotent, NEVER double-restocks
         mockMvc.perform(post("/api/v1/admin/orders/ord-rto/rto/restock"))
                 .andExpect(status().isOk());
-        verify(mongoTemplate, times(1)).updateFirst(any(Query.class), any(Update.class), eq(Product.class));
+        verify(mongoTemplate, times(1)).findAndModify(any(Query.class), any(Update.class), any(), eq(Product.class));
     }
 
     @Test

@@ -18,8 +18,13 @@ public class CustomUserDetails implements UserDetails {
     private final UserRole role;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
+    private final int tokenVersion;
 
     public CustomUserDetails(String id, String phoneNumber, String email, String password, UserRole role, Collection<? extends GrantedAuthority> authorities, boolean enabled) {
+        this(id, phoneNumber, email, password, role, authorities, enabled, 0);
+    }
+
+    public CustomUserDetails(String id, String phoneNumber, String email, String password, UserRole role, Collection<? extends GrantedAuthority> authorities, boolean enabled, int tokenVersion) {
         this.id = id;
         this.phoneNumber = phoneNumber;
         this.email = email;
@@ -27,11 +32,15 @@ public class CustomUserDetails implements UserDetails {
         this.role = role != null ? role : UserRole.ROLE_CUSTOMER;
         this.authorities = authorities;
         this.enabled = enabled;
+        this.tokenVersion = tokenVersion;
     }
 
     public static CustomUserDetails build(User user) {
         UserRole userRole = user.getRole() != null ? user.getRole() : UserRole.ROLE_CUSTOMER;
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(userRole.name()));
+        boolean active = !Boolean.TRUE.equals(user.getIsDeleted())
+                && !Boolean.TRUE.equals(user.getIsBlocked())
+                && !"INACTIVE".equalsIgnoreCase(user.getStatus());
         return new CustomUserDetails(
                 user.getId(),
                 user.getPhoneNumber(),
@@ -39,8 +48,13 @@ public class CustomUserDetails implements UserDetails {
                 user.getPasswordHash(),
                 userRole,
                 authorities,
-                !Boolean.TRUE.equals(user.getIsDeleted()) && !Boolean.TRUE.equals(user.getIsBlocked())
+                active,
+                user.getTokenVersion()
         );
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
     }
 
     public String getId() {

@@ -82,7 +82,7 @@ class DelhiveryOneServiceTest {
 
         assertEquals(OrderStatus.CONFIRMED.name(), confirmed.getOverallStatus());
         assertEquals(OrderStatus.CONFIRMED.name(), confirmed.getSellerFulfillments().getFirst().getStatus());
-        verify(webSocketService).broadcast(eq("orders:updated"), any());
+        verify(webSocketService).sendToRole(eq("ADMIN"), eq("orders:updated"), any());
     }
 
     @Test
@@ -161,6 +161,6 @@ class DelhiveryOneServiceTest {
         // 5. Manual restock (idempotent)
         service.restockRtoOrder("admin-1", "ord-1");
         assertTrue(Boolean.TRUE.equals(s.getRtoRestocked()));
-        verify(mongoTemplate, times(1)).updateFirst(any(Query.class), any(Update.class), eq(com.ebs.biocrop.entity.Product.class));
+        verify(mongoTemplate, times(1)).findAndModify(any(Query.class), any(Update.class), any(), eq(com.ebs.biocrop.entity.Product.class));
     }
 }

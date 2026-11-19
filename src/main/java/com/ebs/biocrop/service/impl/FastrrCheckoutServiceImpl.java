@@ -195,8 +195,10 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 throw new AppException("Fastrr token generation failed: " + msg, HttpStatus.BAD_GATEWAY);
             }
 
+            String tokenStr = String.valueOf(token);
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("token", String.valueOf(token));
+            out.put("token", tokenStr);
+            out.put("confirmToken", issueConfirmToken(tokenStr));
             if (resultMap.get("order_id") != null) {
                 out.put("fastrrOrderId", String.valueOf(resultMap.get("order_id")));
             }
@@ -249,7 +251,48 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         });
     }
 
+    public String issueConfirmToken(String fastrrToken) {
+        if (!isConfigured() || fastrrToken == null || fastrrToken.isBlank()) {
+            return "";
+        }
+        try {
+            long expiresAt = Instant.now().plusSeconds(3600).getEpochSecond();
+            String payload = fastrrToken.trim() + ":" + expiresAt;
+            String sig = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(computeHmacSha256(payload.getBytes(StandardCharsets.UTF_8)));
+            return expiresAt + "." + sig;
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    public boolean verifyConfirmToken(String confirmToken, String fastrrToken) {
+        if (!isConfigured() || confirmToken == null || confirmToken.isBlank()
+                || fastrrToken == null || fastrrToken.isBlank()) {
+            return false;
+        }
+        String[] parts = confirmToken.trim().split("\\.", 2);
+        if (parts.length != 2) {
+            return false;
+        }
+        try {
+            long expiresAt = Long.parseLong(parts[0]);
+            if (Instant.now().getEpochSecond() > expiresAt) {
+                return false;
+            }
+            String payload = fastrrToken.trim() + ":" + expiresAt;
+            byte[] expected = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(computeHmacSha256(payload.getBytes(StandardCharsets.UTF_8)))
+                    .getBytes(StandardCharsets.UTF_8);
+            byte[] provided = parts[1].getBytes(StandardCharsets.UTF_8);
+            return java.security.MessageDigest.isEqual(expected, provided);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> processOrderWebhook(Map<String, Object> payload) {
         if (!isConfigured()) {
             throw new AppException("Order webhook integration is not configured; no order was accepted",
@@ -548,10 +591,21 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             }
             savedOrders.add(saved);
             if (webSocketService != null) {
-                webSocketService.broadcast("orders:created", Map.of(
+                Map<String, Object> wsPayload = Map.of(
                         "orderId", saved.getId(),
                         "orderNumber", saved.getOrderNumber(),
-                        "status", saved.getOverallStatus()));
+                        "status", saved.getOverallStatus());
+                webSocketService.sendToRole("ADMIN", "orders:created", wsPayload);
+                if (saved.getCustomerId() != null && !saved.getCustomerId().isBlank()) {
+                    webSocketService.sendToUser(saved.getCustomerId(), "orders:created", wsPayload);
+                }
+                if (saved.getSellerFulfillments() != null) {
+                    saved.getSellerFulfillments().stream()
+                            .map(Order.SellerFulfillment::getSellerId)
+                            .filter(id -> id != null && !id.isBlank())
+                            .distinct()
+                            .forEach(sId -> webSocketService.sendToUser(sId, "orders:created", wsPayload));
+                }
             }
             sellerIdx++;
         }
@@ -600,29 +654,22 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             return;
         }
         Query q = Query.query(Criteria.where("_id").is(product.getId())
-                .and("variants._id").is(variant.getId()));
+                .and("status").is("ACTIVE")
+                .and("isAvailable").is(true)
+                .and("isDeleted").ne(true)
+                .and("variants").elemMatch(Criteria.where("_id").is(variant.getId()).and("stock").gte(quantity)));
         Product updated = mongoTemplate.findAndModify(
                 q,
                 new Update().inc("variants.$.stock", -quantity).inc("version", 1),
                 org.springframework.data.mongodb.core.FindAndModifyOptions.options().returnNew(true),
                 Product.class);
         if (updated == null || updated.getVariants() == null) {
-            return;
+            throw new AppException("Insufficient stock for " + product.getTitle(), HttpStatus.CONFLICT);
         }
         int remainingStock = 0;
-        for (int i = 0; i < updated.getVariants().size(); i++) {
-            ProductVariant v = updated.getVariants().get(i);
+        for (ProductVariant v : updated.getVariants()) {
             if (variant.getId().equals(v.getId())) {
-                int raw = v.getStock() == null ? 0 : v.getStock();
-                if (raw < 0) {
-                    raw = 0;
-                    mongoTemplate.updateFirst(
-                            Query.query(Criteria.where("_id").is(updated.getId()).and("variants._id").is(variant.getId())),
-                            new Update().set("variants.$.stock", 0),
-                            Product.class);
-                    v.setStock(0);
-                }
-                remainingStock = raw;
+                remainingStock = v.getStock() == null ? 0 : Math.max(0, v.getStock());
                 break;
             }
         }
