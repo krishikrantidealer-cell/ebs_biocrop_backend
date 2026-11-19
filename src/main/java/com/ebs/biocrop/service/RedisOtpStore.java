@@ -2,6 +2,10 @@ package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.exception.InvalidOtpException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
@@ -10,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Stores only encoded OTPs and attempt counts in Redis, with an expiry on every entry. */
 @Service
@@ -65,33 +70,58 @@ public class RedisOtpStore {
             return 0
             """, Long.class);
 
+    private static final Logger log = LoggerFactory.getLogger(RedisOtpStore.class);
+
     private final StringRedisTemplate redis;
     private final SensitiveIdentifierHasher identifierHasher;
+    private final boolean inMemoryFallback;
+    private final ConcurrentHashMap<String, LocalOtpEntry> localEntries = new ConcurrentHashMap<>();
 
     public RedisOtpStore(StringRedisTemplate redis, SensitiveIdentifierHasher identifierHasher) {
+        this(redis, identifierHasher, false);
+    }
+
+    @Autowired
+    public RedisOtpStore(
+            StringRedisTemplate redis,
+            SensitiveIdentifierHasher identifierHasher,
+            @Value("${app.rate-limit.in-memory-fallback:false}") boolean inMemoryFallback) {
         this.redis = redis;
         this.identifierHasher = identifierHasher;
+        this.inMemoryFallback = inMemoryFallback;
     }
 
     public String save(String channel, String identifier, String encodedOtp, Duration ttl) {
         String entryId = UUID.randomUUID().toString();
+        String key = otpKey(channel, identifier);
         try {
-            Long saved = redis.execute(SAVE_SCRIPT, List.of(otpKey(channel, identifier)),
+            Long saved = redis.execute(SAVE_SCRIPT, List.of(key),
                     entryId, encodedOtp, Long.toString(ttl.toMillis()));
             if (saved == null || saved != 1L) throw unavailable();
             return entryId;
         } catch (AppException exception) {
             throw exception;
         } catch (Exception exception) {
+            if (inMemoryFallback) {
+                log.warn("Redis OTP store unavailable ({}); using process-local OTP store fallback.",
+                        exception.getClass().getSimpleName());
+                long now = System.currentTimeMillis();
+                localEntries.put(key, new LocalOtpEntry(entryId, encodedOtp, 0, now + ttl.toMillis(), null, 0));
+                if (localEntries.size() > 5000) {
+                    localEntries.entrySet().removeIf(e -> e.getValue().expiresAtMillis <= now);
+                }
+                return entryId;
+            }
             throw unavailable();
         }
     }
 
     public Verification beginVerification(String channel, String identifier, int maxAttempts) {
         String token = UUID.randomUUID().toString();
+        String key = otpKey(channel, identifier);
         try {
             List<?> result = redis.execute(BEGIN_VERIFICATION_SCRIPT,
-                    List.of(otpKey(channel, identifier), lockKey(channel, identifier)),
+                    List.of(key, lockKey(channel, identifier)),
                     token, Long.toString(VERIFICATION_LOCK_MILLIS), Integer.toString(maxAttempts));
             if (result == null || result.isEmpty()) throw unavailable();
             long code = asLong(result.getFirst());
@@ -104,14 +134,18 @@ public class RedisOtpStore {
         } catch (AppException exception) {
             throw exception;
         } catch (Exception exception) {
+            if (inMemoryFallback) {
+                return beginVerificationLocal(key, token, maxAttempts);
+            }
             throw unavailable();
         }
     }
 
     public void complete(String channel, String identifier, Verification verification) {
+        String key = otpKey(channel, identifier);
         try {
             Long completed = redis.execute(COMPLETE_SCRIPT,
-                    List.of(otpKey(channel, identifier), lockKey(channel, identifier)),
+                    List.of(key, lockKey(channel, identifier)),
                     verification.token(), verification.entryId());
             if (completed == null || completed != 1L) {
                 throw new InvalidOtpException("The OTP request changed or expired. Please request a new code.");
@@ -119,14 +153,19 @@ public class RedisOtpStore {
         } catch (InvalidOtpException exception) {
             throw exception;
         } catch (Exception exception) {
+            if (inMemoryFallback) {
+                completeLocal(key, verification);
+                return;
+            }
             throw unavailable();
         }
     }
 
     public int reject(String channel, String identifier, Verification verification, int maxAttempts) {
+        String key = otpKey(channel, identifier);
         try {
             Long attempts = redis.execute(REJECT_SCRIPT,
-                    List.of(otpKey(channel, identifier), lockKey(channel, identifier)),
+                    List.of(key, lockKey(channel, identifier)),
                     verification.token(), verification.entryId(), Integer.toString(maxAttempts));
             if (attempts == null) throw unavailable();
             if (attempts < 0) throw new InvalidOtpException("The OTP request changed or expired. Please request a new code.");
@@ -134,15 +173,100 @@ public class RedisOtpStore {
         } catch (AppException exception) {
             throw exception;
         } catch (Exception exception) {
+            if (inMemoryFallback) {
+                return rejectLocal(key, verification, maxAttempts);
+            }
             throw unavailable();
         }
     }
 
     public void deleteIfCurrent(String channel, String identifier, String entryId) {
+        String key = otpKey(channel, identifier);
+        localEntries.computeIfPresent(key, (k, e) -> e.entryId.equals(entryId) ? null : e);
         try {
-            redis.execute(DELETE_IF_ENTRY_SCRIPT, List.of(otpKey(channel, identifier)), entryId);
+            redis.execute(DELETE_IF_ENTRY_SCRIPT, List.of(key), entryId);
         } catch (Exception exception) {
-            throw unavailable();
+            if (!inMemoryFallback) {
+                throw unavailable();
+            }
+        }
+    }
+
+    private Verification beginVerificationLocal(String key, String token, int maxAttempts) {
+        long now = System.currentTimeMillis();
+        final Verification[] out = {null};
+        final RuntimeException[] err = {null};
+        localEntries.compute(key, (k, existing) -> {
+            if (existing == null || existing.expiresAtMillis <= now) {
+                err[0] = new InvalidOtpException("No active OTP request found. Please request a new code.");
+                return null;
+            }
+            if (existing.lockToken != null && existing.lockExpiresAtMillis > now) {
+                err[0] = new InvalidOtpException("OTP verification is already in progress. Please retry shortly.");
+                return existing;
+            }
+            int nextAttempts = existing.attempts + 1;
+            if (nextAttempts > maxAttempts) {
+                err[0] = new InvalidOtpException("Maximum verification attempts exceeded. Please request a new OTP.");
+                return null;
+            }
+            out[0] = new Verification(token, existing.encodedOtp, existing.entryId, nextAttempts);
+            return new LocalOtpEntry(existing.entryId, existing.encodedOtp, nextAttempts,
+                    existing.expiresAtMillis, token, now + VERIFICATION_LOCK_MILLIS);
+        });
+        if (err[0] != null) throw err[0];
+        return out[0];
+    }
+
+    private void completeLocal(String key, Verification verification) {
+        final boolean[] ok = {false};
+        localEntries.computeIfPresent(key, (k, existing) -> {
+            if (verification.token().equals(existing.lockToken) && verification.entryId().equals(existing.entryId)) {
+                ok[0] = true;
+                return null;
+            }
+            return existing;
+        });
+        if (!ok[0]) {
+            throw new InvalidOtpException("The OTP request changed or expired. Please request a new code.");
+        }
+    }
+
+    private int rejectLocal(String key, Verification verification, int maxAttempts) {
+        final int[] attemptsOut = {-1};
+        localEntries.computeIfPresent(key, (k, existing) -> {
+            if (!verification.token().equals(existing.lockToken) || !verification.entryId().equals(existing.entryId)) {
+                return existing;
+            }
+            attemptsOut[0] = existing.attempts;
+            if (existing.attempts >= maxAttempts) {
+                return null;
+            }
+            return new LocalOtpEntry(existing.entryId, existing.encodedOtp, existing.attempts,
+                    existing.expiresAtMillis, null, 0);
+        });
+        if (attemptsOut[0] < 0) {
+            throw new InvalidOtpException("The OTP request changed or expired. Please request a new code.");
+        }
+        return attemptsOut[0];
+    }
+
+    private static final class LocalOtpEntry {
+        final String entryId;
+        final String encodedOtp;
+        final int attempts;
+        final long expiresAtMillis;
+        final String lockToken;
+        final long lockExpiresAtMillis;
+
+        LocalOtpEntry(String entryId, String encodedOtp, int attempts, long expiresAtMillis,
+                      String lockToken, long lockExpiresAtMillis) {
+            this.entryId = entryId;
+            this.encodedOtp = encodedOtp;
+            this.attempts = attempts;
+            this.expiresAtMillis = expiresAtMillis;
+            this.lockToken = lockToken;
+            this.lockExpiresAtMillis = lockExpiresAtMillis;
         }
     }
 

@@ -1,6 +1,10 @@
 package com.ebs.biocrop.service;
 
 import com.ebs.biocrop.exception.AppException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
@@ -8,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** Distributed OTP resend cooldown reservations backed by Redis TTL keys. */
 @Service
@@ -25,12 +30,25 @@ public class RedisOtpCooldown {
             return 0
             """, Long.class);
 
+    private static final Logger log = LoggerFactory.getLogger(RedisOtpCooldown.class);
+
     private final StringRedisTemplate redis;
     private final SensitiveIdentifierHasher identifierHasher;
+    private final boolean inMemoryFallback;
+    private final ConcurrentHashMap<String, LocalCooldown> localCooldowns = new ConcurrentHashMap<>();
 
     public RedisOtpCooldown(StringRedisTemplate redis, SensitiveIdentifierHasher identifierHasher) {
+        this(redis, identifierHasher, false);
+    }
+
+    @Autowired
+    public RedisOtpCooldown(
+            StringRedisTemplate redis,
+            SensitiveIdentifierHasher identifierHasher,
+            @Value("${app.rate-limit.in-memory-fallback:false}") boolean inMemoryFallback) {
         this.redis = redis;
         this.identifierHasher = identifierHasher;
+        this.inMemoryFallback = inMemoryFallback;
     }
 
     /** Returns zero when acquired, otherwise the retry delay in seconds. */
@@ -47,18 +65,46 @@ public class RedisOtpCooldown {
         } catch (AppException exception) {
             throw exception;
         } catch (Exception exception) {
+            if (inMemoryFallback) {
+                log.warn("Redis OTP cooldown unavailable ({}); using process-local cooldown fallback.",
+                        exception.getClass().getSimpleName());
+                return acquireLocal(key, cooldown, reservationToken);
+            }
             throw unavailable();
         }
     }
 
     /** Releases only this request's reservation, and only after a delivery failure. */
     public void release(String channel, String identifier, String reservationToken) {
+        String key = key(channel, identifier);
+        localCooldowns.computeIfPresent(key, (k, existing) ->
+                existing.token().equals(reservationToken) ? null : existing);
         try {
-            redis.execute(RELEASE_SCRIPT, List.of(key(channel, identifier)), reservationToken);
+            redis.execute(RELEASE_SCRIPT, List.of(key), reservationToken);
         } catch (Exception ignored) {
             // The short-lived key expires automatically if Redis cannot release it.
         }
     }
+
+    private long acquireLocal(String key, Duration cooldown, String reservationToken) {
+        long now = System.currentTimeMillis();
+        long expiresAt = now + cooldown.toMillis();
+        final long[] retrySeconds = {0};
+        localCooldowns.compute(key, (k, existing) -> {
+            if (existing != null && existing.expiresAtMillis() > now) {
+                long remaining = existing.expiresAtMillis() - now;
+                retrySeconds[0] = Math.max(1, (remaining + 999) / 1000);
+                return existing;
+            }
+            return new LocalCooldown(reservationToken, expiresAt);
+        });
+        if (localCooldowns.size() > 5000) {
+            localCooldowns.entrySet().removeIf(e -> e.getValue().expiresAtMillis() <= now);
+        }
+        return retrySeconds[0];
+    }
+
+    private record LocalCooldown(String token, long expiresAtMillis) {}
 
     private String key(String channel, String identifier) {
         return "otp-cooldown:" + channel + ":" + identifierHasher.hash(identifier);
