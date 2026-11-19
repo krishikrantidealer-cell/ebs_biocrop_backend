@@ -8,7 +8,9 @@ import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.OrderQueryService;
+import com.ebs.biocrop.service.DelhiveryOneService;
 import com.ebs.biocrop.service.OrderLifecycleService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.ebs.biocrop.service.RateLimitGuard;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,24 @@ public class AdminOrderController {
     private final OrderQueryService orderQueries;
     private final OrderLifecycleService orderLifecycle;
     private final RateLimitGuard rateLimitGuard;
+    private final DelhiveryOneService delhiveryOneService;
 
     public AdminOrderController(OrderPlacementService orderPlacement, OrderQueryService orderQueries,
                                 OrderLifecycleService orderLifecycle,
                                 RateLimitGuard rateLimitGuard) {
+        this(orderPlacement, orderQueries, orderLifecycle, rateLimitGuard, null);
+    }
+
+    @Autowired
+    public AdminOrderController(OrderPlacementService orderPlacement, OrderQueryService orderQueries,
+                                OrderLifecycleService orderLifecycle,
+                                RateLimitGuard rateLimitGuard,
+                                @Autowired(required = false) DelhiveryOneService delhiveryOneService) {
         this.orderPlacement = orderPlacement;
         this.orderQueries = orderQueries;
         this.orderLifecycle = orderLifecycle;
         this.rateLimitGuard = rateLimitGuard;
+        this.delhiveryOneService = delhiveryOneService;
     }
 
     // List all orders by sellerID or without sellerID for admin with pagination
@@ -91,6 +103,65 @@ public class AdminOrderController {
         rateLimitGuard.enforce("admin-order-write", admin.getId(), 10, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Order cancelled",
                 OrderResponse.forAdmin(orderLifecycle.cancelForAdmin(admin.getId(), orderId))));
+    }
+
+    @PostMapping("/{orderId}/confirm")
+    @Operation(summary = "Confirm a PENDING order so it is ready for Delhivery One shipment booking")
+    public ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String orderId) {
+        rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Order confirmed",
+                OrderResponse.forAdmin(delhiveryOneService.confirmOrder(admin.getId(), orderId))));
+    }
+
+    @PostMapping("/{orderId}/shipment/delhivery")
+    @Operation(summary = "Book Delhivery One shipment (AWB) and store shipping label in backend")
+    public ResponseEntity<ApiResponse<OrderResponse>> createDelhiveryShipment(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String orderId) {
+        rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Delhivery One shipment & label created",
+                OrderResponse.forAdmin(delhiveryOneService.createShipmentAndLabel(admin.getId(), orderId))));
+    }
+
+    @GetMapping("/{orderId}/label")
+    @Operation(summary = "Download stored Delhivery One shipping label and automatically mark order PACKED")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> downloadOrderLabel(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String orderId) {
+        DelhiveryOneService.LabelDownloadResult res = delhiveryOneService.downloadLabelAndMarkPacked(admin.getId(), orderId);
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("orderId", res.orderId());
+        body.put("orderNumber", res.orderNumber());
+        body.put("waybill", res.waybill());
+        body.put("labelUrl", res.labelUrl());
+        body.put("overallStatus", res.overallStatus());
+        body.put("transitionedToPacked", res.transitionedToPacked());
+        if (res.pdfBytes() != null && res.pdfBytes().length > 0) {
+            body.put("pdfBase64", java.util.Base64.getEncoder().encodeToString(res.pdfBytes()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Shipping label ready", body));
+    }
+
+    @PostMapping("/{orderId}/sync-tracking")
+    @Operation(summary = "Refresh live tracking & RTO status from Delhivery One")
+    public ResponseEntity<ApiResponse<OrderResponse>> syncDelhiveryTracking(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String orderId) {
+        rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("Tracking synced from Delhivery One",
+                OrderResponse.forAdmin(delhiveryOneService.syncTrackingForOrder(orderId))));
+    }
+
+    @PostMapping("/{orderId}/rto/restock")
+    @Operation(summary = "Verify RTO return receipt and restock returned item quantities into inventory")
+    public ResponseEntity<ApiResponse<OrderResponse>> restockRtoOrder(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String orderId) {
+        rateLimitGuard.enforce("admin-order-write", admin.getId(), 20, Duration.ofMinutes(1));
+        return ResponseEntity.ok(ApiResponse.ok("RTO inventory restocked",
+                OrderResponse.forAdmin(delhiveryOneService.restockRtoOrder(admin.getId(), orderId))));
     }
 
     // Create one checkout order for a customer from their cart.

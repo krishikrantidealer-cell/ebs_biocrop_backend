@@ -214,11 +214,22 @@ public class Order {
         @Field(write = Field.Write.ALWAYS) private String carrier;
         @Field(write = Field.Write.ALWAYS) private String trackingNumber;
         @Field(write = Field.Write.ALWAYS) private String labelReference;
+        @Field(write = Field.Write.ALWAYS) private String labelObjectName;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime labelCreatedAt;
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime labelDownloadedAt;
+        @Field(write = Field.Write.ALWAYS) private String labelDownloadedBy;
+        @Field(write = Field.Write.ALWAYS) private String pickupRequestId;
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime pickupScheduledDate;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime pickupConfirmedAt;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime lastTrackingUpdateAt;
         @Field(write = Field.Write.ALWAYS) private String lastTrackingDescription;
         @Field(write = Field.Write.ALWAYS) private LocalDateTime deliveredAt;
+        @Field(write = Field.Write.ALWAYS) private String rtoReason;
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime rtoInitiatedAt;
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime rtoDeliveredAt;
+        @Field(write = Field.Write.ALWAYS) private Boolean rtoRestocked;
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime rtoRestockedAt;
+        @Field(write = Field.Write.ALWAYS) private List<TrackingScan> trackingEvents = new ArrayList<>();
         public String getShipmentId() { return shipmentId; }
         public void setShipmentId(String value) { shipmentId = value; }
         public String getBookingReference() { return bookingReference; }
@@ -241,8 +252,18 @@ public class Order {
         public void setTrackingNumber(String value) { trackingNumber = value; }
         public String getLabelReference() { return labelReference; }
         public void setLabelReference(String value) { labelReference = value; }
+        public String getLabelObjectName() { return labelObjectName; }
+        public void setLabelObjectName(String value) { labelObjectName = value; }
         public LocalDateTime getLabelCreatedAt() { return labelCreatedAt; }
         public void setLabelCreatedAt(LocalDateTime value) { labelCreatedAt = value; }
+        public LocalDateTime getLabelDownloadedAt() { return labelDownloadedAt; }
+        public void setLabelDownloadedAt(LocalDateTime value) { labelDownloadedAt = value; }
+        public String getLabelDownloadedBy() { return labelDownloadedBy; }
+        public void setLabelDownloadedBy(String value) { labelDownloadedBy = value; }
+        public String getPickupRequestId() { return pickupRequestId; }
+        public void setPickupRequestId(String value) { pickupRequestId = value; }
+        public LocalDateTime getPickupScheduledDate() { return pickupScheduledDate; }
+        public void setPickupScheduledDate(LocalDateTime value) { pickupScheduledDate = value; }
         public LocalDateTime getPickupConfirmedAt() { return pickupConfirmedAt; }
         public void setPickupConfirmedAt(LocalDateTime value) { pickupConfirmedAt = value; }
         public LocalDateTime getLastTrackingUpdateAt() { return lastTrackingUpdateAt; }
@@ -251,6 +272,36 @@ public class Order {
         public void setLastTrackingDescription(String value) { lastTrackingDescription = value; }
         public LocalDateTime getDeliveredAt() { return deliveredAt; }
         public void setDeliveredAt(LocalDateTime value) { deliveredAt = value; }
+        public String getRtoReason() { return rtoReason; }
+        public void setRtoReason(String value) { rtoReason = value; }
+        public LocalDateTime getRtoInitiatedAt() { return rtoInitiatedAt; }
+        public void setRtoInitiatedAt(LocalDateTime value) { rtoInitiatedAt = value; }
+        public LocalDateTime getRtoDeliveredAt() { return rtoDeliveredAt; }
+        public void setRtoDeliveredAt(LocalDateTime value) { rtoDeliveredAt = value; }
+        public Boolean getRtoRestocked() { return rtoRestocked; }
+        public void setRtoRestocked(Boolean value) { rtoRestocked = value; }
+        public LocalDateTime getRtoRestockedAt() { return rtoRestockedAt; }
+        public void setRtoRestockedAt(LocalDateTime value) { rtoRestockedAt = value; }
+        public List<TrackingScan> getTrackingEvents() { return trackingEvents; }
+        public void setTrackingEvents(List<TrackingScan> values) { trackingEvents = values == null ? new ArrayList<>() : values; }
+    }
+
+    public static class TrackingScan {
+        private String status;
+        private String statusType;
+        private String location;
+        private String instructions;
+        private LocalDateTime scannedAt;
+        public String getStatus() { return status; }
+        public void setStatus(String value) { status = value; }
+        public String getStatusType() { return statusType; }
+        public void setStatusType(String value) { statusType = value; }
+        public String getLocation() { return location; }
+        public void setLocation(String value) { location = value; }
+        public String getInstructions() { return instructions; }
+        public void setInstructions(String value) { instructions = value; }
+        public LocalDateTime getScannedAt() { return scannedAt; }
+        public void setScannedAt(LocalDateTime value) { scannedAt = value; }
     }
 
     public static class DelayReview {

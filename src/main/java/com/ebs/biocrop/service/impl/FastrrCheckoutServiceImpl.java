@@ -403,7 +403,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             order.setShippingAddress(address);
             order.setBillingAddress(address);
 
-            Order.SellerFulfillment fulfillment = buildSellerFulfillment(sellerKey, OrderStatus.CONFIRMED.name());
+            Order.SellerFulfillment fulfillment = buildSellerFulfillment(sellerKey, OrderStatus.PENDING.name());
             List<OrderItem> orderItems = new ArrayList<>();
             BigDecimal totalList = BigDecimal.ZERO;
             BigDecimal totalDiscount = BigDecimal.ZERO;
@@ -444,7 +444,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 item.setUnitPrice(unitPrice);
                 item.setDiscountAmount(lineDiscount);
                 item.setLineTotal(lineTotal);
-                item.setItemStatus(OrderStatus.CONFIRMED.name());
+                item.setItemStatus(OrderStatus.PENDING.name());
 
                 Order.ProductSnapshot ps = new Order.ProductSnapshot();
                 ps.setTitle(product.getTitle());
@@ -518,7 +518,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             payment.setTransactions(List.of(txn));
             order.setPayment(payment);
 
-            String overallStatus = OrderStatus.CONFIRMED.name();
+            String overallStatus = OrderStatus.PENDING.name();
             order.setOverallStatus(overallStatus);
             order.setPlacedAt(now);
             order.setCreatedAt(now);
