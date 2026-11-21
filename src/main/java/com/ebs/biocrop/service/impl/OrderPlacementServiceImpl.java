@@ -139,17 +139,31 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 || Boolean.TRUE.equals(customer.getIsBlocked()) || !"ACTIVE".equalsIgnoreCase(customer.getStatus())) {
             throw new AppException("An active customer account is required to place an order", HttpStatus.CONFLICT);
         }
-        Cart cart = carts.findByUser(customerId)
-                .orElseThrow(() -> new AppException("Cart is empty", HttpStatus.BAD_REQUEST));
-        if (cart.getItems() == null || cart.getItems().isEmpty()) throw new AppException("Cart is empty", HttpStatus.BAD_REQUEST);
-        if (cart.getAppliedCoupon() != null && !cart.getAppliedCoupon().isBlank()) {
-            throw new AppException("Coupon checkout is not available yet; remove the coupon and try again", HttpStatus.CONFLICT);
-        }
-        if (cart.getFreeItems() != null && !cart.getFreeItems().isEmpty()) {
-            throw new AppException("Promotional free items are not supported in checkout yet", HttpStatus.CONFLICT);
+        Cart cart = null;
+        List<CartItem> sourceItems;
+        if (adminOverride && request.getItems() != null && !request.getItems().isEmpty()) {
+            sourceItems = new ArrayList<>(request.getItems().size());
+            for (PlaceOrderRequest.ItemInput input : request.getItems()) {
+                CartItem ci = new CartItem();
+                ci.setProductId(input.getProductId());
+                ci.setVariantId(input.getVariantId());
+                ci.setQuantity(input.getQuantity());
+                sourceItems.add(ci);
+            }
+        } else {
+            cart = carts.findByUser(customerId)
+                    .orElseThrow(() -> new AppException("Cart is empty", HttpStatus.BAD_REQUEST));
+            if (cart.getItems() == null || cart.getItems().isEmpty()) throw new AppException("Cart is empty", HttpStatus.BAD_REQUEST);
+            if (cart.getAppliedCoupon() != null && !cart.getAppliedCoupon().isBlank()) {
+                throw new AppException("Coupon checkout is not available yet; remove the coupon and try again", HttpStatus.CONFLICT);
+            }
+            if (cart.getFreeItems() != null && !cart.getFreeItems().isEmpty()) {
+                throw new AppException("Promotional free items are not supported in checkout yet", HttpStatus.CONFLICT);
+            }
+            sourceItems = cart.getItems();
         }
 
-        List<String> variantIds = cart.getItems().stream().map(CartItem::getVariantId)
+        List<String> variantIds = sourceItems.stream().map(CartItem::getVariantId)
                 .filter(Objects::nonNull).toList();
         Set<String> requestedVariants = variantIds.stream().map(this::normalizeId).collect(Collectors.toSet());
         Map<String, Product> productsByVariant = new HashMap<>();
@@ -166,7 +180,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         List<CartLine> lines = new ArrayList<>();
         Set<String> sellerIds = new LinkedHashSet<>();
-        for (CartItem cartItem : cart.getItems()) {
+        for (CartItem cartItem : sourceItems) {
             if (cartItem.getQuantity() == null || cartItem.getQuantity() <= 0 || cartItem.getVariantId() == null) {
                 throw new AppException("Cart contains an invalid item", HttpStatus.CONFLICT);
             }
@@ -182,7 +196,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             if (variant.getStock() == null || variant.getStock() < cartItem.getQuantity()) {
                 throw new AppException("Insufficient stock for product '" + product.getTitle() + "'", HttpStatus.CONFLICT);
             }
-            validatePaymentOption(variant, request.getPaymentMethod(), paymentPercentage, product.getTitle());
+            if (!adminOverride || request.getPaymentMethod() == PaymentMethod.PARTIAL) {
+                validatePaymentOption(variant, request.getPaymentMethod(), paymentPercentage, product.getTitle());
+            }
             BigDecimal unitPrice = price(variant.getEffectivePrice(), product.getTitle());
             BigDecimal listPrice = variant.getPrintedMrp() == null ? unitPrice : price(variant.getPrintedMrp(), product.getTitle());
             BigDecimal quantity = BigDecimal.valueOf(cartItem.getQuantity());
@@ -204,7 +220,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         ObjectId generatedId = new ObjectId();
         String suffix = generatedId.toHexString().toUpperCase(Locale.ROOT);
         String checkoutGroupId = "CHK-" + suffix;
-        String orderNumber = "ORD-" + suffix;
+        String orderNumber = sellers.size() == 1
+                ? buildReadableOrderNumber(sellers.values().iterator().next(), suffix)
+                : "ORD-" + suffix;
         LocalDateTime now = LocalDateTime.now();
         Order order = new Order();
         // Do NOT pre-assign the ID — let Spring Data MongoDB perform a true insert.
@@ -325,10 +343,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             List<StockUpdate> stockUpdates = reserveStock(lines);
             saved.setStockReserved(true);
             saved = orders.save(saved);
-            Cart removedCart = mongoTemplate.findAndRemove(Query.query(Criteria.where("_id").is(cart.getId())
-                    .and("version").is(cart.getVersion())), Cart.class);
-            if (removedCart == null) {
-                throw new AppException("Cart changed during checkout. Refresh the cart and retry.", HttpStatus.CONFLICT);
+            if (cart != null) {
+                Cart removedCart = mongoTemplate.findAndRemove(Query.query(Criteria.where("_id").is(cart.getId())
+                        .and("version").is(cart.getVersion())), Cart.class);
+                if (removedCart == null) {
+                    throw new AppException("Cart changed during checkout. Refresh the cart and retry.", HttpStatus.CONFLICT);
+                }
             }
             redisCache.invalidateRegionAfterCommit("public-products");
             stockUpdates.forEach(update -> webSocketService.broadcast("inventory:stock_update", Map.of(
@@ -550,6 +570,44 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return (variant.getPackSize() == null ? "" : variant.getPackSize())
                 + (variant.getUnit() == null ? "" : " " + variant.getUnit())
                 + (variant.getPackQuantity() == null || variant.getPackQuantity() <= 1 ? "" : " × " + variant.getPackQuantity());
+    }
+
+    private String buildReadableOrderNumber(User seller, String fallbackSuffix) {
+        String tradeName = seller != null ? seller.getShopName() : null;
+        String initials = extractSellerInitials(tradeName);
+        if (seller != null && seller.getId() != null) {
+            User updated = mongoTemplate.findAndModify(
+                    Query.query(Criteria.where("_id").is(seller.getId())),
+                    new Update().inc("orderNumberSequence", 1L),
+                    FindAndModifyOptions.options().returnNew(true),
+                    User.class);
+            if (updated != null && updated.getOrderNumberSequence() != null && updated.getOrderNumberSequence() > 0) {
+                return String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+            }
+        }
+        return "ORD-" + fallbackSuffix;
+    }
+
+    private static String extractSellerInitials(String tradeName) {
+        if (tradeName == null || tradeName.isBlank()) {
+            return "EBS";
+        }
+        String[] words = tradeName.trim().split("[^A-Za-z0-9]+");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (!w.isBlank()) {
+                sb.append(Character.toUpperCase(w.charAt(0)));
+                if (sb.length() == 4) break;
+            }
+        }
+        if (sb.length() >= 2) {
+            return sb.toString();
+        }
+        String compact = tradeName.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
+        if (compact.length() >= 3) {
+            return compact.substring(0, 3);
+        }
+        return compact.isBlank() ? "EBS" : compact;
     }
 
     private String normalizeId(String id) {

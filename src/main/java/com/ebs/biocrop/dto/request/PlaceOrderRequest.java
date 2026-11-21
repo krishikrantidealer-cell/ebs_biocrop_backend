@@ -2,8 +2,11 @@ package com.ebs.biocrop.dto.request;
 
 import com.ebs.biocrop.entity.enums.PaymentMethod;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
 
 public class PlaceOrderRequest {
     @NotNull
@@ -14,6 +17,8 @@ public class PlaceOrderRequest {
     private AddressInput shippingAddress;
     @Valid
     private AddressInput billingAddress;
+    @Valid
+    private List<ItemInput> items;
 
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
@@ -23,6 +28,24 @@ public class PlaceOrderRequest {
     public void setShippingAddress(AddressInput shippingAddress) { this.shippingAddress = shippingAddress; }
     public AddressInput getBillingAddress() { return billingAddress; }
     public void setBillingAddress(AddressInput billingAddress) { this.billingAddress = billingAddress; }
+    public List<ItemInput> getItems() { return items; }
+    public void setItems(List<ItemInput> items) { this.items = items; }
+
+    public static class ItemInput {
+        private String productId;
+        @NotBlank
+        private String variantId;
+        @NotNull
+        @Min(1)
+        private Integer quantity;
+
+        public String getProductId() { return productId; }
+        public void setProductId(String productId) { this.productId = productId; }
+        public String getVariantId() { return variantId; }
+        public void setVariantId(String variantId) { this.variantId = variantId; }
+        public Integer getQuantity() { return quantity; }
+        public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    }
 
     public static class AddressInput {
         @jakarta.validation.constraints.NotBlank private String name;
