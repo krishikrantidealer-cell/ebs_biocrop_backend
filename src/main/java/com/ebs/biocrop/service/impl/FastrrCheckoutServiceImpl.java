@@ -396,29 +396,49 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
 
         Map<String, Object> paymentDetailsMap = asMap(payload.get("payment_details"));
         Map<String, Object> nestedPaymentMap = asMap(payload.get("payment"));
+        Map<String, Object> cartDataMap = asMap(payload.get("cart_data"));
+        Map<String, Object> orderDataMap = asMap(payload.get("order_data"));
         String paymentTypeRaw = firstNonBlank(
                 asString(payload.get("payment_type")),
                 asString(payload.get("payment_method")),
                 asString(payload.get("payment_mode")),
+                asString(payload.get("payment_gateway")),
+                asString(payload.get("transaction_type")),
                 asString(payload.get("payment_status")),
                 asString(payload.get("order_type")),
+                asString(payload.get("status")),
                 asString(paymentDetailsMap.get("payment_type")),
                 asString(paymentDetailsMap.get("method")),
                 asString(paymentDetailsMap.get("type")),
                 asString(nestedPaymentMap.get("payment_type")),
                 asString(nestedPaymentMap.get("method")),
                 asString(nestedPaymentMap.get("type")),
+                asString(cartDataMap.get("payment_type")),
+                asString(orderDataMap.get("payment_type")),
                 "PREPAID");
         String payUpper = paymentTypeRaw.toUpperCase(Locale.ROOT);
-        Object isCodFlag = payload.get("is_cod");
+        String rawStatus = asString(payload.get("payment_status"));
+        String rawMethod = asString(payload.get("payment_method"));
+        String rawMode = asString(payload.get("payment_mode"));
+        String payStatusUpper = rawStatus != null ? rawStatus.toUpperCase(Locale.ROOT) : "";
+        String payMethodUpper = rawMethod != null ? rawMethod.toUpperCase(Locale.ROOT) : "";
+        String payModeUpper = rawMode != null ? rawMode.toUpperCase(Locale.ROOT) : "";
+        Object isCodFlag = payload.get("is_cod") != null ? payload.get("is_cod") : payload.get("cod");
         boolean isCod = Boolean.TRUE.equals(isCodFlag)
                 || "true".equalsIgnoreCase(asString(isCodFlag))
                 || "1".equals(asString(isCodFlag))
                 || payUpper.contains("COD")
                 || payUpper.contains("CASH")
-                || payUpper.contains("POSTPAID");
-        log.info("[FASTRR-WEBHOOK] Payment resolved for {}: raw='{}', is_cod={}, isCod={}",
-                fastrrOrderId, paymentTypeRaw, isCodFlag, isCod);
+                || payUpper.contains("POSTPAID")
+                || payMethodUpper.contains("COD")
+                || payMethodUpper.contains("CASH")
+                || payModeUpper.contains("COD")
+                || payModeUpper.contains("CASH")
+                || payStatusUpper.contains("COD")
+                || "PENDING".equals(payStatusUpper)
+                || "UNPAID".equals(payStatusUpper);
+        log.info("[FASTRR-WEBHOOK] Payment resolved for {}: keys={}, raw='{}', status='{}', method='{}', is_cod={}, isCod={}",
+                fastrrOrderId, payload.keySet(), paymentTypeRaw, payStatusUpper, payMethodUpper, isCodFlag, isCod);
 
         // Group incoming Fastrr cart items by seller so each seller gets an independent Order + tracking.
         record ResolvedCartEntry(Product product, ProductVariant variant, int quantity, Map<String, Object> rawItem) {}
