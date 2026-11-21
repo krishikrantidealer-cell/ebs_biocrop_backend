@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -393,13 +394,31 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         User matchedCustomer = findCustomerByPhone(phone);
         OrderAddressSnapshot address = buildAddressSnapshot(shippingMap, customerName, phone);
 
+        Map<String, Object> paymentDetailsMap = asMap(payload.get("payment_details"));
+        Map<String, Object> nestedPaymentMap = asMap(payload.get("payment"));
         String paymentTypeRaw = firstNonBlank(
                 asString(payload.get("payment_type")),
                 asString(payload.get("payment_method")),
                 asString(payload.get("payment_mode")),
+                asString(payload.get("payment_status")),
+                asString(payload.get("order_type")),
+                asString(paymentDetailsMap.get("payment_type")),
+                asString(paymentDetailsMap.get("method")),
+                asString(paymentDetailsMap.get("type")),
+                asString(nestedPaymentMap.get("payment_type")),
+                asString(nestedPaymentMap.get("method")),
+                asString(nestedPaymentMap.get("type")),
                 "PREPAID");
-        boolean isCod = paymentTypeRaw.toUpperCase(Locale.ROOT).contains("COD")
-                || paymentTypeRaw.toUpperCase(Locale.ROOT).contains("CASH");
+        String payUpper = paymentTypeRaw.toUpperCase(Locale.ROOT);
+        Object isCodFlag = payload.get("is_cod");
+        boolean isCod = Boolean.TRUE.equals(isCodFlag)
+                || "true".equalsIgnoreCase(asString(isCodFlag))
+                || "1".equals(asString(isCodFlag))
+                || payUpper.contains("COD")
+                || payUpper.contains("CASH")
+                || payUpper.contains("POSTPAID");
+        log.info("[FASTRR-WEBHOOK] Payment resolved for {}: raw='{}', is_cod={}, isCod={}",
+                fastrrOrderId, paymentTypeRaw, isCodFlag, isCod);
 
         // Group incoming Fastrr cart items by seller so each seller gets an independent Order + tracking.
         record ResolvedCartEntry(Product product, ProductVariant variant, int quantity, Map<String, Object> rawItem) {}
@@ -423,9 +442,8 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             String sellerKey = sellerEntry.getKey();
             List<ResolvedCartEntry> sellerLines = sellerEntry.getValue();
 
-            String orderNumber = multiSeller
-                    ? "FASTRR-" + fastrrOrderId + "-S" + sellerIdx
-                    : "FASTRR-" + fastrrOrderId;
+            Order.SellerFulfillment fulfillment = buildSellerFulfillment(sellerKey, OrderStatus.PENDING.name());
+            String orderNumber = buildReadableOrderNumber(fulfillment, sellerKey, fastrrOrderId, sellerIdx, multiSeller);
             String sellerIdempotencyKey = multiSeller
                     ? idempotencyKey + ":S" + sellerIdx
                     : idempotencyKey;
@@ -446,11 +464,11 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             order.setShippingAddress(address);
             order.setBillingAddress(address);
 
-            Order.SellerFulfillment fulfillment = buildSellerFulfillment(sellerKey, OrderStatus.PENDING.name());
             List<OrderItem> orderItems = new ArrayList<>();
             BigDecimal totalList = BigDecimal.ZERO;
             BigDecimal totalDiscount = BigDecimal.ZERO;
             BigDecimal orderTotal = BigDecimal.ZERO;
+            BigDecimal totalSellerWillGet = BigDecimal.ZERO;
             int seq = 1;
 
             for (ResolvedCartEntry entry : sellerLines) {
@@ -505,7 +523,14 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                     vs.setPackSize(variant.getPackSize());
                     vs.setPackSizeUnit(variant.getUnit());
                     vs.setPackQuantity(variant.getPackQuantity());
+                    BigDecimal unitSwg = variant.getSwg() != null
+                            ? BigDecimal.valueOf(variant.getSwg()).setScale(2, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    vs.setSwg(unitSwg);
                     item.setVariantSnapshot(vs);
+                    BigDecimal lineSwg = unitSwg.multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP);
+                    item.setSellerWillGet(lineSwg);
+                    totalSellerWillGet = totalSellerWillGet.add(lineSwg);
                 }
 
                 fulfillment.getItemOrderIds().add(item.getItemOrderId());
@@ -518,6 +543,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 decrementStock(product, variant, quantity);
             }
 
+            fulfillment.setSellerWillGet(totalSellerWillGet.setScale(2, RoundingMode.HALF_UP));
             order.setItems(orderItems);
             order.setSellerFulfillments(List.of(fulfillment));
             order.setStockReserved(true);
@@ -647,6 +673,58 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         group.setStatus(status);
         group.setShipments(new ArrayList<>());
         return group;
+    }
+
+    private String buildReadableOrderNumber(
+            Order.SellerFulfillment fulfillment,
+            String sellerKey,
+            String fastrrOrderId,
+            int sellerIdx,
+            boolean multiSeller) {
+        String tradeName = fulfillment.getSellerSnapshot() != null
+                ? fulfillment.getSellerSnapshot().getTradeName()
+                : null;
+        String initials = extractSellerInitials(tradeName);
+
+        if (!"PLATFORM".equals(sellerKey)) {
+            User updated = mongoTemplate.findAndModify(
+                    Query.query(Criteria.where("_id").is(sellerKey)),
+                    new Update().inc("orderNumberSequence", 1L),
+                    FindAndModifyOptions.options().returnNew(true),
+                    User.class);
+            if (updated != null && updated.getOrderNumberSequence() != null && updated.getOrderNumberSequence() > 0) {
+                return String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+            }
+        }
+
+        String cleanFastrr = fastrrOrderId == null ? "" : fastrrOrderId.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
+        String tail = cleanFastrr.length() > 6 ? cleanFastrr.substring(cleanFastrr.length() - 6) : cleanFastrr;
+        if (tail.isBlank()) {
+            tail = String.valueOf(System.currentTimeMillis() % 1000000);
+        }
+        return multiSeller ? initials + "-" + tail + "-S" + sellerIdx : initials + "-" + tail;
+    }
+
+    private static String extractSellerInitials(String tradeName) {
+        if (tradeName == null || tradeName.isBlank()) {
+            return "EBS";
+        }
+        String[] words = tradeName.trim().split("[^A-Za-z0-9]+");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) {
+            if (!w.isBlank()) {
+                sb.append(Character.toUpperCase(w.charAt(0)));
+                if (sb.length() == 4) break;
+            }
+        }
+        if (sb.length() >= 2) {
+            return sb.toString();
+        }
+        String compact = tradeName.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
+        if (compact.length() >= 3) {
+            return compact.substring(0, 3);
+        }
+        return compact.isBlank() ? "EBS" : compact;
     }
 
     private void decrementStock(Product product, ProductVariant variant, int quantity) {

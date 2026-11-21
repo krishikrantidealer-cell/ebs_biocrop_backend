@@ -23,6 +23,7 @@ public class OrderItem {
     @Field(write = Field.Write.ALWAYS) private BigDecimal unitPrice = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal taxAmount;
     @Field(write = Field.Write.ALWAYS) private BigDecimal lineTotal = BigDecimal.ZERO;
+    @Field(write = Field.Write.ALWAYS) private BigDecimal sellerWillGet = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal advanceAllocatedAtCheckout = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private BigDecimal codDueAtCheckout = BigDecimal.ZERO;
     @Field(write = Field.Write.ALWAYS) private String itemStatus = "PENDING_PAYMENT";
@@ -66,6 +67,8 @@ public class OrderItem {
     public void setTaxAmount(BigDecimal value) { taxAmount = value; }
     public BigDecimal getLineTotal() { return lineTotal; }
     public void setLineTotal(BigDecimal value) { lineTotal = zero(value); }
+    public BigDecimal getSellerWillGet() { return sellerWillGet; }
+    public void setSellerWillGet(BigDecimal value) { sellerWillGet = zero(value); }
     public BigDecimal getAdvanceAllocatedAtCheckout() { return advanceAllocatedAtCheckout; }
     public void setAdvanceAllocatedAtCheckout(BigDecimal value) { advanceAllocatedAtCheckout = zero(value); }
     public BigDecimal getCodDueAtCheckout() { return codDueAtCheckout; }
@@ -84,6 +87,7 @@ public class OrderItem {
         @Field(write = Field.Write.ALWAYS) private Integer packSize;
         @Field(write = Field.Write.ALWAYS) private String packSizeUnit;
         @Field(write = Field.Write.ALWAYS) private Integer packQuantity;
+        @Field(write = Field.Write.ALWAYS) private BigDecimal swg = BigDecimal.ZERO;
 
         public String getLabel() { return label; }
         public void setLabel(String value) { label = value; }
@@ -95,5 +99,7 @@ public class OrderItem {
         public void setPackSizeUnit(String value) { packSizeUnit = value; }
         public Integer getPackQuantity() { return packQuantity; }
         public void setPackQuantity(Integer value) { packQuantity = value; }
+        public BigDecimal getSwg() { return swg; }
+        public void setSwg(BigDecimal value) { swg = value == null ? BigDecimal.ZERO : value; }
     }
 }

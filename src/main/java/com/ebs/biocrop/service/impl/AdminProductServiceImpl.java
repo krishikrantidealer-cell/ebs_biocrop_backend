@@ -298,6 +298,7 @@ public class AdminProductServiceImpl implements AdminProductService {
             current.setIsAvailable(false);
         }
 
+
         sellerProducts.validateProduct(current);
         if (current.getStatus() == null || current.getStatus().isBlank()) {
             current.setStatus("ACTIVE");
@@ -354,7 +355,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         updateRequest.setCategoryId(request.getCategoryId());
         updateRequest.setSubCategoryIds(request.getSubCategoryIds());
         updateRequest.setRefundPolicy(request.getRefundPolicy());
-        updateRequest.setProductWeight(request.getProductWeight());
+        updateRequest.setProductWeight(request.getProductWeight());     
         updateRequest.setProductWeightUnit(request.getProductWeightUnit());
         updateRequest.setAverageRating(request.getAverageRating());
         updateRequest.setIsMarketplace(request.getIsMarketplace());

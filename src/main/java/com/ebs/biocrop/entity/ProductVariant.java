@@ -76,7 +76,6 @@ public class ProductVariant {
     private Double codCharge = 60.0;
 
     public ProductVariant() { }
-
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public Integer getDisplayOrder() { return displayOrder; }

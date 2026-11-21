@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -176,6 +177,9 @@ public class Order {
         @Field(write = Field.Write.ALWAYS) private LocalDateTime dispatchedAt;
         @Field(write = Field.Write.ALWAYS) private List<Shipment> shipments = new ArrayList<>();
         @Field(write = Field.Write.ALWAYS) private DelayReview delayReview = new DelayReview();
+        @Field(write = Field.Write.ALWAYS) private String sellerPaymentStatus = "PENDING";
+        @Field(write = Field.Write.ALWAYS) private LocalDateTime sellerPaymentDate;
+        @Field(write = Field.Write.ALWAYS) private BigDecimal sellerWillGet = BigDecimal.ZERO;
         public String getId() { return fulfillmentId; }
         public void setId(String value) { fulfillmentId = value; }
         public String getFulfillmentId() { return fulfillmentId; }
@@ -200,6 +204,12 @@ public class Order {
         public void setShipments(List<Shipment> values) { shipments = values == null ? new ArrayList<>() : values; }
         public DelayReview getDelayReview() { return delayReview; }
         public void setDelayReview(DelayReview value) { delayReview = value == null ? new DelayReview() : value; }
+        public String getSellerPaymentStatus() { return sellerPaymentStatus; }
+        public void setSellerPaymentStatus(String value) { sellerPaymentStatus = (value == null || value.isBlank()) ? "PENDING" : value; }
+        public LocalDateTime getSellerPaymentDate() { return sellerPaymentDate; }
+        public void setSellerPaymentDate(LocalDateTime value) { sellerPaymentDate = value; }
+        public BigDecimal getSellerWillGet() { return sellerWillGet; }
+        public void setSellerWillGet(BigDecimal value) { sellerWillGet = value == null ? BigDecimal.ZERO : value; }
     }
 
     public static class Shipment {

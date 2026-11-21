@@ -82,7 +82,8 @@ public record OrderResponse(
                        Order.ProductSnapshot productSnapshot, Integer quantity,
                        java.math.BigDecimal listPrice, java.math.BigDecimal discountAmount,
                        java.math.BigDecimal discountPercentage, java.math.BigDecimal unitPrice, java.math.BigDecimal taxAmount,
-                       java.math.BigDecimal lineTotal, java.math.BigDecimal advanceAllocatedAtCheckout,
+                       java.math.BigDecimal lineTotal, java.math.BigDecimal sellerWillGet,
+                       java.math.BigDecimal advanceAllocatedAtCheckout,
                        java.math.BigDecimal codDueAtCheckout, String itemStatus,
                        Order.ItemCancellation cancellation) {
         private static Item from(OrderItem item, Order.SellerFulfillment group) {
@@ -91,6 +92,7 @@ public record OrderResponse(
                     item.getProductId(), item.getCategoryId(), item.getVariantId(), item.getProductCode(), item.getProductSku(),
                     item.getVariantSku(), item.getVariantSnapshot(), item.getProductSnapshot(), item.getQuantity(), item.getListPrice(),
                     item.getDiscountAmount(), item.getDiscountPercentage(), item.getUnitPrice(), item.getTaxAmount(), item.getLineTotal(),
+                    item.getSellerWillGet(),
                     item.getAdvanceAllocatedAtCheckout(), item.getCodDueAtCheckout(), item.getItemStatus(),
                     item.getCancellation());
         }
@@ -100,11 +102,13 @@ public record OrderResponse(
                               List<String> itemOrderIds, String status, LocalDateTime responseDeadlineAt,
                               LocalDateTime acceptedAt, LocalDateTime dispatchSlaDeadlineAt,
                               LocalDateTime dispatchedAt, List<Order.Shipment> shipments,
-                              Order.DelayReview delayReview) {
+                              Order.DelayReview delayReview, String sellerPaymentStatus,
+                              LocalDateTime sellerPaymentDate, java.math.BigDecimal sellerWillGet) {
         private static SellerGroup from(Order.SellerFulfillment value) {
             return new SellerGroup(value.getId(), value.getSellerId(), value.getSellerSnapshot(),
                     value.getItemOrderIds(), value.getStatus(), value.getResponseDeadlineAt(), value.getAcceptedAt(),
-                    value.getDispatchSlaDeadlineAt(), value.getDispatchedAt(), value.getShipments(), value.getDelayReview());
+                    value.getDispatchSlaDeadlineAt(), value.getDispatchedAt(), value.getShipments(), value.getDelayReview(),
+                    value.getSellerPaymentStatus(), value.getSellerPaymentDate(), value.getSellerWillGet());
         }
     }
 

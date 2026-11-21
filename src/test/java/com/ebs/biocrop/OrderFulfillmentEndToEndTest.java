@@ -323,7 +323,8 @@ class OrderFulfillmentEndToEndTest {
         for (Order o : created) {
             assertEquals(OrderStatus.PENDING.name(), o.getOverallStatus(), "Every new Fastrr order MUST start as PENDING");
             assertEquals(2, o.getItems().size(), "Each seller order must contain only that seller's 2 items");
-            assertTrue(o.getOrderNumber().startsWith("FASTRR-CART-SPLIT-2026-S"));
+            assertEquals("CHK-FASTRR-CART-SPLIT-2026", o.getCheckoutGroupId());
+            assertFalse(o.getOrderNumber().startsWith("FASTRR-"));
         }
 
         // Replay exact same webhook -> must be idempotent

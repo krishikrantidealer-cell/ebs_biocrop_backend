@@ -233,6 +233,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             OrderItem item = toOrderItem(line, sellerId, group.getId(), orderNumber + "-" + String.format(Locale.ROOT, "%03d", itemSequenceSafe(itemSequence)));
             itemSequence++;
             group.getItemOrderIds().add(item.getItemOrderId());
+            group.setSellerWillGet(group.getSellerWillGet().add(item.getSellerWillGet()).setScale(2, RoundingMode.HALF_UP));
             items.add(item);
             totalList = totalList.add(line.listTotal());
             totalDiscount = totalDiscount.add(line.discountTotal());
@@ -438,7 +439,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         variantSnapshot.setPackSize(line.variant().getPackSize());
         variantSnapshot.setPackSizeUnit(line.variant().getUnit());
         variantSnapshot.setPackQuantity(line.variant().getPackQuantity());
+        BigDecimal unitSwg = line.variant().getSwg() != null
+                ? BigDecimal.valueOf(line.variant().getSwg()).setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        variantSnapshot.setSwg(unitSwg);
         item.setVariantSnapshot(variantSnapshot);
+        item.setSellerWillGet(unitSwg.multiply(BigDecimal.valueOf(line.quantity())).setScale(2, RoundingMode.HALF_UP));
         Order.ProductSnapshot snapshot = new Order.ProductSnapshot();
         snapshot.setTitle(line.product().getTitle());
         snapshot.setVariantLabel(variantLabel(line.variant()));
