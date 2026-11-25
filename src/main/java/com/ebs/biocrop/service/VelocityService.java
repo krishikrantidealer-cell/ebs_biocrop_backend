@@ -290,7 +290,9 @@ public class VelocityService {
         boolean isCod = codDue.compareTo(BigDecimal.ZERO) > 0
                 || (order.getPayment() != null && "COD".equalsIgnoreCase(order.getPayment().getPaymentType()));
 
-        double subTotal = order.getSubtotalAmount() != null ? order.getSubtotalAmount() : 0.0;
+        double grandTotal = order.getTotalAmount() != null && order.getTotalAmount() > 0
+                ? order.getTotalAmount()
+                : (order.getSubtotalAmount() != null ? order.getSubtotalAmount() : 0.0);
         double shippingCharges = order.getShippingAmount() != null ? order.getShippingAmount() : 0.0;
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -306,9 +308,9 @@ public class VelocityService {
         body.put("shipping_is_billing", true);
         body.put("order_items", itemsPayload);
         body.put("payment_method", isCod ? "COD" : "Prepaid");
-        body.put("sub_total", subTotal);
+        body.put("sub_total", grandTotal);
         if (isCod) {
-            body.put("cod_collectible", codDue.compareTo(BigDecimal.ZERO) > 0 ? codDue.doubleValue() : subTotal);
+            body.put("cod_collectible", codDue.compareTo(BigDecimal.ZERO) > 0 ? codDue.doubleValue() : grandTotal);
         }
         body.put("shipping_charges", shippingCharges);
         body.put("length", shipment.getLengthCm() != null && shipment.getLengthCm() > 0 ? shipment.getLengthCm() : 10.0);
