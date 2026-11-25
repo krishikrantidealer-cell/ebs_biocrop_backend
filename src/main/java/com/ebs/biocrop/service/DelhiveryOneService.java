@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -178,10 +179,13 @@ public class DelhiveryOneService {
 
         String waybill = lookupWaybillByOrderRef(order);
         if (!hasText(waybill)) {
-            throw new AppException(
-                    "Shipment is not booked in Delhivery One yet for order " + order.getOrderNumber()
-                            + ". Dispatch team must book it in Delhivery One first.",
-                    HttpStatus.NOT_FOUND);
+            if ("DELHIVERY_POLL".equals(actorId)) {
+                throw new AppException(
+                        "Shipment is not booked in Delhivery One yet for order " + order.getOrderNumber()
+                                + ". Dispatch team must book it in Delhivery One first.",
+                        HttpStatus.NOT_FOUND);
+            }
+            waybill = createShipmentInDelhivery(order, fulfillment);
         }
         String labelUrl = fetchPackingSlipUrl(waybill);
 
@@ -505,6 +509,119 @@ public class DelhiveryOneService {
         }
     }
 
+    /** Books a new shipment in Delhivery One via /api/cmu/create.json and returns the assigned waybill (AWB). */
+    private String createShipmentInDelhivery(Order order, Order.SellerFulfillment fulfillment) {
+        OrderAddressSnapshot ship = order.getShippingAddress();
+        if (ship == null || !hasText(ship.getPincode())) {
+            throw new AppException("Shipping address with valid pincode is required to book in Delhivery One",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        String recipientName = firstNonBlank(
+                ship.getName(),
+                order.getCustomerSnapshot() != null ? order.getCustomerSnapshot().getName() : null,
+                "Customer");
+        String rawPhone = firstNonBlank(
+                ship.getPhoneNumber(),
+                order.getCustomerSnapshot() != null ? order.getCustomerSnapshot().getPhoneNumber() : null,
+                "9999999999");
+        String digits = rawPhone.replaceAll("[^0-9]", "");
+        String phone = digits.length() > 10 ? digits.substring(digits.length() - 10) : digits;
+
+        String addressLine = java.util.stream.Stream.of(
+                        ship.getVillageArea(), ship.getAddress2(), ship.getCityTehsil(), ship.getState())
+                .filter(DelhiveryOneService::hasText)
+                .map(String::trim)
+                .collect(Collectors.joining(", "));
+
+        BigDecimal totalAmount = order.getFinancialSummary() != null && order.getFinancialSummary().getCurrentOrderTotal() != null
+                ? order.getFinancialSummary().getCurrentOrderTotal()
+                : BigDecimal.ZERO;
+        BigDecimal codDue = order.getPayment() != null && order.getPayment().getCodDue() != null
+                ? order.getPayment().getCodDue()
+                : BigDecimal.ZERO;
+        String paymentType = order.getPayment() != null && order.getPayment().getPaymentType() != null
+                ? order.getPayment().getPaymentType().toUpperCase(Locale.ROOT)
+                : "PREPAID";
+        boolean isCod = (paymentType.contains("COD") || paymentType.contains("PARTIAL")) && codDue.signum() > 0;
+
+        String productsDesc = order.getItems() == null ? "Agricultural Products"
+                : order.getItems().stream()
+                        .map(i -> i.getProductSnapshot() != null ? i.getProductSnapshot().getTitle() : "Item")
+                        .filter(DelhiveryOneService::hasText)
+                        .collect(Collectors.joining(", "));
+        if (productsDesc.length() > 180) {
+            productsDesc = productsDesc.substring(0, 177) + "...";
+        }
+        int totalQty = order.getItems() == null ? 1
+                : Math.max(1, order.getItems().stream()
+                        .mapToInt(i -> i.getQuantity() == null ? 1 : i.getQuantity())
+                        .sum());
+
+        String sellerName = fulfillment.getSellerSnapshot() != null && hasText(fulfillment.getSellerSnapshot().getTradeName())
+                ? fulfillment.getSellerSnapshot().getTradeName().trim()
+                : "EBS Krishi Dukaan";
+
+        Map<String, Object> shipmentPayload = new LinkedHashMap<>();
+        shipmentPayload.put("name", recipientName);
+        shipmentPayload.put("add", hasText(addressLine) ? addressLine : "India");
+        shipmentPayload.put("pin", ship.getPincode().trim());
+        shipmentPayload.put("city", hasText(ship.getCityTehsil()) ? ship.getCityTehsil().trim() : "");
+        shipmentPayload.put("state", hasText(ship.getState()) ? ship.getState().trim() : "");
+        shipmentPayload.put("country", "India");
+        shipmentPayload.put("phone", phone);
+        shipmentPayload.put("order", order.getOrderNumber());
+        shipmentPayload.put("payment_mode", isCod ? "COD" : "Prepaid");
+        shipmentPayload.put("cod_amount", isCod ? codDue.doubleValue() : 0.0);
+        shipmentPayload.put("total_amount", totalAmount.doubleValue());
+        shipmentPayload.put("products_desc", hasText(productsDesc) ? productsDesc : "Agricultural Products");
+        shipmentPayload.put("quantity", String.valueOf(totalQty));
+        shipmentPayload.put("seller_name", sellerName);
+        shipmentPayload.put("weight", "500");
+        shipmentPayload.put("shipping_mode", "Surface");
+
+        Map<String, Object> rootPayload = new LinkedHashMap<>();
+        rootPayload.put("shipments", List.of(shipmentPayload));
+        rootPayload.put("pickup_location", Map.of("name", defaultPickupLocation));
+
+        try {
+            String jsonStr = objectMapper.writeValueAsString(rootPayload);
+            String body = "format=json&data=" + java.net.URLEncoder.encode(jsonStr, java.nio.charset.StandardCharsets.UTF_8);
+
+            HttpHeaders headers = authHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            String url = baseUrl + "/api/cmu/create.json";
+
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    url, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+                throw new AppException("Delhivery One booking failed (status " + resp.getStatusCode().value() + ")",
+                        HttpStatus.BAD_GATEWAY);
+            }
+
+            Map<String, Object> parsed = objectMapper.readValue(resp.getBody(), new TypeReference<>() {});
+            Object pkgsObj = parsed.get("packages");
+            if (pkgsObj instanceof List<?> pkgs && !pkgs.isEmpty() && pkgs.getFirst() instanceof Map<?, ?> firstPkg) {
+                String waybill = asString(firstPkg.get("waybill"));
+                String status = asString(firstPkg.get("status"));
+                if (hasText(waybill) && !"Fail".equalsIgnoreCase(status)) {
+                    log.info("[DELHIVERY] Booked shipment for {} -> AWB {}", order.getOrderNumber(), waybill);
+                    return waybill;
+                }
+                String pkgRmk = firstNonBlank(asString(firstPkg.get("remarks")), asString(parsed.get("rmk")), "Unknown error");
+                throw new AppException("Delhivery One booking rejected: " + pkgRmk, HttpStatus.BAD_GATEWAY);
+            }
+            String rmk = firstNonBlank(asString(parsed.get("rmk")), asString(parsed.get("error")), "No waybill returned");
+            throw new AppException("Delhivery One booking failed: " + rmk, HttpStatus.BAD_GATEWAY);
+        } catch (AppException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.warn("[DELHIVERY] create.json failed for {}: {}", order.getOrderNumber(), ex.getMessage());
+            throw new AppException("Failed to book shipment in Delhivery One: " + ex.getMessage(),
+                    HttpStatus.BAD_GATEWAY);
+        }
+    }
+
     /** Looks up a shipment booked by the dispatch team in Delhivery One using order reference IDs (never creates a shipment). */
     private String lookupWaybillByOrderRef(Order order) {
         List<String> refs = new ArrayList<>();
@@ -612,10 +729,28 @@ public class DelhiveryOneService {
         } else if (mapped == OrderStatus.DELIVERED) {
             shipment.setDeliveredAt(now);
             shipment.setStatus(ShipmentStatus.DELIVERED.name());
-            if (order.getPayment() != null && PaymentMethod.COD.name().equalsIgnoreCase(order.getPayment().getPaymentType())) {
-                order.getPayment().setStatus(PaymentStatus.CAPTURED.name());
-                order.getPayment().setCodDue(BigDecimal.ZERO);
-                order.getPayment().setRemainingAmount(BigDecimal.ZERO);
+            if (order.getPayment() != null) {
+                String pType = order.getPayment().getPaymentType() == null
+                        ? ""
+                        : order.getPayment().getPaymentType().toUpperCase(Locale.ROOT);
+                if (PaymentMethod.COD.name().equals(pType) || pType.contains("PARTIAL")) {
+                    BigDecimal codRemaining = order.getPayment().getCodDue() != null
+                            ? order.getPayment().getCodDue()
+                            : BigDecimal.ZERO;
+                    BigDecimal alreadyPaid = order.getPayment().getAmountPaid() != null
+                            ? order.getPayment().getAmountPaid()
+                            : BigDecimal.ZERO;
+                    order.getPayment().setCodCollected(codRemaining);
+                    order.getPayment().setAmountPaid(alreadyPaid.add(codRemaining));
+                    order.getPayment().setStatus(PaymentStatus.CAPTURED.name());
+                    order.getPayment().setCodDue(BigDecimal.ZERO);
+                    order.getPayment().setRemainingAmount(BigDecimal.ZERO);
+                    order.getPayment().setPaidPercentage(new BigDecimal("100.00"));
+                    order.getPayment().setRemainingPercentage(BigDecimal.ZERO);
+                    if (order.getFinancialSummary() != null) {
+                        order.getFinancialSummary().setCodDue(BigDecimal.ZERO);
+                    }
+                }
             }
         } else if (mapped == OrderStatus.RTO_INITIATED) {
             if (shipment.getRtoInitiatedAt() == null) shipment.setRtoInitiatedAt(now);

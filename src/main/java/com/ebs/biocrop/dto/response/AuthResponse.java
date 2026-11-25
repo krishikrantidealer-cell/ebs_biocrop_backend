@@ -1,5 +1,8 @@
 package com.ebs.biocrop.dto.response;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 public class AuthResponse {
 
     private String accessToken;
@@ -8,8 +11,11 @@ public class AuthResponse {
     private long expiresInMs;
     private String userId;
     private String phoneNumber;
+    private String email;
+    private String fullName;
     private String role;
     private boolean isProfileComplete;
+    private Set<String> permissions = new LinkedHashSet<>();
 
     public AuthResponse() {
     }
@@ -88,4 +94,15 @@ public class AuthResponse {
 
     public boolean getIsProfileComplete() { return isProfileComplete; }
     public void setIsProfileComplete(boolean profileComplete) { isProfileComplete = profileComplete; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+
+    public Set<String> getPermissions() { return permissions; }
+    public void setPermissions(Set<String> permissions) {
+        this.permissions = permissions == null ? new LinkedHashSet<>() : new LinkedHashSet<>(permissions);
+    }
 }

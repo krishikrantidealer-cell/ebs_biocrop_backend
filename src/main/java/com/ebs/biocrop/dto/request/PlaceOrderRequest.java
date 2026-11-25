@@ -12,6 +12,7 @@ public class PlaceOrderRequest {
     @NotNull
     private PaymentMethod paymentMethod;
     private BigDecimal advancePercentage;
+    private BigDecimal advanceAmount;
     @NotNull
     @Valid
     private AddressInput shippingAddress;
@@ -19,17 +20,42 @@ public class PlaceOrderRequest {
     private AddressInput billingAddress;
     @Valid
     private List<ItemInput> items;
+    @Valid
+    private PrepaidPaymentInput prepaidPayment;
 
     public PaymentMethod getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
     public BigDecimal getAdvancePercentage() { return advancePercentage; }
     public void setAdvancePercentage(BigDecimal advancePercentage) { this.advancePercentage = advancePercentage; }
+    public BigDecimal getAdvanceAmount() { return advanceAmount; }
+    public void setAdvanceAmount(BigDecimal advanceAmount) { this.advanceAmount = advanceAmount; }
     public AddressInput getShippingAddress() { return shippingAddress; }
     public void setShippingAddress(AddressInput shippingAddress) { this.shippingAddress = shippingAddress; }
     public AddressInput getBillingAddress() { return billingAddress; }
     public void setBillingAddress(AddressInput billingAddress) { this.billingAddress = billingAddress; }
     public List<ItemInput> getItems() { return items; }
     public void setItems(List<ItemInput> items) { this.items = items; }
+    public PrepaidPaymentInput getPrepaidPayment() { return prepaidPayment; }
+    public void setPrepaidPayment(PrepaidPaymentInput prepaidPayment) { this.prepaidPayment = prepaidPayment; }
+
+    public static class PrepaidPaymentInput {
+        private String paymentChannel;
+        private String transactionReference;
+        private Boolean markAsPaid;
+        private java.time.LocalDateTime paidAt;
+        private String notes;
+
+        public String getPaymentChannel() { return paymentChannel; }
+        public void setPaymentChannel(String paymentChannel) { this.paymentChannel = paymentChannel; }
+        public String getTransactionReference() { return transactionReference; }
+        public void setTransactionReference(String transactionReference) { this.transactionReference = transactionReference; }
+        public Boolean getMarkAsPaid() { return markAsPaid; }
+        public void setMarkAsPaid(Boolean markAsPaid) { this.markAsPaid = markAsPaid; }
+        public java.time.LocalDateTime getPaidAt() { return paidAt; }
+        public void setPaidAt(java.time.LocalDateTime paidAt) { this.paidAt = paidAt; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
+    }
 
     public static class ItemInput {
         private String productId;

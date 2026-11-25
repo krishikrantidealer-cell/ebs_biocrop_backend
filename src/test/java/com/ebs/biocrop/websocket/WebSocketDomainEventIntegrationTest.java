@@ -184,7 +184,7 @@ class WebSocketDomainEventIntegrationTest {
         updatedProduct.setId("product-1");
         ProductVariant updatedVariant = new ProductVariant();
         updatedVariant.setId("variant-1");
-        updatedVariant.setStock(12);
+        updatedVariant.setStock(12) ;
         updatedProduct.setVariants(List.of(updatedVariant));
         when(orderRepository.findById("ord-reserved")).thenReturn(Optional.of(existingOrder));
         when(mongoTemplate.findAndModify(any(Query.class), any(Update.class),

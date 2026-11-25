@@ -68,13 +68,14 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/admin/sales-agents/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/reviews/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/blogs/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/orders/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/collections/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**", "/api/v1/admin/technical-names/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/seller/technical-names/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers("/api/v1/admin/orders/**").hasAnyRole("ADMIN", "SALES_AGENT")
+                        .requestMatchers("/api/v1/admin/users/**").hasAnyRole("ADMIN", "SALES_AGENT")
+                        .requestMatchers("/api/v1/admin/collections/**").hasAnyRole("ADMIN", "SALES_AGENT")
+                        .requestMatchers("/api/v1/admin/categories/**", "/api/v1/admin/products/**", "/api/v1/admin/technical-names/**").hasAnyRole("ADMIN", "SALES_AGENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/seller/technical-names/**").hasAnyRole("SELLER", "ADMIN", "SALES_AGENT")
                         .requestMatchers(HttpMethod.POST, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/variant-labels/**").hasAnyRole("SELLER", "ADMIN")
@@ -88,11 +89,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/products/*/reviews").hasRole("CUSTOMER")
 
 
-                        .requestMatchers("/api/v1/auth/password/setup").hasAnyRole("ADMIN", "SELLER")
+                        .requestMatchers("/api/v1/auth/password/setup").hasAnyRole("ADMIN", "SELLER", "SALES_AGENT")
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",
                                 "/api/v1/collections/**",
+                                "/api/v1/banners",
+                                "/api/v1/banners/**",
                                 "/api/v1/technical-names/**",
                                 "/api/v1/variant-labels/**",
                                 "/api/v1/blogs",

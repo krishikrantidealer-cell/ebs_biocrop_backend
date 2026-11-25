@@ -62,6 +62,12 @@ public class Order {
     private Integer version;
     @Field(write = Field.Write.ALWAYS)
     private Boolean stockReserved = false;
+    @Field(write = Field.Write.ALWAYS)
+    private String orderSource;
+    @Field(write = Field.Write.ALWAYS)
+    private String createdByRole;
+    @Field(write = Field.Write.ALWAYS)
+    private String createdByName;
 
     public Order() {
         createdAt = LocalDateTime.now();
@@ -124,6 +130,12 @@ public class Order {
     public void setVersion(Integer version) { this.version = version; }
     public Boolean getStockReserved() { return stockReserved; }
     public void setStockReserved(Boolean stockReserved) { this.stockReserved = stockReserved == null ? false : stockReserved; }
+    public String getOrderSource() { return orderSource; }
+    public void setOrderSource(String orderSource) { this.orderSource = orderSource; }
+    public String getCreatedByRole() { return createdByRole; }
+    public void setCreatedByRole(String createdByRole) { this.createdByRole = createdByRole; }
+    public String getCreatedByName() { return createdByName; }
+    public void setCreatedByName(String createdByName) { this.createdByName = createdByName; }
 
     /** Temporary in-memory adapters for older lifecycle/response code; these are never persisted. */
     @org.springframework.data.annotation.Transient @com.fasterxml.jackson.annotation.JsonIgnore public String getOrderStatus() { return overallStatus; }

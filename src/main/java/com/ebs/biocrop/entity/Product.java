@@ -76,6 +76,7 @@ public class Product {
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
 
     @Version
     private Integer version;
@@ -149,3 +150,4 @@ public class Product {
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
 }
+ 

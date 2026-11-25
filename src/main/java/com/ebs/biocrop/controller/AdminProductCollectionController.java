@@ -44,7 +44,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/collections")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE')")
 @Tag(name = "Admin collections", description = "Admin-only merchandising collection management.")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminProductCollectionController {

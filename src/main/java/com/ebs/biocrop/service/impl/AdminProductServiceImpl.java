@@ -432,7 +432,8 @@ public class AdminProductServiceImpl implements AdminProductService {
             if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PREPAID) {
                 clean.setIsPrepaidAllowed(true);
                 clean.setIsPartialPaymentAllowed(false);
-            } else if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PARTIAL) {
+            } else if (input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.PARTIAL
+                    || input.getPaymentMethod() == com.ebs.biocrop.entity.enums.PaymentMethod.BOTH) {
                 clean.setIsPrepaidAllowed(true);
                 clean.setIsPartialPaymentAllowed(true);
             } else {

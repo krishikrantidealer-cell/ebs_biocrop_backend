@@ -33,7 +33,7 @@ import com.ebs.biocrop.exception.AppException;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE', 'ORDERS_CREATE')")
 @Tag(name = "Admin categories")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminCategoryController {
@@ -78,6 +78,7 @@ public class AdminCategoryController {
 
     // Create a new category
     @PostMapping
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @Operation(summary = "Create a category")
     public ResponseEntity<ApiResponse<AdminCategoryResponse>> createCategory(
             @AuthenticationPrincipal CustomUserDetails admin,
@@ -89,6 +90,7 @@ public class AdminCategoryController {
 
     // Update an existing category
     @PutMapping("/{categoryId}")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @Operation(summary = "Update a category")
     public ResponseEntity<ApiResponse<AdminCategoryResponse>> updateCategory(
             @AuthenticationPrincipal CustomUserDetails admin,
@@ -101,6 +103,7 @@ public class AdminCategoryController {
 
     // Permanently delete one or more categories (unified single & bulk endpoint)
     @DeleteMapping({"", "/permanent", "/{categoryId}", "/{categoryId}/permanent"})
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @Operation(summary = "Permanently delete one or more categories",
                description = "Delete a single category via path or body, or delete multiple categories via body with categoryIds. Cascades to nested child categories and detaches product assignments.")
     public ResponseEntity<ApiResponse<CountedListResponse<String>>> permanentlyDeleteCategories(

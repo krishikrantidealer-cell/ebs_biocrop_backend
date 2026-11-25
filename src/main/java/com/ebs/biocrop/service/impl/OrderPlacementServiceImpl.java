@@ -12,10 +12,14 @@ import com.ebs.biocrop.repository.CartRepository;
 import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
+import com.ebs.biocrop.service.DelhiveryOneService;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import com.ebs.biocrop.websocket.WebSocketService;
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -25,11 +29,14 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -42,8 +49,11 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final UserRepository users;
     private final OrderRepository orders;
     private final MongoTemplate mongoTemplate;
+    private static final Logger log = LoggerFactory.getLogger(OrderPlacementServiceImpl.class);
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
+    @Autowired(required = false)
+    private DelhiveryOneService delhiveryOneService;
 
     public OrderPlacementServiceImpl(CartRepository carts, ProductVariantLookup variantLookup,
                                      UserRepository users, OrderRepository orders,
@@ -196,8 +206,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             if (variant.getStock() == null || variant.getStock() < cartItem.getQuantity()) {
                 throw new AppException("Insufficient stock for product '" + product.getTitle() + "'", HttpStatus.CONFLICT);
             }
-            if (!adminOverride || request.getPaymentMethod() == PaymentMethod.PARTIAL) {
+            if (!adminOverride) {
                 validatePaymentOption(variant, request.getPaymentMethod(), paymentPercentage, product.getTitle());
+            } else if (request.getPaymentMethod() == PaymentMethod.PARTIAL
+                    && request.getAdvanceAmount() == null
+                    && (paymentPercentage.compareTo(BigDecimal.ZERO) <= 0 || paymentPercentage.compareTo(BigDecimal.valueOf(100)) >= 0)) {
+                throw new AppException("Partial advance percentage must be greater than 0% and less than 100%", HttpStatus.BAD_REQUEST);
             }
             BigDecimal unitPrice = price(variant.getEffectivePrice(), product.getTitle());
             BigDecimal listPrice = variant.getPrintedMrp() == null ? unitPrice : price(variant.getPrintedMrp(), product.getTitle());
@@ -220,10 +234,170 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         ObjectId generatedId = new ObjectId();
         String suffix = generatedId.toHexString().toUpperCase(Locale.ROOT);
         String checkoutGroupId = "CHK-" + suffix;
-        String orderNumber = sellers.size() == 1
-                ? buildReadableOrderNumber(sellers.values().iterator().next(), suffix)
-                : "ORD-" + suffix;
         LocalDateTime now = LocalDateTime.now();
+        OrderAddressSnapshot shipping = snapshot(request.getShippingAddress());
+        OrderAddressSnapshot billing = request.getBillingAddress() == null ? copyAddress(shipping) : snapshot(request.getBillingAddress());
+
+        List<Order> savedOrders = new ArrayList<>();
+        List<StockUpdate> allStockUpdates = new ArrayList<>();
+
+        if (adminOverride && sellerIds.size() > 1) {
+            Map<String, List<CartLine>> linesBySeller = new LinkedHashMap<>();
+            BigDecimal combinedOrderTotal = BigDecimal.ZERO;
+            for (CartLine line : lines) {
+                linesBySeller.computeIfAbsent(line.product().getSellerId(), k -> new ArrayList<>()).add(line);
+                combinedOrderTotal = combinedOrderTotal.add(line.lineTotal());
+            }
+            combinedOrderTotal = combinedOrderTotal.setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal totalAdvanceInput = null;
+            if (request.getPaymentMethod() == PaymentMethod.PARTIAL && request.getAdvanceAmount() != null) {
+                totalAdvanceInput = request.getAdvanceAmount().setScale(2, RoundingMode.HALF_UP);
+                if (totalAdvanceInput.signum() <= 0 || totalAdvanceInput.compareTo(combinedOrderTotal) >= 0) {
+                    throw new AppException("Partial advance amount must be greater than ₹0 and less than order subtotal (₹" + combinedOrderTotal.toPlainString() + ")", HttpStatus.BAD_REQUEST);
+                }
+            }
+
+            BigDecimal allocatedAdvance = BigDecimal.ZERO;
+            int sellerIdx = 0;
+            int totalSellers = linesBySeller.size();
+            for (Map.Entry<String, List<CartLine>> entry : linesBySeller.entrySet()) {
+                List<CartLine> sellerLines = entry.getValue();
+                BigDecimal sellerSubtotal = sellerLines.stream()
+                        .map(CartLine::lineTotal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .setScale(2, RoundingMode.HALF_UP);
+                BigDecimal sellerAdvance = null;
+                if (totalAdvanceInput != null) {
+                    if (sellerIdx == totalSellers - 1) {
+                        sellerAdvance = totalAdvanceInput.subtract(allocatedAdvance);
+                    } else if (combinedOrderTotal.signum() > 0) {
+                        sellerAdvance = totalAdvanceInput.multiply(sellerSubtotal)
+                                .divide(combinedOrderTotal, 2, RoundingMode.HALF_UP);
+                        if (sellerAdvance.compareTo(sellerSubtotal) >= 0 && sellerSubtotal.compareTo(BigDecimal.ONE) > 0) {
+                            sellerAdvance = sellerSubtotal.subtract(BigDecimal.ONE);
+                        }
+                    } else {
+                        sellerAdvance = BigDecimal.ZERO;
+                    }
+                    allocatedAdvance = allocatedAdvance.add(sellerAdvance);
+                }
+                String sellerKey = sellerIdx == 0 ? key : key + ":S" + sellerIdx;
+                String sellerSuffix = suffix + "-S" + (sellerIdx + 1);
+                String sellerCheckoutGroupId = "CHK-" + sellerSuffix;
+                OrderResult result = persistSingleOrder(
+                        customerId,
+                        customer,
+                        request,
+                        sellerKey,
+                        sellerCheckoutGroupId,
+                        sellerSuffix,
+                        now,
+                        shipping,
+                        billing,
+                        sellerLines,
+                        sellers,
+                        paymentPercentage,
+                        sellerAdvance,
+                        true,
+                        actorId);
+                savedOrders.add(result.order());
+                allStockUpdates.addAll(result.stockUpdates());
+                sellerIdx++;
+            }
+        } else {
+            BigDecimal explicitAdvance = adminOverride && request.getPaymentMethod() == PaymentMethod.PARTIAL
+                    ? request.getAdvanceAmount()
+                    : null;
+            OrderResult result = persistSingleOrder(
+                    customerId,
+                    customer,
+                    request,
+                    key,
+                    checkoutGroupId,
+                    suffix,
+                    now,
+                    shipping,
+                    billing,
+                    lines,
+                    sellers,
+                    paymentPercentage,
+                    explicitAdvance,
+                    adminOverride,
+                    actorId);
+            savedOrders.add(result.order());
+            allStockUpdates.addAll(result.stockUpdates());
+        }
+
+        if (cart != null) {
+            Cart removedCart = mongoTemplate.findAndRemove(Query.query(Criteria.where("_id").is(cart.getId())
+                    .and("version").is(cart.getVersion())), Cart.class);
+            if (removedCart == null) {
+                throw new AppException("Cart changed during checkout. Refresh the cart and retry.", HttpStatus.CONFLICT);
+            }
+        }
+        redisCache.invalidateRegionAfterCommit("public-products");
+        allStockUpdates.forEach(update -> webSocketService.broadcast("inventory:stock_update", Map.of(
+                "productId", update.productId(),
+                "variantId", update.variantId(),
+                "stock", update.stock())));
+        if (adminOverride && delhiveryOneService != null && delhiveryOneService.isConfigured()) {
+            List<Order> confirmedPanelOrders = savedOrders.stream()
+                    .filter(o -> OrderStatus.CONFIRMED.name().equalsIgnoreCase(o.getOverallStatus()))
+                    .toList();
+            if (!confirmedPanelOrders.isEmpty()) {
+                Runnable bookTask = () -> CompletableFuture.runAsync(() -> {
+                    for (Order o : confirmedPanelOrders) {
+                        try {
+                            delhiveryOneService.createShipmentAndLabel(
+                                    actorId != null ? actorId : "PANEL_AUTO", o.getId());
+                        } catch (Exception ex) {
+                            log.warn("[DELHIVERY] Auto-booking failed for panel order {}: {}",
+                                    o.getOrderNumber(), ex.getMessage());
+                        }
+                    }
+                });
+                if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            bookTask.run();
+                        }
+                    });
+                } else {
+                    bookTask.run();
+                }
+            }
+        }
+        return savedOrders.get(0);
+    }
+
+    private record OrderResult(Order order, List<StockUpdate> stockUpdates) {
+    }
+
+    private OrderResult persistSingleOrder(
+            String customerId,
+            User customer,
+            PlaceOrderRequest request,
+            String key,
+            String checkoutGroupId,
+            String suffix,
+            LocalDateTime now,
+            OrderAddressSnapshot shipping,
+            OrderAddressSnapshot billing,
+            List<CartLine> lines,
+            Map<String, User> sellers,
+            BigDecimal paymentPercentage,
+            BigDecimal explicitAdvanceAmount,
+            boolean adminOverride,
+            String actorId) {
+        Set<String> lineSellerIds = lines.stream()
+                .map(line -> line.product().getSellerId())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        String orderNumber = lineSellerIds.size() == 1
+                ? buildReadableOrderNumber(sellers.get(lineSellerIds.iterator().next()), suffix)
+                : "ORD-" + suffix;
+
         Order order = new Order();
         // Do NOT pre-assign the ID — let Spring Data MongoDB perform a true insert.
         // Pre-assigning @Id with @Version causes Spring to issue an update-with-version-check
@@ -231,10 +405,25 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         order.setOrderNumber(orderNumber);
         order.setCheckoutGroupId(checkoutGroupId);
         order.setIdempotencyKey(key);
+        if (adminOverride) {
+            User actorUser = actorId != null ? users.findById(actorId).orElse(null) : null;
+            boolean isSalesAgent = actorUser != null && actorUser.getRole() == UserRole.ROLE_SALES_AGENT;
+            order.setOrderSource(isSalesAgent ? "SALES_PANEL" : "ADMIN_PANEL");
+            order.setCreatedByRole(isSalesAgent ? UserRole.ROLE_SALES_AGENT.name() : UserRole.ROLE_ADMIN.name());
+            if (actorUser != null) {
+                String fullName = ((actorUser.getFirstName() == null ? "" : actorUser.getFirstName()) + " "
+                        + (actorUser.getLastName() == null ? "" : actorUser.getLastName())).trim();
+                order.setCreatedByName(!fullName.isEmpty() ? fullName : actorUser.getEmail());
+            } else {
+                order.setCreatedByName(actorId);
+            }
+        } else {
+            order.setOrderSource("WEBSITE");
+            order.setCreatedByRole(UserRole.ROLE_CUSTOMER.name());
+            order.setCreatedByName(customer.getFirstName());
+        }
         order.setCustomerId(customerId);
         order.setCustomerSnapshot(customerSnapshot(customer));
-        OrderAddressSnapshot shipping = snapshot(request.getShippingAddress());
-        OrderAddressSnapshot billing = request.getBillingAddress() == null ? copyAddress(shipping) : snapshot(request.getBillingAddress());
         order.setShippingAddress(shipping);
         order.setBillingAddress(billing);
 
@@ -256,26 +445,31 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             totalList = totalList.add(line.listTotal());
             totalDiscount = totalDiscount.add(line.discountTotal());
             orderTotal = orderTotal.add(line.lineTotal());
-            if (request.getPaymentMethod() != PaymentMethod.PREPAID && line.variant().getCodCharge() != null) {
-                totalCodCharges = totalCodCharges.add(BigDecimal.valueOf(line.variant().getCodCharge())
-                        .multiply(BigDecimal.valueOf(line.quantity())));
-            }
         }
         orderTotal = orderTotal.setScale(2, RoundingMode.HALF_UP);
         totalCodCharges = totalCodCharges.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal advanceTotal = orderTotal.multiply(paymentPercentage).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal advanceTotal;
+        BigDecimal effectivePct = paymentPercentage;
+        if (adminOverride && request.getPaymentMethod() == PaymentMethod.PARTIAL && explicitAdvanceAmount != null) {
+            advanceTotal = explicitAdvanceAmount.setScale(2, RoundingMode.HALF_UP);
+            if (advanceTotal.signum() <= 0 || advanceTotal.compareTo(orderTotal) >= 0) {
+                throw new AppException("Partial advance amount must be greater than ₹0 and less than order subtotal (₹" + orderTotal.toPlainString() + ")", HttpStatus.BAD_REQUEST);
+            }
+            effectivePct = orderTotal.signum() == 0
+                    ? BigDecimal.ZERO
+                    : advanceTotal.multiply(BigDecimal.valueOf(100)).divide(orderTotal, 2, RoundingMode.HALF_UP);
+        } else {
+            advanceTotal = orderTotal.multiply(effectivePct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
         BigDecimal allocated = BigDecimal.ZERO;
         for (int i = 0; i < items.size(); i++) {
             OrderItem item = items.get(i);
             BigDecimal itemAdvance = i == items.size() - 1
                     ? advanceTotal.subtract(allocated)
-                    : item.getLineTotal().multiply(paymentPercentage).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    : item.getLineTotal().multiply(effectivePct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             allocated = allocated.add(itemAdvance);
             item.setAdvanceAllocatedAtCheckout(itemAdvance);
-            BigDecimal itemCodCharge = request.getPaymentMethod() == PaymentMethod.PREPAID ? BigDecimal.ZERO
-                    : BigDecimal.valueOf(lines.get(i).variant().getCodCharge() == null ? 0.0 : lines.get(i).variant().getCodCharge())
-                    .multiply(BigDecimal.valueOf(item.getQuantity()));
-            item.setCodDueAtCheckout(item.getLineTotal().subtract(itemAdvance).add(itemCodCharge).setScale(2, RoundingMode.HALF_UP));
+            item.setCodDueAtCheckout(item.getLineTotal().subtract(itemAdvance).setScale(2, RoundingMode.HALF_UP));
         }
         order.setItems(items);
         order.setSellerFulfillments(new ArrayList<>(groups.values()));
@@ -305,7 +499,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             default -> "PREPAID";
         });
         payment.setStatus(PaymentStatus.CREATED.name());
-        payment.setAdvancePercentage(paymentPercentage);
+        payment.setAdvancePercentage(effectivePct);
         payment.setAdvanceAmountDue(advanceTotal);
         payment.setAdvanceAmountPaid(BigDecimal.ZERO);
         payment.setCodDue(orderTotal.subtract(advanceTotal).add(totalCodCharges));
@@ -313,24 +507,89 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         payment.setAmountPaid(BigDecimal.ZERO);
         payment.setRemainingAmount(orderTotal.subtract(advanceTotal).add(totalCodCharges));
         payment.setPaidPercentage(BigDecimal.ZERO);
-        payment.setRemainingPercentage(BigDecimal.valueOf(100).subtract(paymentPercentage));
+        payment.setRemainingPercentage(BigDecimal.valueOf(100).subtract(effectivePct));
         payment.setTransactions(new ArrayList<>());
         payment.setRefunds(new ArrayList<>());
-        order.setPayment(payment);
         boolean codOrder = request.getPaymentMethod() == PaymentMethod.COD;
-        order.setOverallStatus(codOrder ? OrderStatus.CONFIRMED.name() : OrderStatus.PENDING_PAYMENT.name());
+        boolean onlineOrPartial = request.getPaymentMethod() == PaymentMethod.PREPAID
+                || request.getPaymentMethod() == PaymentMethod.PARTIAL;
+        PlaceOrderRequest.PrepaidPaymentInput prepaidInput = adminOverride && onlineOrPartial
+                ? request.getPrepaidPayment()
+                : null;
+        boolean adminAdvanceCaptured = prepaidInput != null && !Boolean.FALSE.equals(prepaidInput.getMarkAsPaid());
+        if (prepaidInput != null) {
+            String channel = prepaidInput.getPaymentChannel() != null && !prepaidInput.getPaymentChannel().isBlank()
+                    ? prepaidInput.getPaymentChannel().trim().toUpperCase(Locale.ROOT)
+                    : "ADMIN_PREPAID";
+            String txRef = prepaidInput.getTransactionReference() != null ? prepaidInput.getTransactionReference().trim() : "";
+            payment.setProvider(channel);
+            if (!txRef.isEmpty()) {
+                payment.setProviderOrderId(txRef);
+            }
+            if (adminAdvanceCaptured) {
+                LocalDateTime paidAt = prepaidInput.getPaidAt() != null ? prepaidInput.getPaidAt() : now;
+                boolean isPartial = request.getPaymentMethod() == PaymentMethod.PARTIAL;
+                BigDecimal captured = isPartial ? advanceTotal : orderTotal;
+                BigDecimal remainingCod = isPartial
+                        ? orderTotal.subtract(advanceTotal).add(totalCodCharges).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+                BigDecimal paidPct = isPartial ? effectivePct : BigDecimal.valueOf(100);
+                BigDecimal remPct = BigDecimal.valueOf(100).subtract(paidPct);
+
+                payment.setStatus(PaymentStatus.CAPTURED.name());
+                payment.setAdvanceAmountPaid(captured);
+                payment.setAmountPaid(captured);
+                payment.setCodDue(remainingCod);
+                payment.setRemainingAmount(remainingCod);
+                payment.setPaidPercentage(paidPct);
+                payment.setRemainingPercentage(remPct);
+                summary.setOnlineAmountCaptured(captured);
+                summary.setNetOnlineAmountRetained(captured);
+                summary.setCodDue(remainingCod);
+
+                OrderPaymentTransaction txn = new OrderPaymentTransaction();
+                txn.setTransactionId(txRef.isEmpty() ? "ADMIN-" + (isPartial ? "ADV-" : "PREPAID-") + orderNumber : txRef);
+                txn.setType(isPartial ? "ADVANCE_CAPTURE" : "PREPAID_CAPTURE");
+                txn.setAmount(captured);
+                txn.setStatus(PaymentStatus.CAPTURED.name());
+                txn.setProvider(channel);
+                txn.setProviderPaymentId(txRef.isEmpty() ? orderNumber : txRef);
+                txn.setOccurredAt(paidAt);
+                payment.setTransactions(List.of(txn));
+            }
+        }
+        order.setPayment(payment);
+
+        boolean autoConfirmed = codOrder || adminAdvanceCaptured;
+        order.setOverallStatus(autoConfirmed ? OrderStatus.CONFIRMED.name() : OrderStatus.PENDING_PAYMENT.name());
         order.setCustomerDecisionWindows(new ArrayList<>());
         order.setPlacedAt(now);
         order.setCreatedAt(now);
         order.setUpdatedAt(now);
         order.setStockReserved(false);
         OrderStatusEvent initial = new OrderStatusEvent();
-        initial.setStatus(codOrder ? "ORDER_CREATED_COD" : "ORDER_CREATED");
+        initial.setStatus(codOrder
+                ? "ORDER_CREATED_COD"
+                : adminAdvanceCaptured
+                        ? (request.getPaymentMethod() == PaymentMethod.PARTIAL ? "ORDER_CREATED_PARTIAL" : "ORDER_CREATED_PREPAID")
+                        : "ORDER_CREATED");
         initial.setOccurredAt(now);
         initial.setActor(adminOverride ? actorId : "CUSTOMER");
-        initial.setNote(codOrder ? "Customer confirmed cash on delivery" : adminOverride ? "Order created by Admin for customer; awaiting online payment" : "Checkout order created after online payment verification");
+        String prepaidNote = prepaidInput != null && adminAdvanceCaptured
+                ? "Admin recorded " + (request.getPaymentMethod() == PaymentMethod.PARTIAL ? "partial advance" : "prepaid")
+                + " payment (" + payment.getProvider()
+                + (payment.getProviderOrderId() != null ? " • Ref: " + payment.getProviderOrderId() : "")
+                + (prepaidInput.getNotes() != null && !prepaidInput.getNotes().isBlank() ? " • " + prepaidInput.getNotes().trim() : "") + ")"
+                : null;
+        initial.setNote(codOrder
+                ? "Customer confirmed cash on delivery"
+                : prepaidNote != null
+                        ? prepaidNote
+                        : adminOverride
+                                ? "Order created by Admin for customer; awaiting online payment"
+                                : "Checkout order created after online payment verification");
         order.setStatusHistory(List.of(initial));
-        if (codOrder) {
+        if (autoConfirmed) {
             for (Order.SellerFulfillment fulfillment : order.getSellerFulfillments()) {
                 fulfillment.setStatus(OrderStatus.CONFIRMED.name());
                 fulfillment.setResponseDeadlineAt(now.plusHours(12));
@@ -343,39 +602,28 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             List<StockUpdate> stockUpdates = reserveStock(lines);
             saved.setStockReserved(true);
             saved = orders.save(saved);
-            if (cart != null) {
-                Cart removedCart = mongoTemplate.findAndRemove(Query.query(Criteria.where("_id").is(cart.getId())
-                        .and("version").is(cart.getVersion())), Cart.class);
-                if (removedCart == null) {
-                    throw new AppException("Cart changed during checkout. Refresh the cart and retry.", HttpStatus.CONFLICT);
-                }
-            }
-            redisCache.invalidateRegionAfterCommit("public-products");
-            stockUpdates.forEach(update -> webSocketService.broadcast("inventory:stock_update", Map.of(
-                    "productId", update.productId(),
-                    "variantId", update.variantId(),
-                    "stock", update.stock())));
             webSocketService.sendToUser(saved.getCustomerId(), "orders:new", Map.of(
                     "orderId", saved.getId(),
                     "orderNumber", saved.getOrderNumber(),
                     "checkoutGroupId", saved.getCheckoutGroupId(),
                     "overallStatus", saved.getOverallStatus()));
-            if (sellerIds != null) {
-                for (String sellerId : sellerIds) {
-                    webSocketService.sendToUser(sellerId, "orders:seller_new", Map.of(
-                            "orderId", saved.getId(),
-                            "orderNumber", saved.getOrderNumber(),
-                            "overallStatus", saved.getOverallStatus()));
-                }
+            for (String sellerId : lineSellerIds) {
+                webSocketService.sendToUser(sellerId, "orders:seller_new", Map.of(
+                        "orderId", saved.getId(),
+                        "orderNumber", saved.getOrderNumber(),
+                        "overallStatus", saved.getOverallStatus()));
             }
-            webSocketService.sendToRole("ROLE_ADMIN", "orders:new", Map.of(
+            Map<String, Object> adminPayload = Map.of(
                     "orderId", saved.getId(),
                     "orderNumber", saved.getOrderNumber(),
                     "customerId", saved.getCustomerId(),
-                    "overallStatus", saved.getOverallStatus()));
-            return saved;
+                    "overallStatus", saved.getOverallStatus());
+            webSocketService.sendToRole("ROLE_ADMIN", "orders:new", adminPayload);
+            webSocketService.sendToRole("ROLE_SALES_AGENT", "orders:new", adminPayload);
+            return new OrderResult(saved, stockUpdates);
         } catch (DuplicateKeyException duplicate) {
-            return orders.findByCustomerIdAndIdempotencyKey(customerId, key).orElseThrow(() -> duplicate);
+            Order existing = orders.findByCustomerIdAndIdempotencyKey(customerId, key).orElseThrow(() -> duplicate);
+            return new OrderResult(existing, List.of());
         }
     }
 
@@ -576,13 +824,20 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         String tradeName = seller != null ? seller.getShopName() : null;
         String initials = extractSellerInitials(tradeName);
         if (seller != null && seller.getId() != null) {
-            User updated = mongoTemplate.findAndModify(
-                    Query.query(Criteria.where("_id").is(seller.getId())),
-                    new Update().inc("orderNumberSequence", 1L),
-                    FindAndModifyOptions.options().returnNew(true),
-                    User.class);
-            if (updated != null && updated.getOrderNumberSequence() != null && updated.getOrderNumberSequence() > 0) {
-                return String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+            for (int attempt = 0; attempt < 25; attempt++) {
+                User updated = mongoTemplate.findAndModify(
+                        Query.query(Criteria.where("_id").is(seller.getId())),
+                        new Update().inc("orderNumberSequence", 1L),
+                        FindAndModifyOptions.options().returnNew(true),
+                        User.class);
+                if (updated != null && updated.getOrderNumberSequence() != null && updated.getOrderNumberSequence() > 0) {
+                    String candidate = String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+                    if (!mongoTemplate.exists(Query.query(Criteria.where("orderNumber").is(candidate)), Order.class)) {
+                        return candidate;
+                    }
+                } else {
+                    break;
+                }
             }
         }
         return "ORD-" + fallbackSuffix;

@@ -293,7 +293,6 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
     }
 
     @Override
-    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> processOrderWebhook(Map<String, Object> payload) {
         if (!isConfigured()) {
             throw new AppException("Order webhook integration is not configured; no order was accepted",
@@ -424,7 +423,22 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         String payMethodUpper = rawMethod != null ? rawMethod.toUpperCase(Locale.ROOT) : "";
         String payModeUpper = rawMode != null ? rawMode.toUpperCase(Locale.ROOT) : "";
         Object isCodFlag = payload.get("is_cod") != null ? payload.get("is_cod") : payload.get("cod");
-        boolean isCod = Boolean.TRUE.equals(isCodFlag)
+        BigDecimal fastrrAdvanceAmount = parseDecimal(firstNonBlank(
+                asString(payload.get("advance_amount")),
+                asString(payload.get("partial_amount")),
+                asString(payload.get("prepaid_amount")),
+                asString(paymentDetailsMap.get("advance_amount"))));
+        BigDecimal fastrrCodAmount = parseDecimal(firstNonBlank(
+                asString(payload.get("cod_amount")),
+                asString(payload.get("collectable_amount")),
+                asString(paymentDetailsMap.get("cod_amount"))));
+        boolean isPartial = payUpper.contains("PARTIAL")
+                || payMethodUpper.contains("PARTIAL")
+                || payModeUpper.contains("PARTIAL")
+                || payStatusUpper.contains("PARTIAL")
+                || (fastrrAdvanceAmount != null && fastrrAdvanceAmount.signum() > 0
+                        && fastrrCodAmount != null && fastrrCodAmount.signum() > 0);
+        boolean isCod = !isPartial && (Boolean.TRUE.equals(isCodFlag)
                 || "true".equalsIgnoreCase(asString(isCodFlag))
                 || "1".equals(asString(isCodFlag))
                 || payUpper.contains("COD")
@@ -436,9 +450,9 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 || payModeUpper.contains("CASH")
                 || payStatusUpper.contains("COD")
                 || "PENDING".equals(payStatusUpper)
-                || "UNPAID".equals(payStatusUpper);
-        log.info("[FASTRR-WEBHOOK] Payment resolved for {}: keys={}, raw='{}', status='{}', method='{}', is_cod={}, isCod={}",
-                fastrrOrderId, payload.keySet(), paymentTypeRaw, payStatusUpper, payMethodUpper, isCodFlag, isCod);
+                || "UNPAID".equals(payStatusUpper));
+        log.info("[FASTRR-WEBHOOK] Payment resolved for {}: keys={}, raw='{}', status='{}', method='{}', is_cod={}, isPartial={}, isCod={}",
+                fastrrOrderId, payload.keySet(), paymentTypeRaw, payStatusUpper, payMethodUpper, isCodFlag, isPartial, isCod);
 
         // Group incoming Fastrr cart items by seller so each seller gets an independent Order + tracking.
         record ResolvedCartEntry(Product product, ProductVariant variant, int quantity, Map<String, Object> rawItem) {}
@@ -472,6 +486,9 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             order.setOrderNumber(orderNumber);
             order.setCheckoutGroupId(checkoutGroupId);
             order.setIdempotencyKey(sellerIdempotencyKey);
+            order.setOrderSource("WEBSITE");
+            order.setCreatedByRole("ROLE_CUSTOMER");
+            order.setCreatedByName(customerName);
             if (matchedCustomer != null) {
                 order.setCustomerId(matchedCustomer.getId());
             }
@@ -571,14 +588,32 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             Order.FinancialSummary summary = new Order.FinancialSummary();
             summary.setGrossMerchandiseValue(totalList.setScale(2, RoundingMode.HALF_UP));
             summary.setDiscountTotal(totalDiscount.setScale(2, RoundingMode.HALF_UP));
-            summary.setOriginalOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
-            summary.setCurrentOrderTotal(orderTotal.setScale(2, RoundingMode.HALF_UP));
-            if (isCod) {
+            BigDecimal scaledOrderTotal = orderTotal.setScale(2, RoundingMode.HALF_UP);
+            summary.setOriginalOrderTotal(scaledOrderTotal);
+            summary.setCurrentOrderTotal(scaledOrderTotal);
+            BigDecimal partialAdvance = BigDecimal.ZERO;
+            BigDecimal partialCodDue = BigDecimal.ZERO;
+            BigDecimal partialPct = new BigDecimal("10.00");
+            if (isPartial) {
+                if (!multiSeller && fastrrAdvanceAmount != null && fastrrAdvanceAmount.signum() > 0
+                        && fastrrAdvanceAmount.compareTo(scaledOrderTotal) < 0) {
+                    partialAdvance = fastrrAdvanceAmount.setScale(2, RoundingMode.HALF_UP);
+                    partialPct = scaledOrderTotal.signum() == 0 ? BigDecimal.ZERO
+                            : partialAdvance.multiply(BigDecimal.valueOf(100)).divide(scaledOrderTotal, 2, RoundingMode.HALF_UP);
+                } else {
+                    partialAdvance = scaledOrderTotal.multiply(partialPct).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                }
+                partialCodDue = scaledOrderTotal.subtract(partialAdvance).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+                summary.setAdvanceAmountDue(partialAdvance);
+                summary.setOnlineAmountCaptured(partialAdvance);
+                summary.setNetOnlineAmountRetained(partialAdvance);
+                summary.setCodDue(partialCodDue);
+            } else if (isCod) {
                 summary.setOnlineAmountCaptured(BigDecimal.ZERO);
-                summary.setCodDue(orderTotal.setScale(2, RoundingMode.HALF_UP));
+                summary.setCodDue(scaledOrderTotal);
             } else {
-                summary.setOnlineAmountCaptured(orderTotal.setScale(2, RoundingMode.HALF_UP));
-                summary.setNetOnlineAmountRetained(orderTotal.setScale(2, RoundingMode.HALF_UP));
+                summary.setOnlineAmountCaptured(scaledOrderTotal);
+                summary.setNetOnlineAmountRetained(scaledOrderTotal);
                 summary.setCodDue(BigDecimal.ZERO);
             }
             order.setFinancialSummary(summary);
@@ -586,11 +621,16 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             OrderPaymentDetails payment = new OrderPaymentDetails();
             payment.setProvider("FASTRR");
             payment.setProviderOrderId(fastrrOrderId);
-            payment.setPaymentType(isCod ? PaymentMethod.COD.name() : PaymentMethod.PREPAID.name());
+            payment.setPaymentType(isPartial ? "PARTIAL_ADVANCE_COD" : (isCod ? PaymentMethod.COD.name() : PaymentMethod.PREPAID.name()));
             payment.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
-            payment.setAmountPaid(isCod ? BigDecimal.ZERO : orderTotal.setScale(2, RoundingMode.HALF_UP));
-            payment.setCodDue(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
-            payment.setRemainingAmount(isCod ? orderTotal.setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            payment.setAdvancePercentage(isPartial ? partialPct : (isCod ? BigDecimal.ZERO : new BigDecimal("100.00")));
+            payment.setAdvanceAmountDue(isPartial ? partialAdvance : (isCod ? BigDecimal.ZERO : scaledOrderTotal));
+            payment.setAdvanceAmountPaid(isPartial ? partialAdvance : (isCod ? BigDecimal.ZERO : scaledOrderTotal));
+            payment.setAmountPaid(isPartial ? partialAdvance : (isCod ? BigDecimal.ZERO : scaledOrderTotal));
+            payment.setCodDue(isPartial ? partialCodDue : (isCod ? scaledOrderTotal : BigDecimal.ZERO));
+            payment.setRemainingAmount(isPartial ? partialCodDue : (isCod ? scaledOrderTotal : BigDecimal.ZERO));
+            payment.setPaidPercentage(isPartial ? partialPct : (isCod ? BigDecimal.ZERO : new BigDecimal("100.00")));
+            payment.setRemainingPercentage(isPartial ? new BigDecimal("100.00").subtract(partialPct) : (isCod ? new BigDecimal("100.00") : BigDecimal.ZERO));
 
             OrderPaymentTransaction txn = new OrderPaymentTransaction();
             String baseTxnId = firstNonBlank(
@@ -598,8 +638,8 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                     asString(payload.get("transaction_id")),
                     "FASTRR-TXN-" + fastrrOrderId);
             txn.setTransactionId(multiSeller ? baseTxnId + "-S" + sellerIdx : baseTxnId);
-            txn.setType(isCod ? "COD_ORDER" : "CAPTURE");
-            txn.setAmount(orderTotal.setScale(2, RoundingMode.HALF_UP));
+            txn.setType(isPartial ? "ADVANCE_CAPTURE" : (isCod ? "COD_ORDER" : "CAPTURE"));
+            txn.setAmount(isPartial ? partialAdvance : scaledOrderTotal);
             txn.setStatus(isCod ? PaymentStatus.CREATED.name() : PaymentStatus.CAPTURED.name());
             txn.setProvider("FASTRR");
             txn.setProviderPaymentId(fastrrOrderId);
@@ -642,6 +682,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                         "orderNumber", saved.getOrderNumber(),
                         "status", saved.getOverallStatus());
                 webSocketService.sendToRole("ADMIN", "orders:created", wsPayload);
+                webSocketService.sendToRole("SALES_AGENT", "orders:created", wsPayload);
                 if (saved.getCustomerId() != null && !saved.getCustomerId().isBlank()) {
                     webSocketService.sendToUser(saved.getCustomerId(), "orders:created", wsPayload);
                 }
@@ -707,13 +748,22 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
         String initials = extractSellerInitials(tradeName);
 
         if (!"PLATFORM".equals(sellerKey)) {
-            User updated = mongoTemplate.findAndModify(
-                    Query.query(Criteria.where("_id").is(sellerKey)),
-                    new Update().inc("orderNumberSequence", 1L),
-                    FindAndModifyOptions.options().returnNew(true),
-                    User.class);
-            if (updated != null && updated.getOrderNumberSequence() != null && updated.getOrderNumberSequence() > 0) {
-                return String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+            for (int attempt = 0; attempt < 25; attempt++) {
+                User updated = mongoTemplate.findAndModify(
+                        Query.query(Criteria.where("_id").is(sellerKey)),
+                        new Update().inc("orderNumberSequence", 1L),
+                        FindAndModifyOptions.options().returnNew(true),
+                        User.class);
+                if (updated == null || updated.getOrderNumberSequence() == null || updated.getOrderNumberSequence() <= 0) {
+                    break;
+                }
+                String candidate = String.format(Locale.ROOT, "%s-%04d", initials, updated.getOrderNumberSequence());
+                boolean taken = mongoTemplate.exists(
+                        Query.query(Criteria.where("orderNumber").is(candidate)),
+                        Order.class);
+                if (!taken) {
+                    return candidate;
+                }
             }
         }
 

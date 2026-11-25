@@ -8,8 +8,10 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Document(collection = "users")
 public class User {
@@ -68,6 +70,7 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer tokenVersion = 0;
+    private Set<String> permissions = new LinkedHashSet<>();
 
     @Version
     private Integer version;
@@ -93,6 +96,15 @@ public class User {
             this.commissionPercentage = 0.0;
             this.isVerified = null;
             this.whatsappSequence = null;
+        } else if (this.role == UserRole.ROLE_SALES_AGENT) {
+            if (status == null || status.isBlank()) status = "ACTIVE";
+            if (isBlocked == null) isBlocked = false;
+            if (isDeleted == null) isDeleted = false;
+            isVerified = true;
+            isProfileComplete = true;
+            whatsappSequence = null;
+            productCodeSequence = null;
+            orderNumberSequence = null;
         } else if (this.role == UserRole.ROLE_ADMIN) {
             this.isVerified = null;
             this.isProfileComplete = true;
@@ -207,6 +219,15 @@ public class User {
             if (isBlocked == null) isBlocked = false;
             if (isDeleted == null) isDeleted = false;
             whatsappSequence = null;
+        } else if (this.role == UserRole.ROLE_SALES_AGENT) {
+            if (status == null || status.isBlank()) status = "ACTIVE";
+            if (isBlocked == null) isBlocked = false;
+            if (isDeleted == null) isDeleted = false;
+            isVerified = true;
+            isProfileComplete = true;
+            whatsappSequence = null;
+            productCodeSequence = null;
+            orderNumberSequence = null;
         } else if (this.role == UserRole.ROLE_ADMIN) {
             status = null;
             isVerified = null;
@@ -313,4 +334,9 @@ public class User {
     public Integer getTokenVersion() { return tokenVersion == null ? 0 : tokenVersion; }
     public void setTokenVersion(Integer tokenVersion) { this.tokenVersion = tokenVersion == null ? 0 : tokenVersion; }
     public void incrementTokenVersion() { this.tokenVersion = getTokenVersion() + 1; }
+
+    public Set<String> getPermissions() { return permissions == null ? Set.of() : permissions; }
+    public void setPermissions(Set<String> permissions) {
+        this.permissions = permissions == null ? new LinkedHashSet<>() : new LinkedHashSet<>(permissions);
+    }
 }

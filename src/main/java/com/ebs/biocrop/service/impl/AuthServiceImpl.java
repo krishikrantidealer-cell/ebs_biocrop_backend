@@ -252,8 +252,16 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtTokenProvider.generateAccessToken(identifier, user.getId(), roleName, ver);
         String refreshToken = jwtTokenProvider.generateRefreshToken(identifier, user.getId(), ver);
         log.info("Account authenticated with role [{}]", roleName);
-        return new AuthResponse(accessToken, refreshToken, jwtTokenProvider.getExpirationMs(), user.getId(),
+        AuthResponse response = new AuthResponse(accessToken, refreshToken, jwtTokenProvider.getExpirationMs(), user.getId(),
                 user.getPhoneNumber(), roleName, Boolean.TRUE.equals(user.getIsProfileComplete()));
+        response.setEmail(user.getEmail());
+        String fullName = ((user.getFirstName() != null ? user.getFirstName().trim() : "") + " "
+                + (user.getLastName() != null ? user.getLastName().trim() : "")).trim();
+        response.setFullName(fullName.isEmpty() ? user.getEmail() : fullName);
+        if (user.getPermissions() != null) {
+            response.setPermissions(user.getPermissions());
+        }
+        return response;
     }
 
     private java.util.Optional<User> findByIdentifier(String identifier) {
@@ -267,7 +275,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private boolean isPrivileged(User user) {
-        return user.getRole() == UserRole.ROLE_ADMIN || user.getRole() == UserRole.ROLE_SELLER;
+        return user.getRole() == UserRole.ROLE_ADMIN
+                || user.getRole() == UserRole.ROLE_SELLER
+                || user.getRole() == UserRole.ROLE_SALES_AGENT;
     }
 
     private void ensurePrivilegedLoginAllowed(User user) {

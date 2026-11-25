@@ -35,7 +35,7 @@ import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/admin/orders")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@permissionGuard.hasAny(authentication, 'ORDERS_VIEW', 'ORDERS_CREATE', 'ORDERS_MANAGE')")
 @Tag(name = "Admin orders")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminOrderController {

@@ -29,7 +29,10 @@ public record OrderResponse(
         LocalDateTime cancelledAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        Integer version) {
+        Integer version,
+        String orderSource,
+        String createdByRole,
+        String createdByName) {
 
     public static OrderResponse forCustomer(Order order) { return build(order, null, false); }
     public static OrderResponse forAdmin(Order order) { return build(order, null, true); }
@@ -59,6 +62,7 @@ public record OrderResponse(
             limited.setEmail(null);
             customerSnapshot = limited;
         }
+        String resolvedSource = resolveOrderSource(order);
         return new OrderResponse(order.getId(), admin ? order.getSchemaVersion() : null,
                 order.getOrderNumber(), order.getCheckoutGroupId(),
                 admin ? order.getIdempotencyKey() : null, admin ? order.getCustomerId() : null,
@@ -67,7 +71,26 @@ public record OrderResponse(
                 sellerId == null ? order.getPayment() : null,
                 sellerId == null ? order.getCustomerDecisionWindows() : List.of(), order.getOverallStatus(),
                 history, order.getPlacedAt(), admin ? order.getCancelledAt() : null, order.getCreatedAt(),
-                order.getUpdatedAt(), admin ? order.getVersion() : null);
+                order.getUpdatedAt(), admin ? order.getVersion() : null,
+                resolvedSource, order.getCreatedByRole(), order.getCreatedByName());
+    }
+
+    private static String resolveOrderSource(Order order) {
+        if (order.getOrderSource() != null && !order.getOrderSource().isBlank()) {
+            return order.getOrderSource();
+        }
+        if (order.getPayment() != null && "FASTRR".equalsIgnoreCase(order.getPayment().getProvider())) {
+            return "WEBSITE";
+        }
+        if (order.getStatusHistory() != null && !order.getStatusHistory().isEmpty()) {
+            OrderStatusEvent first = order.getStatusHistory().get(0);
+            String note = first.getNote() == null ? "" : first.getNote();
+            String actor = first.getActor() == null ? "" : first.getActor();
+            if (note.contains("Admin") || (!actor.isBlank() && !"CUSTOMER".equalsIgnoreCase(actor) && !"SYSTEM".equalsIgnoreCase(actor))) {
+                return "ADMIN_PANEL";
+            }
+        }
+        return "WEBSITE";
     }
 
     private static boolean sellerCanSeeEvent(OrderStatusEvent event, String sellerId, java.util.Set<String> itemIds) {
