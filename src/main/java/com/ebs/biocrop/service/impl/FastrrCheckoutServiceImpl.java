@@ -484,10 +484,13 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
             String sellerIdempotencyKey = multiSeller
                     ? idempotencyKey + ":S" + sellerIdx
                     : idempotencyKey;
+            String sellerCheckoutGroupId = multiSeller
+                    ? checkoutGroupId + "-S" + sellerIdx
+                    : checkoutGroupId;
 
             Order order = new Order();
             order.setOrderNumber(orderNumber);
-            order.setCheckoutGroupId(checkoutGroupId);
+            order.setCheckoutGroupId(sellerCheckoutGroupId);
             order.setIdempotencyKey(sellerIdempotencyKey);
             order.setOrderSource("WEBSITE");
             order.setCreatedByRole("ROLE_CUSTOMER");
@@ -670,6 +673,7 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
                 Order concurrent = mongoTemplate.findOne(
                         Query.query(new Criteria().orOperator(
                                 Criteria.where("idempotencyKey").is(sellerIdempotencyKey),
+                                Criteria.where("checkoutGroupId").is(sellerCheckoutGroupId),
                                 Criteria.where("orderNumber").is(orderNumber))),
                         Order.class);
                 if (concurrent != null) {

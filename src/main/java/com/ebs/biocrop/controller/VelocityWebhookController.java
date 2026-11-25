@@ -31,24 +31,42 @@ public class VelocityWebhookController {
     @PostMapping("/tracking")
     @Operation(summary = "Velocity Shipping Tracking & AWB Webhook")
     public ResponseEntity<Map<String, Object>> handleTrackingWebhook(
-            @RequestHeader(name = "X-Velocity-Token", required = false) String velocityToken,
-            @RequestHeader(name = "X-Webhook-Token", required = false) String webhookToken,
-            @RequestHeader(name = "Authorization", required = false) String authHeader,
+            @RequestHeader Map<String, String> headers,
             @RequestBody(required = false) Map<String, Object> payload) {
-        String token = (velocityToken != null && !velocityToken.isBlank())
-                ? velocityToken
-                : ((webhookToken != null && !webhookToken.isBlank()) ? webhookToken : authHeader);
+        String token = firstNonBlank(
+                headerIgnoreCase(headers, "X-Velocity-Token"),
+                headerIgnoreCase(headers, "X-API-Key"),
+                headerIgnoreCase(headers, "Api-Key"),
+                headerIgnoreCase(headers, "X-Webhook-Token"),
+                headerIgnoreCase(headers, "Authorization"));
         try {
             Map<String, Object> result = new LinkedHashMap<>(velocityService.processTrackingWebhook(payload, token));
             result.put("timestamp", Instant.now().toString());
             return ResponseEntity.ok(result);
         } catch (AppException ex) {
-            log.warn("[VELOCITY-WEBHOOK] Rejected ({}): {}", ex.getStatus().value(), ex.getMessage());
+            log.warn("[VELOCITY-WEBHOOK] Rejected ({}): {} | headerKeys={}", ex.getStatus().value(), ex.getMessage(), headers.keySet());
             return ResponseEntity.status(ex.getStatus()).body(Map.of(
                     "status", "ERROR",
                     "message", ex.getMessage(),
                     "timestamp", Instant.now().toString()
             ));
         }
+    }
+
+    private static String headerIgnoreCase(Map<String, String> headers, String name) {
+        if (headers == null) return null;
+        for (Map.Entry<String, String> e : headers.entrySet()) {
+            if (e.getKey() != null && e.getKey().equalsIgnoreCase(name) && e.getValue() != null && !e.getValue().isBlank()) {
+                return e.getValue().trim();
+            }
+        }
+        return null;
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v;
+        }
+        return null;
     }
 }
