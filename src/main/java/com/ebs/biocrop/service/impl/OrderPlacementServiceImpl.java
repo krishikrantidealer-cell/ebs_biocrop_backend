@@ -13,6 +13,7 @@ import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
 import com.ebs.biocrop.service.DelhiveryOneService;
+import com.ebs.biocrop.service.VelocityService;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.RedisJsonCache;
 import com.ebs.biocrop.websocket.WebSocketService;
@@ -54,6 +55,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final WebSocketService webSocketService;
     @Autowired(required = false)
     private DelhiveryOneService delhiveryOneService;
+
+    @Autowired(required = false)
+    private VelocityService velocityService;
 
     public OrderPlacementServiceImpl(CartRepository carts, ProductVariantLookup variantLookup,
                                      UserRepository users, OrderRepository orders,
@@ -341,7 +345,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 "productId", update.productId(),
                 "variantId", update.variantId(),
                 "stock", update.stock())));
-        if (adminOverride && delhiveryOneService != null && delhiveryOneService.isConfigured()) {
+        if (velocityService != null && velocityService.isConfigured()) {
+            velocityService.pushPendingOrdersAsync(savedOrders);
+        } else if (adminOverride && delhiveryOneService != null && delhiveryOneService.isConfigured()) {
             List<Order> confirmedPanelOrders = savedOrders.stream()
                     .filter(o -> OrderStatus.CONFIRMED.name().equalsIgnoreCase(o.getOverallStatus()))
                     .toList();

@@ -72,6 +72,9 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
     @Autowired(required = false)
     private RedisJsonCache redisCache;
 
+    @Autowired(required = false)
+    private com.ebs.biocrop.service.VelocityService velocityService;
+
     @Value("${app.fastrr.enabled:true}")
     private boolean enabled;
 
@@ -699,6 +702,9 @@ public class FastrrCheckoutServiceImpl implements FastrrCheckoutService {
 
         if (redisCache != null) {
             redisCache.invalidateRegion("public-products");
+        }
+        if (velocityService != null && velocityService.isConfigured()) {
+            velocityService.pushPendingOrdersAsync(savedOrders);
         }
 
         Order primary = savedOrders.getFirst();
