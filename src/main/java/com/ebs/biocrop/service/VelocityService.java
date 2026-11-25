@@ -4,9 +4,11 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.entity.OrderAddressSnapshot;
 import com.ebs.biocrop.entity.OrderItem;
 import com.ebs.biocrop.entity.OrderStatusEvent;
+import com.ebs.biocrop.entity.Product;
 import com.ebs.biocrop.entity.enums.OrderStatus;
 import com.ebs.biocrop.entity.enums.ShipmentStatus;
 import com.ebs.biocrop.exception.AppException;
+import com.ebs.biocrop.exception.ResourceNotFoundException;
 import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.websocket.WebSocketService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -83,8 +86,125 @@ public class VelocityService {
                 .build();
     }
 
+    public record LabelDownloadResult(
+            String orderId,
+            String orderNumber,
+            String waybill,
+            String labelUrl,
+            String overallStatus,
+            boolean transitionedToPacked,
+            byte[] pdfBytes
+    ) {}
+
     public boolean isConfigured() {
         return enabled && hasText(apiToken);
+    }
+
+    /** Confirms a pending order and pushes it into Velocity's Pending AWB queue. */
+    public Order confirmOrder(String actorId, String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (OrderStatus.CANCELLED.name().equalsIgnoreCase(order.getOverallStatus())) {
+            throw new AppException("Cannot confirm a cancelled order", HttpStatus.CONFLICT);
+        }
+        order.setOverallStatus(OrderStatus.CONFIRMED.name());
+        for (Order.SellerFulfillment sf : order.getSellerFulfillments()) {
+            sf.setStatus(OrderStatus.CONFIRMED.name());
+            if (sf.getAcceptedAt() == null) sf.setAcceptedAt(LocalDateTime.now());
+        }
+        OrderStatusEvent evt = new OrderStatusEvent();
+        evt.setStatus(OrderStatus.CONFIRMED.name());
+        evt.setOccurredAt(LocalDateTime.now());
+        evt.setActor(hasText(actorId) ? actorId : "ADMIN");
+        evt.setNote("Order confirmed for Velocity Shipping");
+        order.getStatusHistory().add(evt);
+        order.setUpdatedAt(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        broadcastOrderUpdate(saved, "ORDER_CONFIRMED");
+        return isConfigured() ? pushPendingOrder(saved) : saved;
+    }
+
+    /** Explicitly pushes an order to Velocity's Pending AWB queue from Admin/Seller panel. */
+    public Order pushOrderToVelocity(String actorId, String orderId) {
+        if (!isConfigured()) {
+            throw new AppException("Velocity Shipping is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (OrderStatus.CANCELLED.name().equalsIgnoreCase(order.getOverallStatus())) {
+            throw new AppException("Cannot push a cancelled order to Velocity", HttpStatus.CONFLICT);
+        }
+        return pushPendingOrder(order);
+    }
+
+    /** Marks order PACKED and returns stored Velocity label URL / AWB details if available. */
+    public LabelDownloadResult getLabelInfoAndMarkPacked(String actorId, String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        Order.SellerFulfillment sf = ensurePrimaryFulfillment(order);
+        Order.Shipment shipment = ensurePrimaryShipment(sf);
+        boolean transitioned = false;
+        if (!OrderStatus.PACKED.name().equalsIgnoreCase(order.getOverallStatus())
+                && !OrderStatus.DISPATCHED.name().equalsIgnoreCase(order.getOverallStatus())
+                && !OrderStatus.DELIVERED.name().equalsIgnoreCase(order.getOverallStatus())) {
+            order.setOverallStatus(OrderStatus.PACKED.name());
+            sf.setStatus(OrderStatus.PACKED.name());
+            transitioned = true;
+        }
+        shipment.setLabelDownloadedAt(LocalDateTime.now());
+        shipment.setLabelDownloadedBy(hasText(actorId) ? actorId : "ADMIN");
+        order.setUpdatedAt(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        if (transitioned) {
+            broadcastOrderUpdate(saved, "ORDER_PACKED");
+        }
+        return new LabelDownloadResult(
+                saved.getId(),
+                saved.getOrderNumber(),
+                shipment.getTrackingNumber(),
+                shipment.getLabelReference(),
+                saved.getOverallStatus(),
+                transitioned,
+                null
+        );
+    }
+
+    /** Returns latest persisted order tracking state (synced live via Velocity webhooks). */
+    public Order syncTrackingForOrder(String orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+    }
+
+    /** Verifies RTO return receipt and restocks returned quantities into product variant inventory. */
+    public Order restockRtoOrder(String actorId, String orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        Order.SellerFulfillment sf = ensurePrimaryFulfillment(order);
+        Order.Shipment shipment = ensurePrimaryShipment(sf);
+        if (Boolean.TRUE.equals(shipment.getRtoRestocked())) {
+            return order;
+        }
+        for (OrderItem item : order.getItems()) {
+            if (hasText(item.getProductId()) && hasText(item.getVariantId()) && item.getQuantity() != null && item.getQuantity() > 0) {
+                Query q = Query.query(Criteria.where("_id").is(item.getProductId())
+                        .and("variants.variantId").is(item.getVariantId()));
+                mongoTemplate.updateFirst(q, new Update().inc("variants.$.stock", item.getQuantity()), Product.class);
+            }
+        }
+        shipment.setRtoRestocked(true);
+        shipment.setRtoRestockedAt(LocalDateTime.now());
+        order.setOverallStatus(OrderStatus.RTO_DELIVERED.name());
+        sf.setStatus(OrderStatus.RTO_DELIVERED.name());
+        OrderStatusEvent evt = new OrderStatusEvent();
+        evt.setStatus(OrderStatus.RTO_DELIVERED.name());
+        evt.setOccurredAt(LocalDateTime.now());
+        evt.setActor(hasText(actorId) ? actorId : "ADMIN");
+        evt.setNote("RTO return received and inventory restocked");
+        order.getStatusHistory().add(evt);
+        order.setUpdatedAt(LocalDateTime.now());
+        Order saved = orderRepository.save(order);
+        broadcastOrderUpdate(saved, "RTO_RESTOCKED");
+        return saved;
     }
 
     /** Schedules asynchronous push of confirmed orders after any active transaction commits. */

@@ -108,7 +108,6 @@ public class SecurityConfig {
                                 "/api/v1/auth/**",
                                 "/api/v1/fastrr/**",
                                 "/api/v1/carrier/tracking/webhook",
-                                "/api/v1/webhooks/delhivery/tracking",
                                 "/api/v1/webhooks/velocity/tracking",
                                 "/api/v1/shiprocket/**",
                                 "/v3/api-docs/**",

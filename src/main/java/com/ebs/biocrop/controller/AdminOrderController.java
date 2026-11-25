@@ -8,7 +8,7 @@ import com.ebs.biocrop.dto.response.PagedResponse;
 import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.OrderQueryService;
-import com.ebs.biocrop.service.DelhiveryOneService;
+import com.ebs.biocrop.service.VelocityService;
 import com.ebs.biocrop.service.OrderLifecycleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.ebs.biocrop.service.RateLimitGuard;
@@ -43,7 +43,7 @@ public class AdminOrderController {
     private final OrderQueryService orderQueries;
     private final OrderLifecycleService orderLifecycle;
     private final RateLimitGuard rateLimitGuard;
-    private final DelhiveryOneService delhiveryOneService;
+    private final VelocityService velocityService;
 
     public AdminOrderController(OrderPlacementService orderPlacement, OrderQueryService orderQueries,
                                 OrderLifecycleService orderLifecycle,
@@ -55,12 +55,12 @@ public class AdminOrderController {
     public AdminOrderController(OrderPlacementService orderPlacement, OrderQueryService orderQueries,
                                 OrderLifecycleService orderLifecycle,
                                 RateLimitGuard rateLimitGuard,
-                                @Autowired(required = false) DelhiveryOneService delhiveryOneService) {
+                                @Autowired(required = false) VelocityService velocityService) {
         this.orderPlacement = orderPlacement;
         this.orderQueries = orderQueries;
         this.orderLifecycle = orderLifecycle;
         this.rateLimitGuard = rateLimitGuard;
-        this.delhiveryOneService = delhiveryOneService;
+        this.velocityService = velocityService;
     }
 
     // List all orders by sellerID or without sellerID for admin with pagination
@@ -106,31 +106,31 @@ public class AdminOrderController {
     }
 
     @PostMapping("/{orderId}/confirm")
-    @Operation(summary = "Confirm a PENDING order so it is ready for Delhivery One shipment booking")
+    @Operation(summary = "Confirm a PENDING order and push it to Velocity Shipping Pending AWB queue")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String orderId) {
         rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Order confirmed",
-                OrderResponse.forAdmin(delhiveryOneService.confirmOrder(admin.getId(), orderId))));
+                OrderResponse.forAdmin(velocityService.confirmOrder(admin.getId(), orderId))));
     }
 
-    @PostMapping("/{orderId}/shipment/delhivery")
-    @Operation(summary = "Book Delhivery One shipment (AWB) and store shipping label in backend")
-    public ResponseEntity<ApiResponse<OrderResponse>> createDelhiveryShipment(
+    @PostMapping("/{orderId}/shipment/velocity")
+    @Operation(summary = "Push order to Velocity Shipping Pending AWB queue")
+    public ResponseEntity<ApiResponse<OrderResponse>> pushVelocityShipment(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String orderId) {
         rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Delhivery One shipment & label created",
-                OrderResponse.forAdmin(delhiveryOneService.createShipmentAndLabel(admin.getId(), orderId))));
+        return ResponseEntity.ok(ApiResponse.ok("Order synced to Velocity Shipping Pending AWB queue",
+                OrderResponse.forAdmin(velocityService.pushOrderToVelocity(admin.getId(), orderId))));
     }
 
     @GetMapping("/{orderId}/label")
-    @Operation(summary = "Download stored Delhivery One shipping label and automatically mark order PACKED")
+    @Operation(summary = "Get Velocity shipping label details and automatically mark order PACKED")
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> downloadOrderLabel(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String orderId) {
-        DelhiveryOneService.LabelDownloadResult res = delhiveryOneService.downloadLabelAndMarkPacked(admin.getId(), orderId);
+        VelocityService.LabelDownloadResult res = velocityService.getLabelInfoAndMarkPacked(admin.getId(), orderId);
         java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("orderId", res.orderId());
         body.put("orderNumber", res.orderNumber());
@@ -145,13 +145,13 @@ public class AdminOrderController {
     }
 
     @PostMapping("/{orderId}/sync-tracking")
-    @Operation(summary = "Refresh live tracking & RTO status from Delhivery One")
-    public ResponseEntity<ApiResponse<OrderResponse>> syncDelhiveryTracking(
+    @Operation(summary = "Refresh live tracking & RTO status for Velocity shipment")
+    public ResponseEntity<ApiResponse<OrderResponse>> syncVelocityTracking(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable String orderId) {
         rateLimitGuard.enforce("admin-order-write", admin.getId(), 30, Duration.ofMinutes(1));
-        return ResponseEntity.ok(ApiResponse.ok("Tracking synced from Delhivery One",
-                OrderResponse.forAdmin(delhiveryOneService.syncTrackingForOrder(orderId))));
+        return ResponseEntity.ok(ApiResponse.ok("Tracking synced from Velocity Shipping",
+                OrderResponse.forAdmin(velocityService.syncTrackingForOrder(orderId))));
     }
 
     @PostMapping("/{orderId}/rto/restock")
@@ -161,7 +161,7 @@ public class AdminOrderController {
             @PathVariable String orderId) {
         rateLimitGuard.enforce("admin-order-write", admin.getId(), 20, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("RTO inventory restocked",
-                OrderResponse.forAdmin(delhiveryOneService.restockRtoOrder(admin.getId(), orderId))));
+                OrderResponse.forAdmin(velocityService.restockRtoOrder(admin.getId(), orderId))));
     }
 
     // Create one checkout order for a customer from their cart.

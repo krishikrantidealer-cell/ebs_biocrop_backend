@@ -12,7 +12,6 @@ import com.ebs.biocrop.repository.CartRepository;
 import com.ebs.biocrop.repository.OrderRepository;
 import com.ebs.biocrop.repository.ProductVariantLookup;
 import com.ebs.biocrop.repository.UserRepository;
-import com.ebs.biocrop.service.DelhiveryOneService;
 import com.ebs.biocrop.service.VelocityService;
 import com.ebs.biocrop.service.OrderPlacementService;
 import com.ebs.biocrop.service.RedisJsonCache;
@@ -53,9 +52,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private static final Logger log = LoggerFactory.getLogger(OrderPlacementServiceImpl.class);
     private final RedisJsonCache redisCache;
     private final WebSocketService webSocketService;
-    @Autowired(required = false)
-    private DelhiveryOneService delhiveryOneService;
-
     @Autowired(required = false)
     private VelocityService velocityService;
 
@@ -347,33 +343,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 "stock", update.stock())));
         if (velocityService != null && velocityService.isConfigured()) {
             velocityService.pushPendingOrdersAsync(savedOrders);
-        } else if (adminOverride && delhiveryOneService != null && delhiveryOneService.isConfigured()) {
-            List<Order> confirmedPanelOrders = savedOrders.stream()
-                    .filter(o -> OrderStatus.CONFIRMED.name().equalsIgnoreCase(o.getOverallStatus()))
-                    .toList();
-            if (!confirmedPanelOrders.isEmpty()) {
-                Runnable bookTask = () -> CompletableFuture.runAsync(() -> {
-                    for (Order o : confirmedPanelOrders) {
-                        try {
-                            delhiveryOneService.createShipmentAndLabel(
-                                    actorId != null ? actorId : "PANEL_AUTO", o.getId());
-                        } catch (Exception ex) {
-                            log.warn("[DELHIVERY] Auto-booking failed for panel order {}: {}",
-                                    o.getOrderNumber(), ex.getMessage());
-                        }
-                    }
-                });
-                if (TransactionSynchronizationManager.isActualTransactionActive()) {
-                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            bookTask.run();
-                        }
-                    });
-                } else {
-                    bookTask.run();
-                }
-            }
         }
         return savedOrders.get(0);
     }

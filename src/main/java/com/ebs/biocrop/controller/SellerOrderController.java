@@ -7,7 +7,7 @@ import com.ebs.biocrop.entity.Order;
 import com.ebs.biocrop.dto.response.OrderResponse;
 import com.ebs.biocrop.exception.AppException;
 import com.ebs.biocrop.security.user.CustomUserDetails;
-import com.ebs.biocrop.service.DelhiveryOneService;
+import com.ebs.biocrop.service.VelocityService;
 import com.ebs.biocrop.service.OrderQueryService;
 import com.ebs.biocrop.service.OrderLifecycleService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SellerOrderController {
     private final OrderQueryService orderQueries;
     private final OrderLifecycleService orderLifecycle;
-    private final DelhiveryOneService delhiveryOneService;
+    private final VelocityService velocityService;
 
     public SellerOrderController(OrderQueryService orderQueries, OrderLifecycleService orderLifecycle) {
         this(orderQueries, orderLifecycle, null);
@@ -45,10 +45,10 @@ public class SellerOrderController {
     public SellerOrderController(
             OrderQueryService orderQueries,
             OrderLifecycleService orderLifecycle,
-            @Autowired(required = false) DelhiveryOneService delhiveryOneService) {
+            @Autowired(required = false) VelocityService velocityService) {
         this.orderQueries = orderQueries;
         this.orderLifecycle = orderLifecycle;
-        this.delhiveryOneService = delhiveryOneService;
+        this.velocityService = velocityService;
     }
 
     // List the authenticated seller's orders.
@@ -100,19 +100,19 @@ public class SellerOrderController {
     }
 
     @PostMapping({"/{orderId}/fulfillments/{fulfillmentId}/shipment", "/{orderId}/fulfillments/{fulfillmentId}/shipments"})
-    @Operation(summary = "Book a Delhivery One shipment & label for this seller's order")
+    @Operation(summary = "Push this seller's order to Velocity Shipping Pending AWB queue")
     public ResponseEntity<ApiResponse<OrderResponse>> bookFulfillmentShipment(
             @AuthenticationPrincipal CustomUserDetails seller,
             @PathVariable String orderId,
             @PathVariable String fulfillmentId,
             @RequestBody(required = false) ShipmentBookingRequest request) {
         orderQueries.getForSeller(seller.getId(), orderId);
-        if (delhiveryOneService == null) {
-            throw new AppException("Delhivery One fulfillment service is unavailable",
+        if (velocityService == null) {
+            throw new AppException("Velocity Shipping service is unavailable",
                     org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE);
         }
-        Order updated = delhiveryOneService.createShipmentAndLabel(seller.getId(), orderId);
-        return ResponseEntity.ok(ApiResponse.ok("Shipment booked successfully in Delhivery One",
+        Order updated = velocityService.pushOrderToVelocity(seller.getId(), orderId);
+        return ResponseEntity.ok(ApiResponse.ok("Order synced to Velocity Shipping Pending AWB queue",
                 OrderResponse.forSeller(updated, seller.getId())));
     }
 

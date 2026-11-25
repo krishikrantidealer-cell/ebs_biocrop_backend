@@ -1,8 +1,7 @@
 package com.ebs.biocrop.entity.enums;
 
 /**
- * Delhivery B2C-aligned shipment lifecycle statuses.
- * Reference: https://one.delhivery.com/developer-portal/documents/b2c/
+ * Shipment lifecycle statuses synced via Velocity Shipping webhooks.
  */
 public enum ShipmentStatus {
     PENDING,
