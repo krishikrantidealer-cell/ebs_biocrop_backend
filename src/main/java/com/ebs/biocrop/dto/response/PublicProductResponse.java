@@ -5,6 +5,7 @@ import com.ebs.biocrop.entity.ProductVariant;
 import com.ebs.biocrop.service.GcsImageStorageService;
 
 import java.util.List;
+import java.util.Map;
 
 /** Shopper-facing product projection; excludes internal state and cost price. */
 public record PublicProductResponse(
@@ -25,6 +26,9 @@ public record PublicProductResponse(
         List<String> assignedCollections,
         Boolean isAvailable,
         Boolean isFeatured,
+        Integer displayOrder,
+        Map<String, Integer> categorySortOrders,
+        Map<String, Integer> collectionSortOrders,
         Boolean isMarketplace,
         List<PublicVariant> variants,
         Double averageRating,
@@ -59,6 +63,9 @@ public record PublicProductResponse(
                 product.getSubCategoryIds() == null ? List.of() : List.copyOf(product.getSubCategoryIds()),
                 product.getAssignedCollections(),
                 product.getIsAvailable(), product.getIsFeatured(),
+                product.getDisplayOrder(),
+                product.getCategorySortOrders(),
+                product.getCollectionSortOrders(),
                 product.getIsMarketplace() == null ? Boolean.TRUE : product.getIsMarketplace(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(PublicVariant::from).toList(),
                 product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,

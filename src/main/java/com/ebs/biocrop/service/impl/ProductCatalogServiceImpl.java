@@ -19,7 +19,9 @@ import java.util.Set;
 @Service
 public class ProductCatalogServiceImpl implements ProductCatalogService {
     private static final int MAX_SEARCH_LENGTH = 100;
-    private static final Sort PRODUCT_ORDER = Sort.by(Sort.Direction.ASC, "title");
+    private static final Sort PRODUCT_ORDER = Sort.by(Sort.Direction.ASC, "displayOrder")
+            .and(Sort.by(Sort.Direction.DESC, "isFeatured"))
+            .and(Sort.by(Sort.Direction.ASC, "title"));
 
     private final ProductRepository products;
     private final CategoryRepository categories;

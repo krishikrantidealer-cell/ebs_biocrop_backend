@@ -11,13 +11,16 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Product content schema based on the approved product fields. Seller offers are variants. */
 @Document(collection = "products")
 @CompoundIndexes({
         @CompoundIndex(name = "product_category_status_idx", def = "{ 'categoryId': 1, 'status': 1 }"),
-        @CompoundIndex(name = "product_seller_updated_idx", def = "{ 'sellerId': 1, 'updatedAt': 1 }")
+        @CompoundIndex(name = "product_seller_updated_idx", def = "{ 'sellerId': 1, 'updatedAt': 1 }"),
+        @CompoundIndex(name = "product_display_order_idx", def = "{ 'status': 1, 'isDeleted': 1, 'displayOrder': 1, 'title': 1 }")
 })
 public class Product {
 
@@ -55,6 +58,12 @@ public class Product {
     private Boolean isAvailable;
     @Field(write = Field.Write.ALWAYS)
     private Boolean isFeatured;
+    @Field(write = Field.Write.ALWAYS)
+    private Integer displayOrder = 999999;
+    @Field(write = Field.Write.ALWAYS)
+    private Map<String, Integer> categorySortOrders = new HashMap<>();
+    @Field(write = Field.Write.ALWAYS)
+    private Map<String, Integer> collectionSortOrders = new HashMap<>();
     private Boolean isMarketplace = Boolean.TRUE;
     private List<ProductVariant> variants = new ArrayList<>();
     @Field(write = Field.Write.ALWAYS)
@@ -121,6 +130,22 @@ public class Product {
     public void setIsAvailable(Boolean available) { isAvailable = available; }
     public Boolean getIsFeatured() { return isFeatured; }
     public void setIsFeatured(Boolean featured) { isFeatured = featured; }
+    public Integer getDisplayOrder() { return displayOrder == null ? 999999 : displayOrder; }
+    public void setDisplayOrder(Integer displayOrder) { this.displayOrder = displayOrder == null ? 999999 : displayOrder; }
+    public Map<String, Integer> getCategorySortOrders() {
+        if (categorySortOrders == null) categorySortOrders = new HashMap<>();
+        return categorySortOrders;
+    }
+    public void setCategorySortOrders(Map<String, Integer> categorySortOrders) {
+        this.categorySortOrders = categorySortOrders != null ? categorySortOrders : new HashMap<>();
+    }
+    public Map<String, Integer> getCollectionSortOrders() {
+        if (collectionSortOrders == null) collectionSortOrders = new HashMap<>();
+        return collectionSortOrders;
+    }
+    public void setCollectionSortOrders(Map<String, Integer> collectionSortOrders) {
+        this.collectionSortOrders = collectionSortOrders != null ? collectionSortOrders : new HashMap<>();
+    }
     public Boolean getIsMarketplace() { return isMarketplace; }
     public void setIsMarketplace(Boolean marketplace) { isMarketplace = marketplace; }
     public List<ProductVariant> getVariants() { return variants; }

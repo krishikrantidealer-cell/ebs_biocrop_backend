@@ -61,6 +61,15 @@ public class AdminProductController {
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.data.mongodb.core.MongoTemplate mongoTemplate;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.RedisJsonCache redisCache;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.websocket.WebSocketService webSocketService;
+
     @org.springframework.beans.factory.annotation.Autowired
     public AdminProductController(AdminProductService products, RateLimitGuard rateLimitGuard,
                                   SellerShopNameLookup sellerNames,
@@ -388,6 +397,78 @@ public class AdminProductController {
         List<MultipartFile> images = request.getFiles("images");
         if (images != null) candidate.addAll(images);
         return candidate.stream().filter(file -> file != null && !file.isEmpty()).toList();
+    }
+
+    public record ProductReorderRequest(
+            List<String> orderedIds,
+            String categoryId,
+            String collectionKey
+    ) {}
+
+    @PutMapping("/reorder")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
+    @Operation(summary = "Atomically reorder products globally, by category, or by collection")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reorderProducts(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @RequestBody ProductReorderRequest req) {
+        rateLimitGuard.enforce("admin-product-write", admin.getId(), 60, Duration.ofMinutes(1));
+        if (req == null || req.orderedIds() == null || req.orderedIds().isEmpty()) {
+            throw new AppException("orderedIds is required", HttpStatus.BAD_REQUEST);
+        }
+        if (mongoTemplate == null) {
+            throw new AppException("MongoTemplate unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+
+        // Ensure legacy documents without displayOrder sort after curated items
+        mongoTemplate.updateMulti(
+                org.springframework.data.mongodb.core.query.Query.query(
+                        org.springframework.data.mongodb.core.query.Criteria.where("displayOrder").is(null)),
+                new org.springframework.data.mongodb.core.query.Update().set("displayOrder", 999999),
+                Product.class);
+
+        String fieldPath;
+        String scope;
+        if (req.categoryId() != null && !req.categoryId().isBlank()) {
+            fieldPath = "categorySortOrders." + req.categoryId().trim();
+            scope = "category:" + req.categoryId().trim();
+        } else if (req.collectionKey() != null && !req.collectionKey().isBlank()) {
+            fieldPath = "collectionSortOrders." + req.collectionKey().trim();
+            scope = "collection:" + req.collectionKey().trim();
+        } else {
+            fieldPath = "displayOrder";
+            scope = "global";
+        }
+
+        org.springframework.data.mongodb.core.BulkOperations bulkOps =
+                mongoTemplate.bulkOps(org.springframework.data.mongodb.core.BulkOperations.BulkMode.UNORDERED, Product.class);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        Set<String> seen = new java.util.LinkedHashSet<>();
+        int pos = 1;
+        for (String id : req.orderedIds()) {
+            if (id == null || id.isBlank() || !seen.add(id.trim())) continue;
+            bulkOps.updateOne(
+                    org.springframework.data.mongodb.core.query.Query.query(
+                            org.springframework.data.mongodb.core.query.Criteria.where("_id").is(id.trim())),
+                    new org.springframework.data.mongodb.core.query.Update()
+                            .set(fieldPath, pos++)
+                            .set("updatedAt", now));
+        }
+
+        if (!seen.isEmpty()) {
+            bulkOps.execute();
+        }
+        if (redisCache != null) {
+            redisCache.invalidateRegionAfterCommit("public-products");
+        }
+        if (webSocketService != null) {
+            webSocketService.broadcast("products:reordered", Map.of(
+                    "scope", scope,
+                    "count", seen.size(),
+                    "timestamp", java.time.Instant.now().toString()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Products reordered successfully", Map.of(
+                "scope", scope,
+                "updatedCount", seen.size())));
     }
 
     private ProductManagementResponse managementResponse(Product product) {

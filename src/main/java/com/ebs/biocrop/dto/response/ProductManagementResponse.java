@@ -8,6 +8,7 @@ import com.ebs.biocrop.service.GcsImageStorageService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** Management projection for admin and seller clients; omits persistence version metadata. */
 public record ProductManagementResponse(
@@ -16,7 +17,9 @@ public record ProductManagementResponse(
         List<ManagementProductImage> productImages, String categoryId,
         List<String> subCategoryIds,
         List<String> assignedCollections,
-        Boolean isAvailable, Boolean isFeatured, Boolean isMarketplace, List<ManagementVariant> variants,
+        Boolean isAvailable, Boolean isFeatured, Integer displayOrder,
+        Map<String, Integer> categorySortOrders, Map<String, Integer> collectionSortOrders,
+        Boolean isMarketplace, List<ManagementVariant> variants,
         Double averageRating, Long totalReviews, String refundPolicy, Double productWeight, String productWeightUnit,
         String status, Boolean isDeleted, LocalDateTime deletedAt, LocalDateTime createdAt, LocalDateTime updatedAt,
         Integer version) {
@@ -38,6 +41,7 @@ public record ProductManagementResponse(
                 product.getSubCategoryIds() == null ? List.of() : List.copyOf(product.getSubCategoryIds()),
                 product.getAssignedCollections(),
                 product.getIsAvailable(), product.getIsFeatured(),
+                product.getDisplayOrder(), product.getCategorySortOrders(), product.getCollectionSortOrders(),
                 product.getIsMarketplace() == null ? Boolean.TRUE : product.getIsMarketplace(),
                 product.getVariants() == null ? List.of() : product.getVariants().stream().map(ManagementVariant::from).toList(),
                 product.getAverageRating(), product.getTotalReviews() != null ? product.getTotalReviews() : 0L,

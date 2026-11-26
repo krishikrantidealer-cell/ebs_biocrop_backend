@@ -99,7 +99,8 @@ public class AdminProductServiceImpl implements AdminProductService {
         if (normalized != null && !ALLOWED_STATUSES.contains(normalized)) {
             throw new AppException("Unsupported product status filter", HttpStatus.BAD_REQUEST);
         }
-        Pageable pageable = PageRequestSupport.create(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        Pageable pageable = PageRequestSupport.create(page, size,
+                Sort.by(Sort.Direction.ASC, "displayOrder").and(Sort.by(Sort.Direction.DESC, "updatedAt")));
         List<Criteria> filters = new ArrayList<>();
         if (deleted != null) filters.add(Criteria.where("isDeleted").is(deleted));
         else filters.add(new Criteria().orOperator(Criteria.where("isDeleted").is(false), Criteria.where("isDeleted").exists(false), Criteria.where("isDeleted").is(null)));
