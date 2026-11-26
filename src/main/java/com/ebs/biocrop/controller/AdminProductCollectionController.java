@@ -51,6 +51,15 @@ public class AdminProductCollectionController {
     private final ProductCollectionService collections;
     private final RateLimitGuard rateLimitGuard;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.repository.ProductCollectionRepository collectionRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.service.RedisJsonCache redisCache;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.ebs.biocrop.websocket.WebSocketService webSocketService;
+
     public AdminProductCollectionController(ProductCollectionService collections, RateLimitGuard rateLimitGuard) {
         this.collections = collections;
         this.rateLimitGuard = rateLimitGuard;
@@ -165,6 +174,57 @@ public class AdminProductCollectionController {
             @PathVariable String subCollectionId) {
         rateLimitGuard.enforce("admin-collection-image", admin.getId(), 30, Duration.ofMinutes(1));
         return ResponseEntity.ok(ApiResponse.ok("Subcollection image deleted", collections.deleteSubCollectionImage(collectionId, subCollectionId)));
+    }
+
+    public record SubCollectionReorderRequest(List<String> orderedIds) {}
+
+    @PutMapping("/{collectionId}/subcollections/reorder")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
+    @Operation(summary = "Reorder sub-collections within a collection and broadcast live update")
+    public ResponseEntity<ApiResponse<CollectionResponse>> reorderSubCollections(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable String collectionId,
+            @RequestBody SubCollectionReorderRequest req) {
+        rateLimitGuard.enforce("admin-collection-write", admin.getId(), 30, Duration.ofMinutes(1));
+        if (req == null || req.orderedIds() == null || req.orderedIds().isEmpty()) {
+            throw new AppException("orderedIds is required", HttpStatus.BAD_REQUEST);
+        }
+        if (collectionRepository == null) {
+            throw new AppException("Collection repository unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        com.ebs.biocrop.entity.ProductCollection col = collectionRepository.findById(collectionId)
+                .orElseThrow(() -> new com.ebs.biocrop.exception.ResourceNotFoundException("Collection", "id", collectionId));
+
+        List<com.ebs.biocrop.entity.ProductCollection.SubCollection> existing = col.getSubCollections();
+        java.util.Map<String, com.ebs.biocrop.entity.ProductCollection.SubCollection> byId = new java.util.LinkedHashMap<>();
+        for (var sub : existing) {
+            if (sub.getId() != null) byId.put(sub.getId().toHexString(), sub);
+        }
+        List<com.ebs.biocrop.entity.ProductCollection.SubCollection> reordered = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String id : req.orderedIds()) {
+            if (id == null || !seen.add(id.trim())) continue;
+            var sub = byId.get(id.trim());
+            if (sub != null) reordered.add(sub);
+        }
+        for (var sub : existing) {
+            String sid = sub.getId() != null ? sub.getId().toHexString() : null;
+            if (sid == null || !seen.contains(sid)) reordered.add(sub);
+        }
+        col.setSubCollections(reordered);
+        col.setUpdatedAt(java.time.Instant.now());
+        collectionRepository.save(col);
+
+        if (redisCache != null) {
+            redisCache.invalidateRegionAfterCommit("public-collections");
+        }
+        if (webSocketService != null) {
+            webSocketService.broadcast("collections:updated", java.util.Map.of(
+                    "collectionId", collectionId,
+                    "action", "SUBCOLLECTIONS_REORDERED",
+                    "timestamp", java.time.Instant.now().toString()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Sub-collections reordered", collections.getAdminById(collectionId)));
     }
 
     // Upload a general image for collections (e.g. while creating)
