@@ -51,6 +51,8 @@ public class HeroBannerController {
             Boolean active
     ) {}
 
+    public record BannerReorderRequest(List<String> orderedIds) {}
+
     @GetMapping("/api/v1/banners")
     @Operation(summary = "List active hero banners for the storefront")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listPublicBanners() {
@@ -93,6 +95,51 @@ public class HeroBannerController {
         broadcastBannerChange("CREATED", saved.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Hero banner created", toDto(saved)));
+    }
+
+    @PutMapping("/api/v1/admin/banners/reorder")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Atomically reorder hero banners and broadcast live update")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> reorderBanners(
+            @RequestBody BannerReorderRequest req) {
+        if (req == null || req.orderedIds() == null || req.orderedIds().isEmpty()) {
+            throw new AppException("orderedIds is required", HttpStatus.BAD_REQUEST);
+        }
+        List<HeroBanner> all = bannerRepository.findAll();
+        Map<String, HeroBanner> byId = new LinkedHashMap<>();
+        for (HeroBanner b : all) {
+            byId.put(b.getId(), b);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<HeroBanner> ordered = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        int pos = 1;
+        for (String id : req.orderedIds()) {
+            if (id == null || !seen.add(id)) continue;
+            HeroBanner b = byId.get(id);
+            if (b != null) {
+                b.setSortOrder(pos++);
+                b.setUpdatedAt(now);
+                ordered.add(b);
+            }
+        }
+        all.stream()
+                .filter(b -> !seen.contains(b.getId()))
+                .sorted(Comparator
+                        .comparing(HeroBanner::getSortOrder, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(HeroBanner::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .forEach(b -> {
+                    b.setSortOrder(ordered.size() + 1);
+                    b.setUpdatedAt(now);
+                    ordered.add(b);
+                });
+
+        List<HeroBanner> saved = bannerRepository.saveAll(ordered);
+        saved.sort(Comparator.comparing(HeroBanner::getSortOrder, Comparator.nullsLast(Integer::compareTo)));
+        broadcastBannerChange("REORDERED", "bulk");
+        return ResponseEntity.ok(ApiResponse.ok("Hero banners reordered", saved.stream().map(this::toDto).toList()));
     }
 
     @PutMapping("/api/v1/admin/banners/{bannerId}")
