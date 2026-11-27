@@ -28,6 +28,7 @@ public class Category {
     @Field("displayOrder")
     private Integer sortOrder = 0;
     private Boolean isActive = true;
+    private Boolean isFeatured = false;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -57,6 +58,8 @@ public class Category {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean active) { isActive = active; }
+    public Boolean getIsFeatured() { return isFeatured; }
+    public void setIsFeatured(Boolean featured) { isFeatured = featured; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

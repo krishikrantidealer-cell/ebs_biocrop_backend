@@ -303,6 +303,9 @@ public class CategoryServiceImpl implements CategoryService {
         candidate.setIsActive(request.getIsActive() == null
                 ? current == null || !Boolean.FALSE.equals(current.getIsActive())
                 : request.getIsActive());
+        candidate.setIsFeatured(request.getIsFeatured() == null
+                ? (current != null && Boolean.TRUE.equals(current.getIsFeatured()))
+                : request.getIsFeatured());
         candidate.setBannerImage(request.getBannerImage() == null
                 ? current == null ? null : current.getBannerImage() : request.getBannerImage());
         candidate.setCataloguePdf(request.getCataloguePdf() == null
