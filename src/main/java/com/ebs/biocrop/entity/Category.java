@@ -29,6 +29,7 @@ public class Category {
     private Integer sortOrder = 0;
     private Boolean isActive = true;
     private Boolean isFeatured = false;
+    private Boolean showOnHome = false;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -60,6 +61,8 @@ public class Category {
     public void setIsActive(Boolean active) { isActive = active; }
     public Boolean getIsFeatured() { return isFeatured; }
     public void setIsFeatured(Boolean featured) { isFeatured = featured; }
+    public Boolean getShowOnHome() { return showOnHome; }
+    public void setShowOnHome(Boolean showOnHome) { this.showOnHome = showOnHome; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

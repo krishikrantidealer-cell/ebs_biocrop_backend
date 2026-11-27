@@ -20,6 +20,7 @@ public class CategoryWriteRequest {
 
     private Boolean isActive;
     private Boolean isFeatured;
+    private Boolean showOnHome;
 
     @Size(max = 2048, message = "Banner image URL must be at most 2048 characters")
     private String bannerImage;
@@ -42,6 +43,8 @@ public class CategoryWriteRequest {
     public void setIsActive(Boolean active) { isActive = active; }
     public Boolean getIsFeatured() { return isFeatured; }
     public void setIsFeatured(Boolean featured) { isFeatured = featured; }
+    public Boolean getShowOnHome() { return showOnHome; }
+    public void setShowOnHome(Boolean showOnHome) { this.showOnHome = showOnHome; }
     public String getBannerImage() { return bannerImage; }
     public void setBannerImage(String bannerImage) { this.bannerImage = bannerImage; }
     public String getCataloguePdf() { return cataloguePdf; }

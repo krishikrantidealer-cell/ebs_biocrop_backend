@@ -6,7 +6,7 @@ import java.time.Instant;
 
 /** Full persisted category projection for admin endpoints, including the storage reference. */
 public record AdminCategoryResponse(String id, String name, String slug, String parentId, Integer level,
-        Integer sortOrder, Boolean isActive, Boolean isFeatured, String iconUrl, String bannerImage, String cataloguePdf,
+        Integer sortOrder, Boolean isActive, Boolean isFeatured, Boolean showOnHome, String iconUrl, String bannerImage, String cataloguePdf,
         String categoryImageUri, String categoryImageUrl, String bannerTitle,
         Instant createdAt, Instant updatedAt) {
     public static AdminCategoryResponse from(Category category, GcsImageStorageService imageStorage) {
@@ -14,7 +14,7 @@ public record AdminCategoryResponse(String id, String name, String slug, String 
                 : imageStorage.createCategoryImageReadUrl(category.getId(), category.getCategoryImageUri());
         return new AdminCategoryResponse(category.getId(), category.getName(), category.getSlug(),
                 category.getParentId(), category.getLevel(), category.getSortOrder(), category.getIsActive(),
-                Boolean.TRUE.equals(category.getIsFeatured()),
+                Boolean.TRUE.equals(category.getIsFeatured()), Boolean.TRUE.equals(category.getShowOnHome()),
                 category.getIconUrl(), category.getBannerImage(), category.getCataloguePdf(), category.getCategoryImageUri(), readUrl,
                 category.getBannerTitle(), category.getCreatedAt(), category.getUpdatedAt());
     }

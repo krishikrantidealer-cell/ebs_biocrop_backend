@@ -6,7 +6,7 @@ import com.ebs.biocrop.service.GcsImageStorageService;
 import java.time.Instant;
 
 public record CategoryResponse(String id, String name, String slug, String parentId, Integer level,
-                              Integer sortOrder, Boolean isActive, Boolean isFeatured, String iconUrl, String bannerImage, String cataloguePdf,
+                              Integer sortOrder, Boolean isActive, Boolean isFeatured, Boolean showOnHome, String iconUrl, String bannerImage, String cataloguePdf,
                               String categoryImageUrl, String bannerTitle,
                               Instant createdAt, Instant updatedAt) {
     public static CategoryResponse from(Category category) {
@@ -18,7 +18,7 @@ public record CategoryResponse(String id, String name, String slug, String paren
                 : imageStorage.createCategoryImageReadUrl(category.getId(), category.getCategoryImageUri());
         return new CategoryResponse(category.getId(), category.getName(), category.getSlug(),
                 category.getParentId(), category.getLevel(), category.getSortOrder(),
-                category.getIsActive(), Boolean.TRUE.equals(category.getIsFeatured()), category.getIconUrl(), category.getBannerImage(), category.getCataloguePdf(),
+                category.getIsActive(), Boolean.TRUE.equals(category.getIsFeatured()), Boolean.TRUE.equals(category.getShowOnHome()), category.getIconUrl(), category.getBannerImage(), category.getCataloguePdf(),
                 categoryImageUrl, category.getBannerTitle(),
                 category.getCreatedAt(), category.getUpdatedAt());
     }
