@@ -40,7 +40,7 @@ public class UserRoleSchemaWriteCallback implements BeforeSaveCallback<User> {
             putMissing(document, "panCard");
             putMissing(document, "aadhaarCard");
             putMissing(document, "agreement");
-            document.remove("shopImage");
+            putMissing(document, "shopImage");
             document.remove("kycStatus");
             document.remove("isKycComplete");
             document.remove("shippingAddresses");
