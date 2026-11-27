@@ -202,6 +202,21 @@ public class GcsImageStorageService {
         }
     }
 
+    public String uploadSellerLogo(byte[] imageBytes, String extension, String contentType) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw badRequest("Logo image data is empty");
+        }
+        String normalizedExtension = extension == null ? "png" : extension.toLowerCase(Locale.ROOT);
+        String objectName = "Sellers/logos/" + UUID.randomUUID() + "." + normalizedExtension;
+        try {
+            BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, objectName).setContentType(contentType).build();
+            storage.create(blobInfo, imageBytes, Storage.BlobTargetOption.doesNotExist());
+            return "https://storage.googleapis.com/" + bucketName + "/" + objectName;
+        } catch (Exception ex) {
+            return "data:" + contentType + ";base64," + java.util.Base64.getEncoder().encodeToString(imageBytes);
+        }
+    }
+
     public String createCollectionImageReadUrl(String collectionId, String storageUri) {
         if (storageUri == null || storageUri.isBlank()) return null;
         if (storageUri.startsWith("data:") || storageUri.startsWith("http://") || storageUri.startsWith("https://")) {

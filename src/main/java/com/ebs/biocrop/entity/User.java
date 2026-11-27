@@ -30,6 +30,7 @@ public class User {
     private String firstName;
     private String lastName;
     private String shopName;
+    private String shopImage;
     /** Stable, system-assigned readable code used as the seller prefix in product SKUs. */
     private String sellerCode;
     /** Atomic per-seller counter used to issue stable seller product codes. */
@@ -321,6 +322,9 @@ public class User {
 
     public String getAgreement() { return agreement; }
     public void setAgreement(String agreement) { this.agreement = agreement; }
+
+    public String getShopImage() { return shopImage; }
+    public void setShopImage(String shopImage) { this.shopImage = shopImage; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

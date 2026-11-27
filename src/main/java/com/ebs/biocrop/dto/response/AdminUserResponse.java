@@ -14,6 +14,7 @@ public record AdminUserResponse(String id, String phoneNumber, String email, Str
         String shopName, String sellerCode, String role, Address address, Boolean isVerified, Boolean isProfileComplete,
         String gstNumber, String panNumber, String licenceNo,
         List<String> licenceImage, String gstCertificate, String panCard, String aadhaarCard, String agreement,
+        String shopImage,
         List<Address> shippingAddresses, List<Address> warehouseAddresses, Boolean isBlocked, Boolean isDeleted,
         LocalDateTime createdAt, LocalDateTime updatedAt,
         String status, String notes, List<String> notesHistory,
@@ -30,7 +31,7 @@ public record AdminUserResponse(String id, String phoneNumber, String email, Str
             List<String> notesHistory, Integer monthlyTarget, String preferredLanguage,
             Long productCodeSequence, Long orderNumberSequence) {
         this(id, phoneNumber, email, null, null, null, firstName, lastName, shopName, null, role, address, isVerified,
-                isProfileComplete, gstNumber, panNumber, licenceNo, null, null, null, null, null,
+                isProfileComplete, gstNumber, panNumber, licenceNo, null, null, null, null, null, null,
                 shippingAddresses, warehouseAddresses, isBlocked, isDeleted, createdAt, updatedAt, status, notes,
                 notesHistory, monthlyTarget, preferredLanguage, productCodeSequence, orderNumberSequence,
                 null, null, null, null, null, null);
@@ -51,6 +52,7 @@ public record AdminUserResponse(String id, String phoneNumber, String email, Str
                 seller ? u.getPanCard() : null,
                 seller ? u.getAadhaarCard() : null,
                 seller ? u.getAgreement() : null,
+                seller ? u.getShopImage() : null,
                 seller ? List.of() : (u.getShippingAddresses() == null ? List.of() : List.copyOf(u.getShippingAddresses())),
                 seller ? (u.getWarehouseAddresses() == null ? List.of() : List.copyOf(u.getWarehouseAddresses())) : List.of(),
                 u.getIsBlocked(), u.getIsDeleted(), u.getCreatedAt(), u.getUpdatedAt(),

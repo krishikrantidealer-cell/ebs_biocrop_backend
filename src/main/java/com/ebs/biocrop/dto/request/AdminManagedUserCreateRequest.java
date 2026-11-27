@@ -23,6 +23,7 @@ public class AdminManagedUserCreateRequest {
     @Size(max = 50) private String firstName;
     @Size(max = 50) private String lastName;
     @Size(max = 120) private String shopName;
+    @Size(max = 2048) private String shopImage;
     @Valid private Address address;
     @Valid private List<Address> shippingAddresses;
     @Valid private List<Address> warehouseAddresses;
@@ -60,6 +61,8 @@ public class AdminManagedUserCreateRequest {
     public void setLastName(String value) { lastName = trim(value); }
     public String getShopName() { return shopName; }
     public void setShopName(String value) { shopName = trim(value); }
+    public String getShopImage() { return shopImage; }
+    public void setShopImage(String value) { shopImage = trim(value); }
     public Address getAddress() { return address; }
     public void setAddress(Address value) { address = value; }
     public List<Address> getShippingAddresses() { return shippingAddresses; }

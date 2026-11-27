@@ -20,13 +20,17 @@ import com.ebs.biocrop.dto.response.UserRoleAssignmentResponse;
 import com.ebs.biocrop.entity.enums.UserRole;
 import com.ebs.biocrop.security.user.CustomUserDetails;
 import com.ebs.biocrop.service.AdminUserService;
+import com.ebs.biocrop.service.GcsImageStorageService;
 import com.ebs.biocrop.service.RateLimitGuard;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,10 +46,43 @@ import java.time.Duration;
 public class AdminUserController {
     private final AdminUserService adminUsers;
     private final RateLimitGuard rateLimitGuard;
+    @Autowired(required = false)
+    private GcsImageStorageService imageStorage;
 
     public AdminUserController(AdminUserService adminUsers, RateLimitGuard rateLimitGuard) {
         this.adminUsers = adminUsers;
         this.rateLimitGuard = rateLimitGuard;
+    }
+
+    @PostMapping(value = "/sellers/upload-logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a seller shop logo image returning public URL")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadSellerLogo(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @RequestPart("file") MultipartFile file) {
+        rateLimitGuard.enforce("admin-user-write", admin.getId(), 30, Duration.ofMinutes(1));
+        if (imageStorage == null) {
+            throw new AppException("Image storage service is unavailable", HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        if (file == null || file.isEmpty()) {
+            throw new AppException("A logo image file is required", HttpStatus.BAD_REQUEST);
+        }
+        if (file.getSize() > 5L * 1024 * 1024) {
+            throw new AppException("Logo image must be 5 MB or smaller", HttpStatus.BAD_REQUEST);
+        }
+        String contentType = file.getContentType() != null ? file.getContentType() : "image/png";
+        if (!contentType.startsWith("image/")) {
+            throw new AppException("Only image files (PNG, JPEG, WEBP) are allowed for seller logo", HttpStatus.BAD_REQUEST);
+        }
+        String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "logo.png";
+        String ext = original.contains(".") ? original.substring(original.lastIndexOf('.') + 1) : "png";
+        try {
+            String url = imageStorage.uploadSellerLogo(file.getBytes(), ext, contentType);
+            return ResponseEntity.ok(ApiResponse.ok(
+                    "Seller logo uploaded successfully",
+                    java.util.Map.of("url", url, "imageUrl", url, "shopImage", url)));
+        } catch (java.io.IOException e) {
+            throw new AppException("Could not read uploaded logo file", HttpStatus.BAD_REQUEST);
+        }
     }
 
     @PostMapping("/customers")

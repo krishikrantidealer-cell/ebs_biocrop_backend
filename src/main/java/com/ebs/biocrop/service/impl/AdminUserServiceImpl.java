@@ -133,6 +133,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         if (role == UserRole.ROLE_SELLER) {
             user.setShopName(request.getShopName());
+            user.setShopImage(request.getShopImage());
             user.setGstNumber(request.getGstNumber());
             user.setPanNumber(request.getPanNumber());
             user.setLicenceNo(request.getLicenceNo());
@@ -216,6 +217,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         Double priorCommission = user.getCommissionPercentage();
         if (user.getRole() == UserRole.ROLE_SELLER) {
             if (replace || request.getShopName() != null) user.setShopName(request.getShopName());
+            if (replace || request.getShopImage() != null) user.setShopImage(request.getShopImage());
             if (replace || request.getGstNumber() != null) user.setGstNumber(request.getGstNumber());
             if (replace || request.getPanNumber() != null) user.setPanNumber(request.getPanNumber());
             if (replace || request.getLicenceNo() != null) user.setLicenceNo(request.getLicenceNo());
