@@ -44,7 +44,7 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/admin/collections")
-@PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE')")
+@PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE', 'MARKETING_VIEW', 'MARKETING_MANAGE')")
 @Tag(name = "Admin collections", description = "Admin-only merchandising collection management.")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminProductCollectionController {
@@ -179,7 +179,7 @@ public class AdminProductCollectionController {
     public record SubCollectionReorderRequest(List<String> orderedIds) {}
 
     @PutMapping("/{collectionId}/subcollections/reorder")
-    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
+    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
     @Operation(summary = "Reorder sub-collections within a collection and broadcast live update")
     public ResponseEntity<ApiResponse<CollectionResponse>> reorderSubCollections(
             @AuthenticationPrincipal CustomUserDetails admin,

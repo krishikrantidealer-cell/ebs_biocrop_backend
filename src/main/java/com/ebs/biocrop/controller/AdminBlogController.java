@@ -30,7 +30,7 @@ import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/admin/blogs")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@permissionGuard.hasAny(authentication, 'MARKETING_VIEW', 'MARKETING_MANAGE')")
 @Tag(name = "Admin blogs", description = "Admin blog publishing and moderation APIs.")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminBlogController {

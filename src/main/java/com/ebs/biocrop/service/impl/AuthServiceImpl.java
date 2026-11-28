@@ -277,7 +277,8 @@ public class AuthServiceImpl implements AuthService {
     private boolean isPrivileged(User user) {
         return user.getRole() == UserRole.ROLE_ADMIN
                 || user.getRole() == UserRole.ROLE_SELLER
-                || user.getRole() == UserRole.ROLE_SALES_AGENT;
+                || user.getRole() == UserRole.ROLE_SALES_AGENT
+                || user.getRole() == UserRole.ROLE_MARKETING;
     }
 
     private void ensurePrivilegedLoginAllowed(User user) {

@@ -28,6 +28,31 @@ public class PermissionGuard {
             "ORDERS_MANAGE"
     );
 
+    public static final Set<String> ALL_MARKETING_PERMISSIONS = Set.of(
+            "MARKETING_VIEW",
+            "MARKETING_MANAGE",
+            "ENGAGEMENT_VIEW",
+            "ENGAGEMENT_MANAGE",
+            "CATALOG_VIEW",
+            "CATALOG_MANAGE"
+    );
+
+    public static final Set<String> ALL_STAFF_PERMISSIONS = Set.of(
+            "DASHBOARD_VIEW",
+            "CATALOG_VIEW",
+            "CATALOG_MANAGE",
+            "USERS_SELLERS_VIEW",
+            "USERS_CUSTOMERS_VIEW",
+            "USERS_CUSTOMERS_MANAGE",
+            "ORDERS_VIEW",
+            "ORDERS_CREATE",
+            "ORDERS_MANAGE",
+            "MARKETING_VIEW",
+            "MARKETING_MANAGE",
+            "ENGAGEMENT_VIEW",
+            "ENGAGEMENT_MANAGE"
+    );
+
     private final UserRepository userRepository;
 
     public PermissionGuard(UserRepository userRepository) {
@@ -43,9 +68,10 @@ public class PermissionGuard {
         if (isAdmin) {
             return true;
         }
-        boolean isSalesAgent = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_SALES_AGENT".equals(a.getAuthority()));
-        if (!isSalesAgent) {
+        boolean isStaff = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SALES_AGENT".equals(a.getAuthority())
+                        || "ROLE_MARKETING".equals(a.getAuthority()));
+        if (!isStaff) {
             return false;
         }
         Object principal = authentication.getPrincipal();
@@ -53,7 +79,8 @@ public class PermissionGuard {
             return false;
         }
         User user = userRepository.findById(details.getId()).orElse(null);
-        if (user == null || user.getRole() != UserRole.ROLE_SALES_AGENT
+        if (user == null
+                || (user.getRole() != UserRole.ROLE_SALES_AGENT && user.getRole() != UserRole.ROLE_MARKETING)
                 || Boolean.TRUE.equals(user.getIsDeleted())
                 || Boolean.TRUE.equals(user.getIsBlocked())
                 || !"ACTIVE".equalsIgnoreCase(user.getStatus())) {
