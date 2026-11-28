@@ -6,7 +6,6 @@ public enum UserRole {
     ROLE_CUSTOMER("customer"),
     ROLE_SELLER("seller"),
     ROLE_SALES_AGENT("sales_agent"),
-    ROLE_MARKETING("marketing"),
     ROLE_ADMIN("admin");
 
     private final String value;

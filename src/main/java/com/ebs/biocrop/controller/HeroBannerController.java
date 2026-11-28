@@ -67,7 +67,7 @@ public class HeroBannerController {
     }
 
     @GetMapping("/api/v1/admin/banners")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE', 'MARKETING_VIEW', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_VIEW', 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "List all hero banners for Admin / Catalog Managers")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listAdminBanners() {
@@ -81,7 +81,7 @@ public class HeroBannerController {
     }
 
     @PostMapping("/api/v1/admin/banners")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Create a hero banner")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createBanner(
@@ -98,7 +98,7 @@ public class HeroBannerController {
     }
 
     @PutMapping("/api/v1/admin/banners/reorder")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Atomically reorder hero banners and broadcast live update")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> reorderBanners(
@@ -143,7 +143,7 @@ public class HeroBannerController {
     }
 
     @PutMapping("/api/v1/admin/banners/{bannerId}")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Update a hero banner")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateBanner(
@@ -159,7 +159,7 @@ public class HeroBannerController {
     }
 
     @PostMapping(value = "/api/v1/admin/banners/{bannerId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Upload/replace hero banner image")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadBannerImage(
@@ -195,7 +195,7 @@ public class HeroBannerController {
     }
 
     @PatchMapping("/api/v1/admin/banners/{bannerId}/toggle")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Toggle hero banner active status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> toggleBanner(@PathVariable String bannerId) {
@@ -209,7 +209,7 @@ public class HeroBannerController {
     }
 
     @DeleteMapping("/api/v1/admin/banners/{bannerId}")
-    @PreAuthorize("@permissionGuard.hasAny(authentication, 'CATALOG_MANAGE', 'MARKETING_MANAGE')")
+    @PreAuthorize("@permissionGuard.has(authentication, 'CATALOG_MANAGE')")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Delete a hero banner")
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteBanner(@PathVariable String bannerId) {

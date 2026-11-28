@@ -54,15 +54,10 @@ public class AdminSalesAgentController {
     }
 
     @GetMapping
-    @Operation(summary = "List all staff accounts (Sales Agents & Marketing Managers) and available RBAC permissions")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> listSalesAgents(
-            @RequestParam(name = "role", required = false) String roleFilter) {
-        List<String> targetRoles = (roleFilter != null && !roleFilter.isBlank())
-                ? List.of(UserRole.fromString(roleFilter).name())
-                : List.of(UserRole.ROLE_SALES_AGENT.name(), UserRole.ROLE_MARKETING.name());
-
+    @Operation(summary = "List all sales agents and available RBAC permissions")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> listSalesAgents() {
         List<User> agents = mongoTemplate.find(
-                Query.query(Criteria.where("role").in(targetRoles)
+                Query.query(Criteria.where("role").is(UserRole.ROLE_SALES_AGENT.name())
                         .and("isDeleted").ne(true)),
                 User.class);
         agents.sort(Comparator.comparing(User::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
@@ -73,14 +68,12 @@ public class AdminSalesAgentController {
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("agents", items);
-        data.put("availablePermissions", PermissionGuard.ALL_STAFF_PERMISSIONS);
-        data.put("salesPermissions", PermissionGuard.ALL_SALES_PERMISSIONS);
-        data.put("marketingPermissions", PermissionGuard.ALL_MARKETING_PERMISSIONS);
-        return ResponseEntity.ok(ApiResponse.ok("Staff accounts retrieved", data));
+        data.put("availablePermissions", PermissionGuard.ALL_SALES_PERMISSIONS);
+        return ResponseEntity.ok(ApiResponse.ok("Sales agents retrieved", data));
     }
 
     @PostMapping
-    @Operation(summary = "Create a new staff account (Sales Agent or Marketing) with email/password and permissions")
+    @Operation(summary = "Create a new sales agent with email/password and permissions")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createSalesAgent(
             @Valid @RequestBody CreateSalesAgentRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
@@ -96,39 +89,22 @@ public class AdminSalesAgentController {
             phone = generateUniqueSyntheticPhone();
         }
 
-        UserRole targetRole = (request.role() != null && !request.role().isBlank())
-                ? UserRole.fromString(request.role())
-                : UserRole.ROLE_SALES_AGENT;
-        if (targetRole != UserRole.ROLE_SALES_AGENT && targetRole != UserRole.ROLE_MARKETING) {
-            targetRole = UserRole.ROLE_SALES_AGENT;
-        }
-
         String rawPassword = request.password() != null && !request.password().isBlank()
                 ? request.password().trim()
                 : generateRandomPassword(10);
 
-        User agent = new User(phone, targetRole);
+        User agent = new User(phone, UserRole.ROLE_SALES_AGENT);
         agent.setEmail(email);
         agent.setFirstName(request.firstName().trim());
         agent.setLastName(request.lastName() == null ? "" : request.lastName().trim());
         agent.setPasswordHash(passwordEncoder.encode(rawPassword));
-        Set<String> perms = sanitizePermissions(request.permissions());
-        if (perms.isEmpty() && targetRole == UserRole.ROLE_MARKETING) {
-            perms = new LinkedHashSet<>(Set.of(
-                    "MARKETING_VIEW",
-                    "MARKETING_MANAGE",
-                    "ENGAGEMENT_VIEW",
-                    "ENGAGEMENT_MANAGE",
-                    "CATALOG_VIEW"
-            ));
-        }
-        agent.setPermissions(perms);
+        agent.setPermissions(sanitizePermissions(request.permissions()));
         agent.setCreatedAt(LocalDateTime.now());
         agent.setUpdatedAt(LocalDateTime.now());
 
         User saved = userRepository.save(agent);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("Staff account created", toAgentDto(saved, rawPassword)));
+                .body(ApiResponse.ok("Sales agent created", toAgentDto(saved, rawPassword)));
     }
 
     @PatchMapping("/{id}/permissions")
@@ -216,10 +192,9 @@ public class AdminSalesAgentController {
 
     private User requireSalesAgent(String id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff Account", "id", id));
-        if ((user.getRole() != UserRole.ROLE_SALES_AGENT && user.getRole() != UserRole.ROLE_MARKETING)
-                || Boolean.TRUE.equals(user.getIsDeleted())) {
-            throw new ResourceNotFoundException("Staff Account", "id", id);
+                .orElseThrow(() -> new ResourceNotFoundException("Sales Agent", "id", id));
+        if (user.getRole() != UserRole.ROLE_SALES_AGENT || Boolean.TRUE.equals(user.getIsDeleted())) {
+            throw new ResourceNotFoundException("Sales Agent", "id", id);
         }
         return user;
     }
@@ -232,7 +207,7 @@ public class AdminSalesAgentController {
         for (String item : raw) {
             if (item == null) continue;
             String normalized = item.trim().toUpperCase(Locale.ROOT);
-            if (PermissionGuard.ALL_STAFF_PERMISSIONS.contains(normalized)) {
+            if (PermissionGuard.ALL_SALES_PERMISSIONS.contains(normalized)) {
                 clean.add(normalized);
             }
         }
@@ -283,7 +258,6 @@ public class AdminSalesAgentController {
             @NotBlank @Email String email,
             String phoneNumber,
             String password,
-            String role,
             Set<String> permissions
     ) {}
 

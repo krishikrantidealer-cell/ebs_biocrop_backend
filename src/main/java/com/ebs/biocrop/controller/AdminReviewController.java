@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/reviews")
-@PreAuthorize("@permissionGuard.hasAny(authentication, 'ENGAGEMENT_VIEW', 'ENGAGEMENT_MANAGE')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Reviews", description = "Admin product review management and permanent moderation")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminReviewController {
